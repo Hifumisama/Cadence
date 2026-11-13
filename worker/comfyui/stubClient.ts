@@ -1,11 +1,7 @@
 import { writeFile } from "node:fs/promises";
 import type { EtatDansLaFile } from "../../lib/tasks/cancellation";
 import type { ComfyUIClient, EvenementSuivi, PollResult, Suivi } from "./types";
-import { mp3Factice } from "./stubAudio";
 import { pngFactice } from "./stubPng";
-
-/** An `ftyp` box: enough to have a recognizable .mp4 file, not a video that plays. */
-const mp4Factice = () => Buffer.from("00000018667479706d70343200000000" + "6d70343269736f6d", "hex");
 
 /**
  * Fake client — lets you develop and test the whole chain (queue,
@@ -25,12 +21,10 @@ export class StubComfyUIClient implements ComfyUIClient {
   }
 
   async submitGraph(graphe?: Record<string, unknown>): Promise<string> {
-    // A graph that saves audio (SaveAudioMP3) yields a fake sound.
+    // A video graph (VHS_VideoCombine) yields a fake video file.
     const classes = Object.values(graphe ?? {}).map((n) => (n as { class_type?: string }).class_type ?? "");
-    const audio = classes.some((c) => c === "SaveAudioMP3" || c === "SaveAudio" || c === "SaveAudioAdvanced");
-    // A video graph (voice video test: VHS_VideoCombine) yields a fake video file.
     const video = classes.includes("VHS_VideoCombine");
-    const promptId = `stub-${audio ? "aud" : video ? "vid" : "img"}-${Date.now()}`;
+    const promptId = `stub-${video ? "vid" : "img"}-${Date.now()}`;
     this.enCours.set(promptId, Date.now());
     return promptId;
   }
@@ -38,7 +32,7 @@ export class StubComfyUIClient implements ComfyUIClient {
   async pollImage(promptId: string): Promise<PollResult> {
     const debut = this.enCours.get(promptId) ?? 0;
     if (Date.now() - debut < 2000) return { statut: "en_cours" };
-    return { statut: "termine", cheminSortieDistant: `stub/${promptId}.${promptId.startsWith("stub-aud-") ? "mp3" : promptId.startsWith("stub-vid-") ? "mp4" : "png"}` };
+    return { statut: "termine", cheminSortieDistant: `stub/${promptId}.${promptId.startsWith("stub-vid-") ? "mp4" : "png"}` };
   }
 
   async pollFin(promptId: string): Promise<PollResult> {
@@ -97,11 +91,6 @@ export class StubComfyUIClient implements ComfyUIClient {
     // (candidates, adoption, preview) can be tested without ComfyUI.
     if (cheminLocalCible?.toLowerCase().endsWith(".png")) {
       await writeFile(cheminLocalCible, pngFactice());
-    } else if (cheminLocalCible?.toLowerCase().endsWith(".mp3")) {
-      await writeFile(cheminLocalCible, mp3Factice());
-    } else if (cheminLocalCible?.toLowerCase().endsWith(".mp4") && /[\\/]generations[\\/]/.test(cheminLocalCible)) {
-      // A video test candidate must exist on disk to be adopted (clip renders, on the other hand, stay without a file).
-      await writeFile(cheminLocalCible, mp4Factice());
     }
   }
 }

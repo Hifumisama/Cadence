@@ -15,8 +15,6 @@ export type LigneRegistre = {
   description: string | null;
   /** Number of clips that cite this asset (0 = « sans plan »). */
   nbPlans: number;
-  /** Character only: its fixed voice (master), `null` = no fixed voice; `undefined` for any other type. */
-  voix?: { code: string } | null;
   kind: MediaKind;
   etat: FichierEtat;
   src: string | null;

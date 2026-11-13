@@ -128,12 +128,8 @@ copier les deux fichiers et passer le nom dans `CADENCE_PROFIL`.
 
 ## Ce qui n'est pas vérifié
 
-- **Le master de voix sur Singularity** : `VID_Create_Voice_Master.json` utilisait l'autre modèle H3 (celui qui n'est
-  plus téléchargé, 20 Go de moins) ; il charge maintenant Singularity, comme les trois autres workflows vidéo. Changement
-  de nom de fichier seulement (aucun nœud touché, les tests passent), mais **jamais lancé en réel** : à valider au premier master de voix.
-- **L'emplacement de MelBand** : le pack de voix le range sous `models/TTS/MELBAND/` d'après son code ; confirmé par `gpu:verifier`.
 - **Les adresses du manifeste** répondent toutes (vérifié le 2026-11-03), mais certaines pointent des dépôts de
-  tiers (Singularity, MelBand, LoRA Lightning, upscaler, TAE) : un dépôt retiré ou renommé fera échouer le
+  tiers (Singularity, LoRA Lightning, upscaler, TAE) : un dépôt retiré ou renommé fera échouer le
   téléchargement de ce fichier.
 
 - **Les nodes custom** : la liste (`custom-nodes.txt`) a été confirmée dépôt par dépôt, mais pas relevée sur le PC

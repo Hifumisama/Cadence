@@ -9,7 +9,6 @@ import { and, eq, gte, isNotNull, isNull, ne, or, inArray } from "drizzle-orm";
 import { versRunLot } from "../agents/batches";
 import { etatLotPourHeader } from "../agents/batches-pure";
 import { ERREUR_ANNULEE } from "./cancellation";
-import { METHODE_MASTER_VOIX } from "../assets/asset-generation";
 import { generationMediaSrc } from "../media";
 import { cibleDeCodeAffiche } from "../posters/posters";
 import {
@@ -158,15 +157,9 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
     cle: cleImage(g.uuid),
     genre: "image",
     statut: g.statut,
-    libelle: g.methode === METHODE_MASTER_VOIX ? `Voix · ${code}` : affiche ? `Affiche · ${affiche.cible === "projects" ? "projet" : "épisode"}` : code,
-    detail:
-      g.methode === METHODE_MASTER_VOIX
-        ? "Master de voix"
-        : g.methode === "edition"
-          ? "À partir d'images"
-          : "À partir du texte",
-    // A voice's master is found in the « Voix » block of the character's sheet.
-    href: g.methode === METHODE_MASTER_VOIX ? `/p/${projectId}/assets/${code}?generation=${g.uuid}#as-voix` : affiche ? `/p/${projectId}/affiche/${code}?generation=${g.uuid}` : `/p/${projectId}/assets/${code}?generation=${g.uuid}`,
+    libelle: affiche ? `Affiche · ${affiche.cible === "projects" ? "projet" : "épisode"}` : code,
+    detail: g.methode === "edition" ? "À partir d'images" : "À partir du texte",
+    href: affiche ? `/p/${projectId}/affiche/${code}?generation=${g.uuid}` : `/p/${projectId}/assets/${code}?generation=${g.uuid}`,
     projectId,
     assetId: g.assetId,
     progression:
@@ -387,7 +380,6 @@ export async function listerTaches(maintenant: Date = new Date()): Promise<{ tac
   const taches = gardees.map((x) => {
     const g = parCle.get(x.cle);
     if (!g) return x;
-    if (g.methode === METHODE_MASTER_VOIX) return x; // a voice (and its test video) has neither thumbnail nor preview
     if (g.statut === "termine") return { ...x, vignetteSrc: generationMediaSrc(g.assetId, g.fichier) };
     if (g.statut === "en_cours" && g.apercuAt) {
       const url = generationMediaSrc(g.assetId, g.apercuFichier);

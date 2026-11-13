@@ -1,5 +1,5 @@
 import { libelleAsset, slugifyCode } from "../assets/assetCode";
-import { LANGUE_AUTO } from "../voice/languages-tts";
+import { LANGUE_AUTO } from "./engine-language";
 import { MAX_REFS_AUDIO, MAX_REFS_VISUELLES } from "../clips/clip-continuity";
 import { SHOT_MIN_FICHE_SECONDES } from "../clips/clip-checks";
 import { estCreativite, estProfilPerso, STYLE_AUCUN, type Creativite } from "./settings";
@@ -79,7 +79,7 @@ export type ReferenceEntree = {
 export type EntreeBrief = {
   plan: { description: string; dureeSecondes: number; seed: string | null };
   scene: { titre: string; ambiance: string | null } | null;
-  /** Language of the dialogues in the engine's sense (« French »…, « Auto »), see lib/voice/language-dialogues.ts. */
+  /** Language of the dialogues in the engine's sense (« French »…, « Auto »), see lib/h3ir/dialogue-language.ts. */
   langueDialogues: string;
   /** Codes of the characters whose brief says « voix off » (thoughts): `codesEnVoixOff`, lib/agents/conversion.ts. */
   codesVoixOff: string[];

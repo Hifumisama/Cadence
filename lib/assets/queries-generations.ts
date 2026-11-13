@@ -2,7 +2,6 @@ import { db } from "../../db";
 import { assetGenerationSources, assetGenerations, assets } from "../../db/schema";
 import { and, asc, desc, eq, inArray, isNotNull, ne } from "drizzle-orm";
 import { horsAffiches } from "./assets-visible";
-import { METHODE_MASTER_VOIX, videoDeMaster } from "./asset-generation";
 import { estImage, fichierMediaExiste, generationMediaSrc, sourceImportMediaSrc, urlAssetMedia } from "../media";
 
 /** An image from the registry that can be offered as a source of a « à partir
@@ -85,15 +84,9 @@ export async function getGenerationsAsset(assetId: number) {
     methode: g.methode,
     aspect: g.aspect,
     megapixels: g.megapixels,
-    /** Requested duration (audio generation), null for an image. */
-    dureeSecondes: g.dureeSecondes,
-    /** Voice master: the test line, null otherwise. */
-    texteReference: g.texteReference,
     erreur: g.erreur,
     annulationDemandee: g.annulationDemandeeAt != null && g.statut === "en_cours",
     src: g.statut === "termine" ? generationMediaSrc(assetId, g.fichier) : null,
-    /** Voice master: the test video that produced the audio (alongside it), null otherwise or if it could not be retrieved. */
-    videoSrc: g.statut === "termine" && g.methode === METHODE_MASTER_VOIX && g.fichier ? generationMediaSrc(assetId, videoDeMaster(g.fichier)) : null,
     // Progress relayed by the worker, as long as the request is in progress. The preview
     // is a file overwritten at each step: `apercuAt` makes it a fresh URL.
     progression:

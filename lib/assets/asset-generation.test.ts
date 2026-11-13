@@ -9,7 +9,6 @@ import {
   formatParDefaut,
   nomSourceDistante,
   nouvelleSeed,
-  formaterDuree,
   raisonDemandeInvalide,
   type DemandeGeneration,
 } from "./asset-generation";
@@ -53,12 +52,6 @@ test("demande : mode images, de 1 à 3 sources sans doublon", () => {
   assert.match(raisonDemandeInvalide({ ...images, sources: [{ origine: "web" } as never] }) ?? "", /inconnue/);
 });
 
-test("durée affichée : décimale à la française", () => {
-  assert.equal(formaterDuree(4), "4 s");
-  assert.equal(formaterDuree(2.5), "2,5 s");
-  assert.equal(formaterDuree(2.449), "2,4 s");
-});
-
 test("nom de source côté ComfyUI : unique par génération et par rang", () => {
   assert.equal(nomSourceDistante("abc", 2, ".png"), "cadence_abc_2.png");
   assert.notEqual(nomSourceDistante("abc", 1, ".png"), nomSourceDistante("abc", 2, ".png"));
@@ -67,15 +60,6 @@ test("nom de source côté ComfyUI : unique par génération et par rang", () =>
 test("seed : entier positif sûr", () => {
   const s = Number(nouvelleSeed());
   assert.ok(Number.isSafeInteger(s) && s >= 0);
-});
-
-test("master de voix : paramètres, vidéo à côté de l'audio", async () => {
-  const g = await import("./asset-generation");
-  assert.deepEqual(g.parametresMasterVoix({ personnage: "assets/CHAR_maya.png" }), { personnage: "assets/CHAR_maya.png" });
-  assert.deepEqual(g.parametresMasterVoix({ personnage: " " }), { personnage: null });
-  assert.equal(g.parametresMasterVoix(null), null);
-  assert.equal(g.videoDeMaster("abc-123.mp3"), "abc-123.mp4");
-  assert.equal(g.videoDeMaster("sans-extension"), "sans-extension.mp4");
 });
 
 test("méthode d'un essai : sans image de base Krea 2 (génération), avec image Qwen Image Edit (édition)", () => {

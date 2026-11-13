@@ -33,7 +33,7 @@ type PropsCommunes = {
 /** Registry card: a 16:9 thumbnail (the full image, never cropped), the status as a badge on the image, the
  * code below. Stays a link (a click opens the sheet); the long press, handled by the registry, selects it. */
 export function AssetCard({ ligne, href, choisi, vient, onActiver }: PropsCommunes) {
-  const { code, libelle, type, statut, critique, description, nbPlans, voix, kind, etat, src, fichier } = ligne;
+  const { code, libelle, type, statut, critique, description, nbPlans, kind, etat, src, fichier } = ligne;
   const zoneRef = useRef<HTMLDivElement>(null);
   const mediaRef = useRef<HTMLVideoElement & HTMLAudioElement>(null);
   const [visible, setVisible] = useState(false);
@@ -154,11 +154,6 @@ export function AssetCard({ ligne, href, choisi, vient, onActiver }: PropsCommun
           <i />
           {LIBELLE_STATUT[statut]}
         </span>
-        {voix !== undefined ? (
-          <span className={`as-voix-pastille${voix ? "" : " is-sans"}`} title={voix ? "Voix fixée (master)" : "Pas de voix fixée : le modèle invente celle du personnage"}>
-            <Icone nom="musique" taille={14} />
-          </span>
-        ) : null}
         <span className="as-coche" role="checkbox" aria-checked={choisi} aria-label={`Sélectionner ${libelle}`} title="Sélectionner (Maj+clic : une plage)">
           <Icone nom="valide" taille={15} strokeWidth={3} />
         </span>
@@ -186,7 +181,7 @@ export function AssetCard({ ligne, href, choisi, vient, onActiver }: PropsCommun
 
 /** A row of the list view: same information, denser, and the same selection. */
 export function LigneAsset({ ligne, href, choisi, vient, onActiver }: PropsCommunes) {
-  const { code, libelle, type, statut, critique, description, nbPlans, voix, etat, src, kind } = ligne;
+  const { code, libelle, type, statut, critique, description, nbPlans, etat, src, kind } = ligne;
   return (
     <Link
       href={href}
@@ -214,9 +209,6 @@ export function LigneAsset({ ligne, href, choisi, vient, onActiver }: PropsCommu
         {LIBELLE_STATUT[statut]}
       </span>
       <span className="num as-cache-s">{libellePlans(nbPlans)}</span>
-      <span className="as-cache-s" style={{ color: voix ? "var(--or-glow)" : "var(--ink-4)" }}>
-        {voix !== undefined ? <Icone nom="musique" taille={14} /> : null}
-      </span>
       <span className="as-onde" aria-hidden="true" />
     </Link>
   );

@@ -91,38 +91,6 @@ export function formatParDefaut(type: string): { aspect: Aspect; megapixels: num
   return { aspect: "1:1", megapixels: 1 };
 }
 
-// ---------------------------------------------------------------------------
-// Voice master of a character (voice/master work, 2026-10-14): an H3 test video, from which the voice is kept. An extra method for
-// `asset_generations`, on the character asset; the result is a candidate, « Utiliser comme master » adopts it.
-// ---------------------------------------------------------------------------
-
-/** Voice master of a CHARACTER (2026-10-14): the H3 test video (no audio supplied, the model invents the voice from the prompt),
- * with in addition the cleaned voice (dedicated workflow). The generation's file is the AUDIO; the video is alongside (`videoDeMaster`).
- * `assetId` is the character. */
-export const METHODE_MASTER_VOIX = "master_voix";
-
-
-/** Duration of a master's test video: a line of dialogue facing the camera fits in eight seconds (prompt T1, lib/voice/voice.ts:promptMasterVoix). */
-export const DUREE_TEST_VIDEO_SECONDES = 8;
-
-/** What a master's generation freezes at launch: the character's image (path relative to MEDIA_ROOT, null for a voice-over without a
- * face). */
-export type ParametresMasterVoix = { personnage: string | null };
-
-export function parametresMasterVoix(v: unknown): ParametresMasterVoix | null {
-  if (typeof v !== "object" || v === null) return null;
-  const p = (v as Record<string, unknown>).personnage;
-  return { personnage: typeof p === "string" && p.trim() !== "" ? p : null };
-}
-
-/** The test video of a master lives alongside its audio, under the same name (`<uuid>.mp4`): nothing to memorise, nothing orphaned at purge. */
-export const videoDeMaster = (fichierAudio: string): string => fichierAudio.replace(/\.[^./\\]+$/, "") + ".mp4";
-
-/** « 4 s », « 2,5 s »: duration of a sound for display. */
-export function formaterDuree(secondes: number): string {
-  return `${String(Math.round(secondes * 10) / 10).replace(".", ",")} s`;
-}
-
 const MEGAPIXELS_MIN = 0.3;
 const MEGAPIXELS_MAX = 4;
 

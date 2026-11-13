@@ -59,7 +59,6 @@ export default async function AssetsPage({
         critique: a.critique,
         description: a.description,
         nbPlans: a.nbPlans,
-        voix: a.type === "personnage" ? (a.voixMaster ? { code: "voix fixée" } : null) : undefined,
         kind,
         etat,
         src,
@@ -90,7 +89,7 @@ export default async function AssetsPage({
               Registre unique pour tout le projet
             </p>
             <h1>Assets</h1>
-            <p>Les images de référence du projet. La voix d'un personnage se règle sur sa fiche.</p>
+            <p>Les images de référence du projet.</p>
           </div>
           <div className="actions" style={{ marginLeft: "auto", display: "flex", alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end", gap: 10 }}>
             <AjouterAssetForm projectId={pid} />

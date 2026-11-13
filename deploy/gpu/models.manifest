@@ -5,7 +5,7 @@
 #
 # Taille totale : ~132 Go. Prévoir un volume de 160 Go au minimum.
 
-# ── Vidéo MiniMax H3 (trois étapes + master de voix, qui passe aussi sur Singularity) ─────────────────────
+# ── Vidéo MiniMax H3 (trois étapes) ─────────────────────
 models/diffusion_models/Minimax-h3_Singularity_ref2va_Pruned_v1.3_int8.safetensors | https://huggingface.co/WarmBloodAban/Minimax-h3_Singularity/resolve/main/Minimax-h3_Singularity_ref2va_Pruned_v1.3_int8.safetensors
 models/loras/minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors | https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/loras/minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors
 models/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors | https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors
@@ -25,9 +25,6 @@ models/vae/qwen_image_vae.safetensors | https://huggingface.co/Comfy-Org/Krea-2/
 models/diffusion_models/qwen_image_edit_2511_int8_convrot.safetensors | https://huggingface.co/Comfy-Org/Qwen-Image-Edit/resolve/main/split_files/diffusion_models/qwen_image_edit_2511_int8_convrot.safetensors
 models/loras/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors | https://huggingface.co/lightx2v/Qwen-Image-Edit-2511-Lightning/resolve/main/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
 models/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors | https://huggingface.co/Comfy-Org/Qwen-Image/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors
-
-# ── Master de voix : séparation de la voix (pack TTS-Audio-Suite, rangée sous models/TTS/MELBAND/) ─────────
-models/TTS/MELBAND/MelBandRoformer_fp16.safetensors | https://huggingface.co/Kijai/MelBandRoFormer_comfy/resolve/main/MelBandRoformer_fp16.safetensors
 
 # ── Modèle de langage (dossier llm/, même arborescence que D:\localAI\models) ─────────────────────────────
 llm/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-GGUF/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled.Q4_K_M.gguf | https://huggingface.co/hesamation/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled-GGUF/resolve/main/Qwen3.6-35B-A3B-Claude-4.6-Opus-Reasoning-Distilled.Q4_K_M.gguf

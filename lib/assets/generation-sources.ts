@@ -3,7 +3,6 @@ import { join } from "node:path";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../../db";
 import { assetGenerationSources, assetGenerations } from "../../db/schema";
-import { videoDeMaster } from "./asset-generation";
 import { cheminGenerationMedia, cheminSourceImportMedia } from "../media";
 
 // Cleanup of image generations and their files, shared between the app
@@ -27,8 +26,6 @@ export async function supprimerGenerationEtFichiers(
     .where(and(eq(assetGenerationSources.generationId, gen.id), eq(assetGenerationSources.origine, "import")));
 
   if (gen.fichier) await unlink(join(mediaRoot, cheminGenerationMedia(gen.assetId, gen.fichier))).catch(() => undefined);
-  // The voice master keeps its test video alongside the audio (videoDeMaster); for any other method, this file does not exist.
-  if (gen.fichier) await unlink(join(mediaRoot, cheminGenerationMedia(gen.assetId, videoDeMaster(gen.fichier)))).catch(() => undefined);
   await db.delete(assetGenerations).where(eq(assetGenerations.id, gen.id));
 
   const noms = imports.map((i) => i.fichier);

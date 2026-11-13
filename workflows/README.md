@@ -6,7 +6,6 @@ dépendance d'exécution.
 
 - `video-generation/` — génération H3, 1er pass + upscale (F04)
 - `image-refs/` — Krea 2 (masters) + Qwen Image Edit (dérivés) (F01)
-- `audio/` — master de voix (`VID_Create_Voice_Master.json`)
 
 ## Avant de committer un workflow
 
@@ -108,8 +107,6 @@ Vérifié par `GET /object_info` le 2026-10-02 : `MiniMaxH3ReferenceToVideo` (im
 `length` pas de 17), `LoadAudioUI` (start/end/duration FLOAT, défaut 0), `LoadVideoUI` (16 champs obligatoires),
 `LoadImageCrop`. **Jamais rendu en réel avec ces changements.**
 
-**Master de voix** : le même graphe sert de repli au master d'un personnage (voir « Master de voix » en bas).
-
 ## Suivi en direct (WebSocket)
 
 Le worker écoute `ws(s)://<COMFYUI_URL>/ws?clientId=…` pendant un prompt
@@ -120,21 +117,6 @@ doit être lancé avec `--preview-method auto`) et `execution_success` /
 inspecter les messages réels (par exemple le transport propre du nœud
 `ModelPreviewOverrideKJ`), lancer le worker avec `COMFYUI_WS_DEBUG=1` : le
 journal brut est écrit sous `MEDIA_ROOT/_debug/`.
-
-## Master de voix d'un personnage (`audio/VID_Create_Voice_Master.json`)
-
-Variante du graphe vidéo H3 (`VID_REF2VA.json`) : la voix générée passe par « Noise or Vocal Removal » (MelBand RoFormer) puis « Voice Fixer ».
-Branché côté worker (`worker/images.ts`, méthode `master_voix`). En l'absence du fichier, le worker
-retombe sur `VID_REF2VA.json` (voix non nettoyée).
-
-- **Entrées** : celles de `VID_REF2VA` (injectées par `injecterValeurs`, `worker/comfyui/mapping.ts`) — prompt (`22:11`), seed (`16`), durée
-  (`22:23`), image du personnage en `<Picture 1>` (aucune pour une voix off), **aucun audio de référence** (H3 invente la voix). Le nœud
-  `ImageScaleToTotalPixels` (123, avec son `LoadImage` 123_charge) du fichier est un reste d'essai : les références sont recréées à chaque soumission, ce nœud n'est plus relié au
-  nœud 5 et ne s'exécute pas. Les anciens essais audio/vidéo (`LoadAudioUI`, `LoadVideoUI` et leurs deux `VocalRemovalNode`) ont été retirés du fichier.
-- **Sorties** : la voix nettoyée est enregistrée par le nœud `313` (SaveAudioAdvanced, flac, préfixe imposé par le worker) = le master ; la
-  vidéo de test (voix nettoyée incluse) sort du nœud `18` (VHS_VideoCombine, `save_output` forcé à true par le worker : il est à false dans le
-  fichier). Les ids sont dans `NODE_IDS_MASTER` (`worker/comfyui/masterMapping.ts`). Sans le fichier : repli sur `VID_REF2VA` + extraction ffmpeg.
-- **Chemin** : `COMFYUI_WORKFLOW_MASTER_PATH` (défaut `./workflows/audio/VID_Create_Voice_Master.json`).
 
 ## Contrat de la vidéo en trois étapes (`video-generation/`, 2026-10-30)
 

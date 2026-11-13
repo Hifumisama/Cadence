@@ -240,21 +240,6 @@
   border-color: var(--or-glow);
   box-shadow: 0 0 0 3px rgba(201, 162, 75, 0.2);
 }
-.as-voix-pastille {
-  position: absolute;
-  right: 8px;
-  top: 8px;
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 2px;
-  background: rgba(18, 18, 23, 0.84);
-  color: var(--or-glow);
-}
-.as-voix-pastille.is-sans {
-  color: var(--ink-4);
-}
 .as-crit {
   position: absolute;
   left: 8px;
@@ -363,9 +348,6 @@
 .is-choisi .as-coche {
   opacity: 1;
   transform: none;
-}
-.is-selection .as-voix-pastille {
-  display: none;
 }
 .as-carte.is-choisi,
 .as-ligne.is-choisi {
@@ -513,7 +495,7 @@
 .as-ligne {
   position: relative;
   display: grid;
-  grid-template-columns: 26px 64px minmax(0, 1.6fr) 120px 130px 80px 36px;
+  grid-template-columns: 26px 64px minmax(0, 1.6fr) 120px 130px 80px;
   gap: 14px;
   align-items: center;
   padding: 8px 14px;
@@ -594,7 +576,7 @@
   }
 }
 
-/* ---- États vides, ligne des voix ---- */
+/* ---- États vides ---- */
 .as-vide {
   padding: var(--sp-7) var(--sp-4);
   text-align: center;

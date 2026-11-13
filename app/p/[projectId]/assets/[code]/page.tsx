@@ -4,11 +4,7 @@ import { notFound } from "next/navigation";
 import { getAssetsRegistre, getFirstEpisodeId, getProject } from "@/lib/queries";
 import { AtelierAsset } from "@/components/assets/AssetWorkshop";
 import { EnteteAsset, FicheProvider } from "@/components/assets/AssetSheet";
-import { OngletsAsset, type OngletAsset } from "@/components/assets/AssetTabs";
-import { BlocVoix } from "@/components/voice/VoiceBlock";
-import { getVoixPersonnage } from "@/lib/voice/queries-master-voice";
 import { getAssetsAvecImage, getGenerationsAsset, imageActuelle } from "@/lib/assets/queries-generations";
-import { METHODE_MASTER_VOIX } from "@/lib/assets/asset-generation";
 import { Topbar } from "@/components/ui/Topbar";
 import { delierRef } from "@/app/assets/actions";
 import { libelleAsset } from "@/lib/assets/assetCode";
@@ -18,18 +14,18 @@ import "@/components/assets/fiche-asset-mise-en-page.css";
 
 export const dynamic = "force-dynamic";
 
-/** The sheet of an asset: the header (name, type, state, description, appearances) then TABS, one per thing the asset can do — the image
- * (the workshop: large image, instruction in French, attempt log), a character's voice. Each text is corrected on
+/** The sheet of an asset: the header (name, type, state, description, appearances) then the image workshop (large image,
+ * instruction in French, attempt log). Each text is corrected on
  * click, in place. Mockup: docs/maquettes/fiche-asset.html. */
 export default async function AssetDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ projectId: string; code: string }>;
-  searchParams: Promise<{ generation?: string; onglet?: string }>;
+  searchParams: Promise<{ generation?: string }>;
 }) {
   const { projectId, code } = await params;
-  const { generation: generationBrute, onglet: ongletBrut } = await searchParams;
+  const { generation: generationBrute } = await searchParams;
   const pid = Number(projectId);
   const [projet, tous, premierEpisodeId] = await Promise.all([getProject(pid), getAssetsRegistre(pid), getFirstEpisodeId(pid)]);
   if (!projet) notFound();
@@ -37,9 +33,6 @@ export default async function AssetDetailPage({
   if (!noeud) notFound();
 
   const generations = await getGenerationsAsset(noeud.id);
-  // Voice attempts (test videos) have their own tab: they are not mixed with image attempts.
-  const generationsImages = generations.filter((g) => g.methode !== METHODE_MASTER_VOIX);
-  const voixPerso = noeud.type === "personnage" ? await getVoixPersonnage(pid, noeud.id) : null;
   const blocage = noeud.citations.length > 0 ? "Encore cité par une fiche de plan : délie-le d'abord (pastilles « Apparaît dans »)." : null;
   const episodeBase = premierEpisodeId ? `/p/${pid}/e/${premierEpisodeId}` : `/p/${pid}`;
   const perimes = await getPlansPerimes({ assetId: noeud.id });
@@ -50,54 +43,6 @@ export default async function AssetDetailPage({
   const suivant = rang < tous.length - 1 ? tous[rang + 1] : null;
   const libellesParId = new Map(tous.map((a) => [a.id, libelleAsset(a)]));
   const registreJoignable = (await getAssetsAvecImage(pid, noeud.id)).map((a) => ({ id: a.id, libelle: libellesParId.get(a.id) ?? a.code, src: a.src }));
-
-  // ---- The tabs: one per thing this asset can do ----
-  const onglets: OngletAsset[] = [];
-  const essaisImages = generationsImages.filter((g) => g.methode === "generation" || g.methode === "edition");
-  onglets.push({
-    id: "image",
-    libelle: "Image",
-    icone: "image",
-    compte: essaisImages.length || undefined,
-    contenu: (
-      <AtelierAsset
-        assetId={noeud.id}
-        code={noeud.code}
-        libelle={libelleAsset(noeud)}
-        imageSrc={imageActuelle(noeud)?.src ?? null}
-        fichierAt={noeud.fichierAt ? noeud.fichierAt.getTime() : null}
-        valide={noeud.statut === "valide"}
-        essais={essaisImages}
-        essaiInitial={generationBrute ?? null}
-        description={noeud.description ?? ""}
-        plansRendus={noeud.fichier ? plansRendus : 0}
-        registre={registreJoignable}
-      />
-    ),
-  });
-
-  if (noeud.type === "personnage" && voixPerso) {
-    onglets.push({
-      id: "voix",
-      libelle: "Voix",
-      icone: "son",
-      point: voixPerso.masterSrc != null,
-      contenu: (
-        <BlocVoix
-          personnageId={noeud.id}
-          nom={libelleAsset(noeud)}
-          initial={{ description: voixPerso.description, repliqueBase: voixPerso.repliqueBase }}
-          master={{ src: voixPerso.masterSrc, videoSrc: voixPerso.videoSrc, portraitSrc: voixPerso.portraitSrc }}
-          generations={generations}
-          generationInitiale={generationBrute ?? null}
-        />
-      ),
-    });
-  }
-
-  // The arrival tab: the one in the address, or the one of the attempt just opened from the tasks indicator.
-  const vientDeLaVoix = generationBrute != null && generations.some((g) => g.uuid === generationBrute && g.methode === METHODE_MASTER_VOIX);
-  const initial = ongletBrut ?? (vientDeLaVoix ? "voix" : onglets[0]!.id);
 
   return (
     <>
@@ -179,7 +124,21 @@ export default async function AssetDetailPage({
               </div>
             </EnteteAsset>
 
-            <OngletsAsset onglets={onglets} initial={initial} />
+            <div className="panneau">
+              <AtelierAsset
+                assetId={noeud.id}
+                code={noeud.code}
+                libelle={libelleAsset(noeud)}
+                imageSrc={imageActuelle(noeud)?.src ?? null}
+                fichierAt={noeud.fichierAt ? noeud.fichierAt.getTime() : null}
+                valide={noeud.statut === "valide"}
+                essais={generations}
+                essaiInitial={generationBrute ?? null}
+                description={noeud.description ?? ""}
+                plansRendus={noeud.fichier ? plansRendus : 0}
+                registre={registreJoignable}
+              />
+            </div>
           </div>
         </FicheProvider>
       </main>

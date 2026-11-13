@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "../../db";
 import { parametres } from "../../db/schema";
-import { CLE_MODELE_CHOISI, configLlm, modelePourSkill, type Env } from "./config";
+import { CLE_MODELE_CHOISI, modelePourSkill, type Env } from "./config";
 
 /** The LLM model chosen in the interface (header badge), stored in `parametres`. Single user: one choice,
  * global. `null` = no choice, the configuration's model (`LLM_LOCAL_MODELE`) applies. Server side only.
@@ -26,7 +26,3 @@ export async function modeleEffectifPourSkill(skill: string, env: Env = process.
   return modelePourSkill(skill, env, await lireModeleChoisi());
 }
 
-/** Effective « default » model, without a skill: the interface's choice, otherwise `LLM_LOCAL_MODELE`. */
-export async function modeleParDefautEffectif(env: Env = process.env): Promise<string> {
-  return (await lireModeleChoisi()) ?? configLlm(env).modeleParDefaut;
-}

@@ -41,7 +41,7 @@ export function dossiersDuProjet(projectId: number, ids: Identifiants): string[]
     cheminPosterMedia("projects", projectId, "").replace(/\/$/, ""),
     ...ids.episodes.map((id) => cheminPosterMedia("episodes", id, "").replace(/\/$/, "")),
     ...ids.plans.map((id) => `plans/${id}`),
-    ...ids.assets.flatMap((id) => [`voix/${id}`, `generations/${id}`]),
+    ...ids.assets.map((id) => `generations/${id}`),
   ];
 }
 

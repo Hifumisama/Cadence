@@ -100,34 +100,18 @@ export function posterSrc(cible: PosterCible, id: number, fichier: string | null
   return `/api/media/${cheminPosterMedia(cible, id, fichier)}`;
 }
 
-/** Files of the voice casting notebook (timbre candidates, takes from the hold
- * test, T1 render) — stored per voice asset, symmetric to `plans/<id>/`.
- * The database only stores the file name. */
 export function cheminVoixMedia(assetId: number, fichier: string): string {
   return `voix/${assetId}/${fichier}`;
 }
 
-/** Service URL of a file from the casting notebook, or null if it is not
- * (or no longer) on the storage. Server side only (disk access). */
-export function voixMediaSrc(assetId: number, fichier: string | null): string | null {
-  if (!fichier) return null;
-  const relatif = cheminVoixMedia(assetId, fichier);
-  try {
-    if (!existsSync(resolve(MEDIA_ROOT, relatif))) return null;
-  } catch {
-    return null;
-  }
-  return `/api/media/${relatif}`;
-}
-
-/** Same for the cloning reference (the asset's own file). */
+/** Service URL of an asset's own file, or null if it is not (or no longer) on the storage. */
 export function assetMediaSrc(fichier: string | null): string | null {
   if (!fichier || !fichierMediaExiste(fichier)) return null;
   return urlAssetMedia(fichier);
 }
 
 /** Images generated for an asset (candidates, before adoption) — stored per
- * asset, symmetric to `voix/<assetId>/`. An adopted candidate is COPIED under
+ * asset, An adopted candidate is COPIED under
  * `assets/` (assets.fichier); the candidate itself stays here until it is purged. */
 export function cheminGenerationMedia(assetId: number, fichier: string): string {
   return `generations/${assetId}/${fichier}`;

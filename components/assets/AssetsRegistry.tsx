@@ -34,7 +34,6 @@ export function RegistreAssets({
 }: {
   projectId: number;
   lignes: LigneRegistre[];
-  /** Cast voices: outside the grid, a link brings them back to their module. */
   typeInitial: string | null;
   /** Where the project's images stand (lib/assets/project-images.ts): feeds the line « Il reste N images à générer ». */
   imagesInitial: EtatImages;
@@ -436,7 +435,6 @@ export function RegistreAssets({
               <span className="as-cache-s">Type</span>
               <span>Statut</span>
               <span className="as-cache-s">Plans</span>
-              <span className="as-cache-s">Voix</span>
             </div>
             {visibles.map((l) => (
               <LigneAsset key={l.id} ligne={l} href={href(l)} choisi={choisis.has(l.code)} vient={vient === l.code} onActiver={surActivation} />

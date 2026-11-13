@@ -74,8 +74,7 @@ export async function GET(
   }
 
   // Partial requests (Range): without them, the browser cannot seek
-  // `currentTime` beyond what it has already loaded — the voice casting A/B
-  // bench switches from one take to another at the same instant.
+  // `currentTime` beyond what it has already loaded.
   const plage = req.headers.get("range")?.match(/^bytes=(\d*)-(\d*)$/);
   if (plage && taille > 0) {
     const debut = plage[1] ? Number(plage[1]) : Math.max(0, taille - Number(plage[2]));

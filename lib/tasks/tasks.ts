@@ -94,7 +94,7 @@ const RETENTION_ECHECS_HEURES = 24;
 /** Cap of images waiting in the queue (one more request is refused). */
 export const PLAFOND_FILE_IMAGES = 10;
 
-export const estActive = (t: Pick<Tache, "statut">) => t.statut === "en_attente" || t.statut === "en_cours";
+const estActive = (t: Pick<Tache, "statut">) => t.statut === "en_attente" || t.statut === "en_cours";
 const estEchec = (t: Pick<Tache, "statut">) => t.statut === "echoue";
 const estAnnulee = (t: Pick<Tache, "statut">) => t.statut === "annulee";
 const estTerminee = (t: Pick<Tache, "statut">) => t.statut === "termine";

@@ -11,7 +11,6 @@ test("dossiersDuProjet : un dossier par entité, sous l'id interne", () => {
     "plans/10",
     "plans/11",
     "projects/7",
-    "voix/5",
   ]);
 });
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { LANGUES_MOTEUR, LANGUE_AUTO, langueMoteurVoix } from "./languages-tts";
+import { LANGUE_AUTO, langueMoteurVoix } from "./engine-language";
 
 test("langueMoteurVoix : le brief en français ou en anglais, accents compris", () => {
   assert.equal(langueMoteurVoix("Français"), "French");
@@ -24,11 +24,13 @@ test("langueMoteurVoix : codes ISO, avec ou sans région", () => {
   assert.equal(langueMoteurVoix("Sans dialogue"), "Auto");
 });
 
+const NOMS_MOTEUR = ["French", "English", "German", "Spanish", "Italian", "Portuguese", "Japanese", "Korean", "Russian", "Chinese"];
+
 test("langueMoteurVoix : la sortie est TOUJOURS un nom accepté par le moteur (anglais)", () => {
-  const acceptes = new Set<string>([LANGUE_AUTO, ...LANGUES_MOTEUR.map((l) => l.valeur)]);
+  const acceptes = new Set<string>([LANGUE_AUTO, ...NOMS_MOTEUR]);
   for (const entree of ["Français", "French", "fr", "anglais", "Deutsch", "日本語?", "", null, undefined, "n'importe quoi", "Sans dialogue", "中文", "Mandarin"]) {
     assert.ok(acceptes.has(langueMoteurVoix(entree)), String(entree));
   }
   // Idempotent: an engine name comes back unchanged.
-  for (const l of LANGUES_MOTEUR) assert.equal(langueMoteurVoix(l.valeur), l.valeur);
+  for (const nom of NOMS_MOTEUR) assert.equal(langueMoteurVoix(nom), nom);
 });

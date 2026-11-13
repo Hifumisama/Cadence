@@ -4,20 +4,6 @@
  * « en-US »), French name (« Français ») or English (« French ») → the English name. An unknown name, or « Sans dialogue », gives « Auto »
  * (the engine detects the language). Pure: importable client-side as well as server-side and worker-side. */
 
-/** The engine's languages, in display order: sent value (English) and French label for the interface. */
-export const LANGUES_MOTEUR = [
-  { valeur: "French", libelle: "Français" },
-  { valeur: "English", libelle: "Anglais" },
-  { valeur: "German", libelle: "Allemand" },
-  { valeur: "Spanish", libelle: "Espagnol" },
-  { valeur: "Italian", libelle: "Italien" },
-  { valeur: "Portuguese", libelle: "Portugais" },
-  { valeur: "Japanese", libelle: "Japonais" },
-  { valeur: "Korean", libelle: "Coréen" },
-  { valeur: "Russian", libelle: "Russe" },
-  { valeur: "Chinese", libelle: "Chinois" },
-] as const;
-
 export const LANGUE_AUTO = "Auto";
 
 const LANGUES: [RegExp, string][] = [
@@ -39,8 +25,3 @@ export function langueMoteurVoix(langue: string | null | undefined): string {
   return LANGUES.find(([motif]) => motif.test(texte))?.[1] ?? LANGUE_AUTO;
 }
 
-/** The language of a VOICE SHEET, as it is stored and displayed: the engine's English name. Empty: « French » (the project's default language);
- * unknown: « Auto ». An old value entered by hand (« Français ») is thus restored to the right name on reading. */
-export function langueFicheVoix(langue: string | null | undefined): string {
-  return (langue ?? "").trim() ? langueMoteurVoix(langue) : "French";
-}
