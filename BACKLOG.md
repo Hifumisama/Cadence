@@ -6,16 +6,9 @@ Ce qu'on décide ensemble. Mis à jour à chaque point d'étape. Risque : **faib
 - **Machine à états de revue** : fait (31b0cee, migrations 0085 et 0086). Reste à vérifier à la main : un projet créé par l'installateur et un « Itérer » sur un clip.
 - Ensuite, **supprimer la colonne `coche`** (devenue « appliqué par défaut », recalculable). Faible.
 
-## À faire en production (rien n'a été poussé : la prod n'a pas encore ces changements)
-Piège : un push sur `main` construit les images (GitHub), Watchtower les tire et redémarre web et worker tout seul, et le worker applique les migrations au démarrage. Les chemins d'images d'assets changent (`assets/<projet>/`) mais le script de migration des fichiers n'est PAS automatique : sans lui, toutes les images d'assets apparaissent manquantes. D'où la procédure manuelle, dans le dossier du mini PC (`docker-compose.prod.yml` + `.env`), avec `C="docker compose -f docker-compose.prod.yml"` :
-1. `$C stop watchtower web worker` (Postgres reste allumé), puis pousser sur `main` et attendre la fin de l'action « Images application » sur GitHub.
-2. Sauvegarde de la base : `$C exec postgres pg_dump -U cadence cadence > cadence-avant-migration.sql`.
-3. `$C pull web worker`.
-4. Migrations, sans démarrer le worker : `$C run --rm worker sh -c "npm run db:migrate"` (0085 voix, 0086 statuts, 0087 par_defaut).
-5. Fichiers d'assets, à blanc : `$C run --rm worker npx tsx scripts/migrer-assets-par-projet.ts` ; lire la liste (assets « perdus » = repassent sans image) ; puis avec `--appliquer` (copie d'abord data/assets dans `_sauvegarde_assets_<date>` sur le NAS).
-6. `$C up -d` (relance web, worker, watchtower). Vérifier une fiche d'asset et le montage.
-7. Plus tard : supprimer la sauvegarde du NAS et le script (`scripts/migrer-assets-par-projet.ts`). Facultatif : supprimer `voix/` sur le NAS.
-Local : fait le 2026-11-13 (260 images rangées, 16 assets repassés « sans image » dont 11 victimes de la collision à regénérer dans les projets 208 et 210).
+## Production : mise à niveau faite le 2026-11-13
+Migrations 0085 à 0087 et rangement des images d'assets par projet appliqués (procédure : un push sur `main` redémarre la prod via Watchtower, d'où l'arrêt préalable de Watchtower, puis `docker compose -f docker-compose.prod.yml` : stop, pg_dump, pull, `run --rm worker` pour migrer puis lancer `scripts/migrer-assets-par-projet.ts` à blanc puis `--appliquer`, enfin `up -d`).
+Reste à nettoyer quand tout est vérifié : le dossier `_sauvegarde_assets_<date>` et le fichier `cadence-avant-migration.sql` sur le mini PC, le script `scripts/migrer-assets-par-projet.ts`, facultatif `voix/` sur le NAS. Regénérer les assets repassés « sans image » (projets 208 et 210 en local).
 
 ## À faire, décidé
 - **Validation côté serveur (zod)** des server actions : en cours (branche menage/zod).
