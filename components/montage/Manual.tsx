@@ -13,8 +13,8 @@ export function Manuel({ ouvert, basculer }: { ouvert: boolean; basculer: (v: bo
   }, [ouvert]);
   return (
     <>
-      <button type="button" className="mt-aide" onClick={() => basculer(true)} title="Raccourcis clavier (touche ?)" aria-label="Raccourcis clavier">
-        ?
+      <button type="button" className="btn" onClick={() => basculer(true)} title="Raccourcis clavier (touche ?)">
+        Raccourcis <span className="num mt-manuel-k">?</span>
       </button>
       <dialog ref={ref} className="mt-manuel" onClose={() => basculer(false)} onClick={(e) => e.target === ref.current && basculer(false)}>
         <h2 className="mt-manuel-titre">Raccourcis du Montage</h2>

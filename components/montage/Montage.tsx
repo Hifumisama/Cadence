@@ -461,6 +461,7 @@ export function Montage(props: {
         </div>
         <div className="mt-outils">
           {props.outils}
+          <Manuel ouvert={manuel} basculer={setManuel} />
           <button type="button" className="btn btn-gold" onClick={exporter} disabled={exportEnvoi || exportActif || clips.length === 0}>
             {exportActif ? "Export en cours…" : "Exporter l’épisode"}
           </button>
@@ -655,8 +656,6 @@ export function Montage(props: {
           )}
         </section>
       ) : null}
-
-      <Manuel ouvert={manuel} basculer={setManuel} />
 
       {fantome ? (
         <div className="mt-fantome" style={{ left: fantome.x + 12, top: fantome.y + 12 }}>

@@ -6358,8 +6358,6 @@ button {
 .mt-manuel { border: 1px solid var(--line); border-radius: 3px; background: var(--surface); color: var(--ink-2); max-width: min(960px, 92vw); max-height: 86vh; overflow: auto; padding: 0 0 8px; }
 .mt-manuel::backdrop { background: rgba(0, 0, 0, 0.55); }
 .mt-manuel-titre { margin: 0; padding: 16px 16px 4px; font-family: var(--font-brand), Georgia, serif; font-size: 18px; font-weight: 400; }
-.mt-aide { position: fixed; right: 16px; bottom: 16px; z-index: 20; width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--ink-4); cursor: pointer; font-size: 14px; }
-.mt-aide:hover { color: var(--ink-2); }
 .mt-manuel-bd { padding: 4px 16px 18px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px 32px; }
 .mt-manuel h3 { margin: 0 0 8px; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-4); font-weight: 500; }
 .mt-keys { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 14px; color: var(--ink-2); }
