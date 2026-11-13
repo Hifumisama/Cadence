@@ -154,3 +154,13 @@ export function statutEffectif(etapes: EtapeCreation[], stocke: StatutCreation):
 export function plansAEcrire(plans: { uuid: string; aUneFiche: boolean; demandeEnCours: boolean }[], tous = false): string[] {
   return plans.filter((p) => !p.demandeEnCours && (tous || !p.aUneFiche)).map((p) => p.uuid);
 }
+
+/** The usual duration of a preparation, from the last finished ones (minutes). The film's length does not explain it (measured 2026-11-13: 3 to 16 min
+ * for a one-minute film, as much for two minutes), so no formula: a range (quartiles, nearest rank) and the median. Null under 3 samples. Pure. */
+export function fourchettePreparation(minutes: number[]): { nb: number; bas: number; median: number; haut: number } | null {
+  const v = minutes.filter((m) => Number.isFinite(m) && m > 0).sort((a, b) => a - b);
+  if (v.length < 3) return null;
+  const rang = (q: number) => v[Math.min(v.length - 1, Math.max(0, Math.ceil(q * v.length) - 1))]!;
+  const arrondi = (m: number) => Math.max(1, Math.round(m));
+  return { nb: v.length, bas: arrondi(rang(0.25)), median: arrondi(rang(0.5)), haut: arrondi(rang(0.75)) };
+}

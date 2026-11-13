@@ -34,13 +34,16 @@ export function DemarrageAssistant({
   conception,
   style,
   miseEnScene,
+  estimation = null,
 }: {
   projectId: number;
   nomProjet: string;
   convInitiale: VueConversation;
   conception: Conception;
   style: StyleAffiche;
-  /** The project's staging in a few words (`resumeMiseEnScene`): read from the project, not from the design (it is set afterwards in the Brief). */
+  /** The usual duration of a preparation (last finished ones), null without enough of them. */
+  estimation?: { nb: number; bas: number; median: number; haut: number } | null;
+  /** The project's staging in a few words (`resumeMiseEnScene`): read from the project, not from the design. */
   miseEnScene: string;
 }) {
   const [conv, setConv] = useState(convInitiale);
@@ -119,7 +122,7 @@ export function DemarrageAssistant({
 
       <div className={`cn-scene${recule ? " is-recule" : ""}`} key={etape}>
         {etape === SCENARIO ? <ScenarioScene conv={conv} rafraichir={rafraichir} /> : null}
-        {etape === CLAP ? <ClapScene projectId={projectId} nomProjet={nomProjet} conception={conception} style={style} miseEnScene={miseEnScene} notes={conv.notes} pret={pret} affiche={affiche} reessayer={() => preparer(true)} apresTitre={() => preparer(false)} /> : null}
+        {etape === CLAP ? <ClapScene projectId={projectId} nomProjet={nomProjet} conception={conception} style={style} miseEnScene={miseEnScene} estimation={estimation} notes={conv.notes} pret={pret} affiche={affiche} reessayer={() => preparer(true)} apresTitre={() => preparer(false)} /> : null}
       </div>
 
       <div className="cn-barre" role="group" aria-label="Avancer dans la conception">

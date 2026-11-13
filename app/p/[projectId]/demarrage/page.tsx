@@ -5,7 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { DemarrageAssistant } from "@/components/design/StartupAssistant";
 import { Topbar } from "@/components/ui/Topbar";
 import { db } from "@/db";
-import { lireVueCreation } from "@/lib/agents/creation-view";
+import { lireEstimationPreparation, lireVueCreation } from "@/lib/agents/creation-view";
 import { ouvrirConversation } from "@/lib/agents/service-conversation";
 import { lireConception } from "@/lib/projects/design-db";
 import { resumeMiseEnScene } from "@/lib/h3ir/settings";
@@ -34,6 +34,7 @@ export default async function DemarragePage({ params }: { params: Promise<{ proj
   }
   if (!conv) notFound();
 
+  const estimation = await lireEstimationPreparation();
   const brief = await lireBrief(pid);
   const styleBrief = brief?.contenu.style;
   const image = styleBrief?.image && existsSync(join(MEDIA_ROOT, "styles", styleBrief.image)) ? styleBrief.image : null;
@@ -52,7 +53,7 @@ export default async function DemarragePage({ params }: { params: Promise<{ proj
         }
       />
       <main>
-        <DemarrageAssistant projectId={pid} nomProjet={projet.nom} convInitiale={conv} conception={conception} style={{ nom: styleBrief?.nom || "Style libre", image, poster: posterSrc("projects", pid, projet.posterFichier ?? null) }} miseEnScene={resumeMiseEnScene(projet.creativite, projet.styleCamera)} />
+        <DemarrageAssistant projectId={pid} nomProjet={projet.nom} convInitiale={conv} conception={conception} style={{ nom: styleBrief?.nom || "Style libre", image, poster: posterSrc("projects", pid, projet.posterFichier ?? null) }} miseEnScene={resumeMiseEnScene(projet.creativite, projet.styleCamera)} estimation={estimation} />
       </main>
     </>
   );

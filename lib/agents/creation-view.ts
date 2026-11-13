@@ -1,9 +1,9 @@
-import { and, count, eq } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 import { db } from "../../db";
-import { agentConversations, plans } from "../../db/schema";
+import { agentConversations, creationsProjet, plans } from "../../db/schema";
 import { libelleEtatSousTache, libelleTache } from "./agents-display";
 import { lireConversation, lireProposition } from "./queries-agents";
-import { ETAPES_CREATION, normaliserEtapes, progression, statutEffectif, type EtapeCreation, type StatutCreation } from "./creation";
+import { ETAPES_CREATION, fourchettePreparation, normaliserEtapes, progression, statutEffectif, type EtapeCreation, type StatutCreation } from "./creation";
 import { lireCreation } from "./creation-db";
 import type { VueSousTache } from "./types";
 
@@ -89,4 +89,15 @@ export async function plansSansFicheApresCreation(projectId: number): Promise<nu
   if (!c || statutEffectif(normaliserEtapes(c.etapes), c.statut as StatutCreation) !== "termine") return 0;
   const [n] = await db.select({ n: count() }).from(plans).where(and(eq(plans.projectId, projectId), eq(plans.statut, "brouillon")));
   return Number(n?.n ?? 0);
+}
+
+/** What the clap says about the wait: the range of the last finished preparations (see `fourchettePreparation`), null without enough of them. */
+export async function lireEstimationPreparation(): Promise<ReturnType<typeof fourchettePreparation>> {
+  const lignes = await db
+    .select({ debut: creationsProjet.createdAt, fin: creationsProjet.updatedAt })
+    .from(creationsProjet)
+    .where(eq(creationsProjet.statut, "termine"))
+    .orderBy(desc(creationsProjet.createdAt))
+    .limit(12);
+  return fourchettePreparation(lignes.map((l) => (l.fin.getTime() - l.debut.getTime()) / 60000));
 }

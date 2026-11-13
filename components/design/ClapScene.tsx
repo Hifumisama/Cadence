@@ -78,6 +78,7 @@ export function ClapScene({
   reessayer,
   apresTitre,
   miseEnScene,
+  estimation = null,
 }: {
   projectId: number;
   nomProjet: string;
@@ -85,6 +86,8 @@ export function ClapScene({
   style: StyleAffiche;
   /** The project's staging in a few words (lib/h3ir/settings.ts, `resumeMiseEnScene`), shown on the board; it stays editable in the Brief. */
   miseEnScene?: string;
+  /** The usual duration of a preparation (the last finished ones): said under the launch button. */
+  estimation?: { nb: number; bas: number; median: number; haut: number } | null;
   notes: NoteAffichee[];
   /** The interview has what it takes to launch the preparation (the screenwriter has the essentials, or the user has spoken). */
   pret: boolean;
@@ -169,6 +172,11 @@ export function ClapScene({
           </div>
           <div className="cn-lancer">
             <button type="button" className="btn btn-gold cn-clap" disabled={!pret || envoi || afficheAttendue} onClick={() => void lancer()}>{envoi ? "Lancement…" : afficheAttendue ? "L’affiche se tourne…" : "Action ! Lancer la préparation"}</button>
+            {estimation ? (
+              <p className="cn-note">
+                Compte {estimation.bas === estimation.haut ? `environ ${estimation.median}` : `de ${estimation.bas} à ${estimation.haut}`} min de préparation (d’après tes {estimation.nb} dernières, {estimation.median} min en général). Tu peux quitter la page : elle continue sur le serveur.
+              </p>
+            ) : null}
             {!pret ? <p className="cn-manque">Le scénariste n’a pas encore l’essentiel : retourne à l’entretien.</p> : null}
             {erreur ? <p className="cn-erreur" role="alert">{erreur}</p> : null}
           </div>

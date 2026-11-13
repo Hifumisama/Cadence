@@ -7,6 +7,7 @@ import {
   estRienAFaire,
   etapeCourante,
   etapesNeuves,
+  fourchettePreparation,
   normaliserEtapes,
   plansAEcrire,
   progression,
@@ -163,4 +164,11 @@ test("statut de la création : échoue dès qu'une étape échoue, termine quand
   for (const x of e) x.statut = "passe";
   assert.equal(statutDepuisEtapes(e, "en_cours"), "termine");
   assert.equal(statutDepuisEtapes(e, "arretee"), "arretee");
+});
+
+test("durée d'une préparation : une fourchette (quartiles) et la médiane, rien sous 3 mesures", () => {
+  assert.equal(fourchettePreparation([]), null);
+  assert.equal(fourchettePreparation([3, 5]), null);
+  assert.deepEqual(fourchettePreparation([3, 3, 5, 6, 9, 11, 15, 16]), { nb: 8, bas: 3, median: 6, haut: 11 });
+  assert.deepEqual(fourchettePreparation([0, -1, 4, 4, 4]), { nb: 3, bas: 4, median: 4, haut: 4 }, "les durées nulles sont écartées");
 });
