@@ -139,3 +139,18 @@ export function repliquesPerdues(nouvelle: string | null | undefined, actuelle: 
   const n = norme(nouvelle ?? "");
   return repliquesIntent(actuelle ?? "").filter((r) => !n.includes(norme(r)));
 }
+
+/** A dialogue line typed by hand with straight or typographic double quotes (« NOM : "texte" ») is stored in the format everything else reads
+ * (« NOM : « texte » »: parsers, skills, Open H3 IR). Only a whole line of the form `locuteur : "réplique"` is converted: a quote inside the narrative,
+ * or a line that goes on after the closing quote, is left as typed. Pure. */
+const REPLIQUE_GUILLEMETS_DROITS = /^([ \t]*)([^:"“”„«».,;\n]{1,40}?)[ \t ]*:[ \t ]*["“„]([^\n"“”„«»]*?)["”“][ \t .]*$/;
+export function normaliserGuillemetsRepliques(texte: string): string {
+  return texte
+    .split("\n")
+    .map((ligne) => {
+      const m = REPLIQUE_GUILLEMETS_DROITS.exec(ligne.replace(/\r$/, ""));
+      if (!m || !m[3]!.trim()) return ligne;
+      return `${m[1]}${m[2]!.trim()} : « ${m[3]!.trim()} »`;
+    })
+    .join("\n");
+}

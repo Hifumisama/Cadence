@@ -13,7 +13,7 @@ import { rm } from "node:fs/promises";
 import { resolve } from "node:path";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS, WORKFLOW_IMPORT_MANUEL } from "@/lib/clips/clip-checks";
 import { estLiaison } from "@/lib/clips/clip-link";
-import { descriptionSeraitPerdue, intentionChangee, memeDescription } from "@/lib/clips/intent";
+import { descriptionSeraitPerdue, intentionChangee, memeDescription, normaliserGuillemetsRepliques } from "@/lib/clips/intent";
 import { creativiteOuNull, styleCameraOuNull } from "@/lib/h3ir/settings";
 import { declarerRefDansLePrompt, retirerRefDuPlan, roleDeLaRef } from "@/lib/clips/clip-references";
 import { emplacementLibre } from "@/lib/clips/references";
@@ -418,7 +418,7 @@ export async function updatePlanScenario(planId: number, valeurs: ValeursScenari
     .update(plans)
     .set({
       titre: valeurs.titre,
-      description: valeurs.description || null,
+      description: valeurs.description ? normaliserGuillemetsRepliques(valeurs.description) : null,
       ...(duree !== undefined ? { dureeGenerationSecondes: duree, dureeMontageSecondes: duree } : {}),
       ...(estLiaison(valeurs.liaison) ? { liaison: valeurs.liaison } : {}),
       ...(valeurs.creativite !== undefined ? { creativite: creativiteOuNull(valeurs.creativite) } : {}),

@@ -6,7 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { recomposerOrdre } from "@/lib/clips/clip-order";
 import { creativiteOuNull, styleCameraOuNull } from "@/lib/h3ir/settings";
-import { conserverConsigneAuteur, intentAffichee, memeDescription } from "@/lib/clips/intent";
+import { conserverConsigneAuteur, intentAffichee, memeDescription, normaliserGuillemetsRepliques } from "@/lib/clips/intent";
 import { z } from "zod";
 import { exiger, idSchema, texteSchema, uuidSchema, verifier } from "@/lib/validation/args";
 
@@ -146,7 +146,7 @@ const MAX_TEXTE_PLAN = 4000;
 export async function modifierTextePlan(planUuid: string, texte: string): Promise<{ ok: true } | { ok: false; erreur: string }> {
   const v = verifier(z.tuple([uuidSchema, texteSchema()]), [planUuid, texte]);
   if (!v.ok) return v;
-  const propre = texte.trim();
+  const propre = normaliserGuillemetsRepliques(texte.trim());
   if (!propre) return { ok: false, erreur: "Le texte d'un plan ne peut pas être vide : c'est ce que la fiche met en images." };
   if (propre.length > MAX_TEXTE_PLAN) return { ok: false, erreur: `Le texte est trop long (${MAX_TEXTE_PLAN} caractères au plus).` };
   const [plan] = await db.select({ id: plans.id, description: plans.description }).from(plans).where(eq(plans.uuid, planUuid));

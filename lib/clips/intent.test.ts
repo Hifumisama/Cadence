@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { aUnEtatDeFin, conserverConsigneAuteur, consigneAuteur, descriptionSeraitPerdue, intentAffichee, intentionChangee, memeDescription, raisonDescriptionIncomplete, recitDe, repliquesPerdues, sansConsigneAuteur, sansEtatDeFin } from "./intent";
+import { aUnEtatDeFin, conserverConsigneAuteur, consigneAuteur, descriptionSeraitPerdue, intentAffichee, intentionChangee, memeDescription, raisonDescriptionIncomplete, normaliserGuillemetsRepliques, recitDe, repliquesPerdues, sansConsigneAuteur, sansEtatDeFin } from "./intent";
 
 // A clip written before 2026-11-08: narrative, dialogue lines, author's instruction, then the old « État en fin de plan ».
 const ANCIEN = [
@@ -100,4 +100,17 @@ test("descriptionSeraitPerdue : seulement quand le texte actuel n'est celui d'au
   assert.equal(descriptionSeraitPerdue("B", null, ["A"]), false);
   assert.equal(descriptionSeraitPerdue("", "A", ["A"]), false);
   assert.equal(descriptionSeraitPerdue(null, "A", ["A"]), false);
+});
+
+test("normaliserGuillemetsRepliques : une réplique tapée avec \" devient « … », le reste n'est pas touché", () => {
+  assert.equal(normaliserGuillemetsRepliques('MAYA : "On y va."'), "MAYA : « On y va. »");
+  assert.equal(normaliserGuillemetsRepliques("MAYA: “On y va !”"), "MAYA : « On y va ! »");
+  assert.equal(normaliserGuillemetsRepliques('Récit.\nTOM : "Non."\nMAYA : "Si."'), "Récit.\nTOM : « Non. »\nMAYA : « Si. »");
+  assert.equal(normaliserGuillemetsRepliques("MAYA : « Déjà bon. »"), "MAYA : « Déjà bon. »");
+  // Not a dialogue line: narrative with a quote, a line that continues after the quote, an empty quote.
+  assert.equal(normaliserGuillemetsRepliques('Elle lit "Vingt mille lieues" en souriant.'), 'Elle lit "Vingt mille lieues" en souriant.');
+  assert.equal(normaliserGuillemetsRepliques('MAYA : "Viens" et elle sort.'), 'MAYA : "Viens" et elle sort.');
+  assert.equal(normaliserGuillemetsRepliques('MAYA : ""'), 'MAYA : ""');
+  // The converted line is read as a dialogue line by the parsers.
+  assert.deepEqual(repliquesPerdues("MAYA : « On y va. »", normaliserGuillemetsRepliques('MAYA : "On y va."')), []);
 });
