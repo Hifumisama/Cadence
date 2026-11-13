@@ -555,7 +555,7 @@ export async function entreeCorrectionPlan(db: Db, projectId: number, planUuid: 
 }
 
 /** The input of the small `references-plan` skill for a clip, with the code's choice (`choix`): the caller posts the task ONLY if `choix.suffit` is false
- * (otherwise the code's references are enough). Posted by a clip's preparation (lib/agents/service.ts, `genererReferencesPlan`). `assetsProposesParLeLot`:
+ * (otherwise the code's references are enough). Posted by a clip's preparation (lib/agents/service-clips.ts, `genererReferencesPlan`). `assetsProposesParLeLot`:
  * the assets an ongoing inventory is about to create (the skill may cite them, never propose them again). `null` if the clip is not in this project. */
 export async function entreeReferencesPlan(
   db: Db,

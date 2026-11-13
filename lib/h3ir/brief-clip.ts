@@ -18,7 +18,7 @@ function cheminSiExiste(relatif: string): string | null {
 /** A clip's brief and the settings (creativity, staging style) as they have been resolved, with the level each one comes from. */
 export type ResultatChargement = ResultatBrief & { reglages: ReglagesResolus };
 
-/** What « Itérer » compiles INSTEAD OF what is in the database (lib/agents/service.ts, genererReecriturePlan): nothing is written to the clip before
+/** What « Itérer » compiles INSTEAD OF what is in the database (lib/agents/service-clips.ts, genererReecriturePlan): nothing is written to the clip before
  * the application of the compiled sheet, which writes everything together. `references`: image codes to add / remove; `reglages`: the value of the CLIP
  * that replaces its own (`null`/absent = its own; `"aucun"` = no style), the scene and the project remain inherited below. */
 export type SurchargeBrief = {

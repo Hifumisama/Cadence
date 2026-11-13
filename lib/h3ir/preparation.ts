@@ -22,7 +22,7 @@ import { LIMITE_IMAGES_PLAN } from "./references-clip";
  *
  * Here: the PURE rules (tested, preparation.test.ts). The reads and writes: lib/h3ir/preparation-db.ts; the driver: lib/tasks/requests-db.ts. */
 
-/** The proposal that creates the missing assets decided by « Itérer » (lib/agents/service.ts, `creerAssetsManquants`). */
+/** The proposal that creates the missing assets decided by « Itérer » (lib/agents/service-clips.ts, `creerAssetsManquants`). */
 export const SKILL_ASSETS_MANQUANTS = "assets-manquants";
 
 // --- 1. references -----------------------------------------------------------------------------------------------------------------------------

@@ -27,7 +27,8 @@ import { planifierDeplacement, planifierInsertion, planifierSuppression } from "
 import { vueLot } from "./batches";
 import { episodeIdDeGroupe } from "./batches-pure";
 import { etatTache, positionsFile } from "./runs";
-import { conversationParUuid, libelleCible, rafraichirStatut, resoudreCible, propositionParUuid } from "./service";
+import { conversationParUuid, libelleCible, resoudreCible } from "./service-conversation";
+import { propositionParUuid, rafraichirStatut } from "./service-proposals";
 import type {
   Avertissement,
   BriefContenu,

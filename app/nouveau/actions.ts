@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { projects } from "@/db/schema";
 import { creerProjetSansRedirection } from "@/app/projects/actions";
-import { ouvrirConversation } from "@/lib/agents/service";
+import { ouvrirConversation } from "@/lib/agents/service-conversation";
 import { resoudreStyle, validerConception } from "@/lib/projects/design";
 import { ecrireConception, poserStyleDuProjet } from "@/lib/projects/design-db";
 import { reglagesDepuisCharge } from "@/lib/h3ir/settings";

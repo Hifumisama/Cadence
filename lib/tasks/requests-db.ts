@@ -1,7 +1,11 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../../db";
 import { agentConversations, agentRuns, assets, demandes, episodes, jobs, plans, propositions, scenes } from "../../db/schema";
-import { appliquerSelection, cocherChangements, conversationParUuid, creerAssetsManquants, genererFiches, genererIteration, genererPromptsAssets, genererProposition, genererReecriturePlan, genererReferencesPlan, ouvrirConversation } from "../agents/service";
+import { appliquerSelection, cocherChangements } from "../agents/service-proposals";
+import { conversationParUuid, ouvrirConversation } from "../agents/service-conversation";
+import { creerAssetsManquants, genererFiches, genererIteration, genererReecriturePlan, genererReferencesPlan } from "../agents/service-clips";
+import { genererPromptsAssets } from "../agents/service-assets";
+import { genererProposition } from "../agents/service-dispatch";
 import { annulerLot } from "../agents/batches";
 import { choisirProchaineIteration, precedentsDansLaChaine } from "../clips/chains";
 import { cleNouvelAsset } from "../agents/sheets";

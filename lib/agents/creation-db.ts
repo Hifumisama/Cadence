@@ -21,7 +21,12 @@ import {
 } from "./creation";
 import { lancerImagesPretes } from "../assets/images-auto";
 import { tacheActive } from "./runs";
-import * as service from "./service";
+import { arreterTravaux, conversationParUuid, genererBrief, ouvrirConversation } from "./service-conversation";
+import { appliquerSelection, propositionParUuid } from "./service-proposals";
+import { relancerSousTache } from "./service-retry";
+import { genererProposition } from "./service-dispatch";
+import { genererInventaire, genererRegistre, genererRelectures, genererScenarios, genererTraitements } from "./service-episodes";
+import { genererPromptsAssetsCrees } from "./service-assets";
 import type { Resultat } from "./types";
 
 /** The installer's PILOT (rules in lib/agents/creation.ts). `piloterCreations` is called on each turn of the
@@ -66,9 +71,9 @@ export async function idsRunsDeCreation(projectId: number): Promise<number[]> {
 export async function lancerCreation(projectId: number): Promise<Resultat<{ creationId: number }>> {
   const existante = await lireCreation(projectId);
   if (existante?.statut === "en_cours") return ERR("Une création est déjà en cours pour ce projet.");
-  const o = await service.ouvrirConversation(projectId, "projet", null, "complete");
+  const o = await ouvrirConversation(projectId, "projet", null, "complete");
   if (!o.ok) return o;
-  const conv = await service.conversationParUuid(o.conversationUuid);
+  const conv = await conversationParUuid(o.conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
   const [brief] = await db.select({ statut: briefs.statut }).from(briefs).where(eq(briefs.projectId, projectId));
   const aDitQuelqueChose = ((conv.messages as { role: string }[]) ?? []).some((m) => m.role === "user");
@@ -119,7 +124,7 @@ export async function arreterCreation(projectId: number): Promise<Resultat> {
   if (!c) return ERR("Aucune création pour ce projet.");
   if (c.statut !== "en_cours") return ERR("La création n'est pas en cours.");
   const [conv] = await db.select({ id: agentConversations.id }).from(agentConversations).where(eq(agentConversations.projectId, projectId));
-  if (conv) await service.arreterTravaux(conv.id);
+  if (conv) await arreterTravaux(conv.id);
   await ecrire(c, lireEtapes(c), { statut: "arretee", erreur: null });
   return { ok: true };
 }
@@ -177,7 +182,7 @@ async function observer(c: LigneCreation, cur: EtapeCreation, convId: number): P
 
 /** The keys of the subtasks of a proposal in which a change is blocked by a check (not tickable). */
 async function sousTachesBloquees(propositionUuid: string): Promise<Set<string>> {
-  const prop = await service.propositionParUuid(propositionUuid);
+  const prop = await propositionParUuid(propositionUuid);
   if (!prop) return new Set();
   const lignes = await db
     .select({ sousTache: propositionChangements.sousTache, avertissements: propositionChangements.avertissements, refuse: propositionChangements.refuseRaison })
@@ -199,9 +204,9 @@ async function avancer(c: LigneCreation): Promise<boolean> {
     await ecrire(c, etapes);
     return true;
   }
-  const o = await service.ouvrirConversation(c.projectId, "projet", null, "complete");
+  const o = await ouvrirConversation(c.projectId, "projet", null, "complete");
   if (!o.ok) throw new Error(o.erreur);
-  const conv = (await service.conversationParUuid(o.conversationUuid))!;
+  const conv = (await conversationParUuid(o.conversationUuid))!;
   const obs = await observer(c, cur, conv.id);
   const d = decider(cur, obs);
 
@@ -215,7 +220,7 @@ async function avancer(c: LigneCreation): Promise<boolean> {
       etapes = remplacer(etapes, cur.cle, { statut: "echoue", erreur: d.erreur });
       break;
     case "appliquer": {
-      const r = await service.appliquerSelection(cur.propositionUuid!, { confirmeEcrasement: false });
+      const r = await appliquerSelection(cur.propositionUuid!, { confirmeEcrasement: false });
       etapes = r.ok
         ? remplacer(etapes, cur.cle, {
             statut: "fait",
@@ -233,7 +238,7 @@ async function avancer(c: LigneCreation): Promise<boolean> {
       const aRelancer = (vue?.lot?.sousTaches ?? []).filter((s) => s.statut === "echoue" || s.statut === "annulee" || bloquees.has(s.cle));
       let derniereErreur: string | null = null;
       for (const s of aRelancer) {
-        const r = await service.relancerSousTache(cur.propositionUuid!, s.cle);
+        const r = await relancerSousTache(cur.propositionUuid!, s.cle);
         if (!r.ok) derniereErreur = r.erreur;
       }
       etapes = remplacer(etapes, cur.cle, derniereErreur && aRelancer.length > 0 ? { statut: "echoue", erreur: derniereErreur, essais: cur.essais + 1 } : { essais: cur.essais + 1 });
@@ -268,25 +273,25 @@ async function lancerEtape(projectId: number, cle: CleEtapeCreation, convUuid: s
     case "brief":
       if (brief && brief.statut !== "partiel") return passe("Brief déjà écrit.");
       {
-        const r = await service.genererBrief(convUuid); // freezes the notes sheet into a draft: immediate, no model
+        const r = await genererBrief(convUuid); // freezes the notes sheet into a draft: immediate, no model
         return r.ok ? passe("Brief écrit depuis la fiche de notes.") : issue(r);
       }
     case "squelette":
       if (brief?.statut === "valide") return passe("Structure déjà appliquée.");
-      return issue(await service.genererProposition(convUuid));
+      return issue(await genererProposition(convUuid));
     case "traitement":
-      return issue(await service.genererTraitements(convUuid));
+      return issue(await genererTraitements(convUuid));
     case "scenarios":
-      return issue(await service.genererScenarios(convUuid));
+      return issue(await genererScenarios(convUuid));
     case "registre":
-      return issue(await service.genererRegistre(convUuid));
+      return issue(await genererRegistre(convUuid));
     case "inventaire":
-      return issue(await service.genererInventaire(convUuid));
+      return issue(await genererInventaire(convUuid));
     case "relecture":
-      return issue(await service.genererRelectures(convUuid));
+      return issue(await genererRelectures(convUuid));
     case "prompts-inventaire": {
       const source = sourceDe("inventaire");
-      return source ? issue(await service.genererPromptsAssetsCrees(source)) : passe("Aucun asset ajouté par l'inventaire.");
+      return source ? issue(await genererPromptsAssetsCrees(source)) : passe("Aucun asset ajouté par l'inventaire.");
     }
   }
 }

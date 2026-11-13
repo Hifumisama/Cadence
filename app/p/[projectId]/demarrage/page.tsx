@@ -6,7 +6,7 @@ import { DemarrageAssistant } from "@/components/design/StartupAssistant";
 import { Topbar } from "@/components/ui/Topbar";
 import { db } from "@/db";
 import { lireVueCreation } from "@/lib/agents/creation-view";
-import { ouvrirConversation } from "@/lib/agents/service";
+import { ouvrirConversation } from "@/lib/agents/service-conversation";
 import { lireConception } from "@/lib/projects/design-db";
 import { resumeMiseEnScene } from "@/lib/h3ir/settings";
 import { MEDIA_ROOT, posterSrc } from "@/lib/media";

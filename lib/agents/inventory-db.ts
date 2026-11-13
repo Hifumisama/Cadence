@@ -10,7 +10,7 @@ import { codeFinal, controlerReferences, plansDeLEntree, type AssetConnu, type E
  * - at the task's POST-PROCESSING (worker/agents/postProcessing.ts): the clips whose references all already exist in the registry get them
  *   right away (nothing to create, they can be re-read with the intents); those citing an asset the inventory proposes to create
  *   wait;
- * - at the APPLICATION of the proposal (lib/agents/service.ts, `appliquerSelection`), in the same transaction, AFTER the assets are created:
+ * - at the APPLICATION of the proposal (lib/agents/service-proposals.ts, `appliquerSelection`), in the same transaction, AFTER the assets are created:
  *   the rest. An asset that is unticked or refused does not exist: it is simply omitted.
  * Never over references already set (lib/h3ir/references-write.ts); the clips' status does not move. */
 

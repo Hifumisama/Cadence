@@ -50,7 +50,7 @@
  */
 
 import { revalidatePath } from "next/cache";
-import * as service from "@/lib/agents/service";
+import * as service from "@/lib/agents/service-conversation";
 import type { CibleDemandee, Profondeur, Portee, Resultat } from "@/lib/agents/types";
 
 /** Writes invalidate the page cache: the popup then re-reads its data through

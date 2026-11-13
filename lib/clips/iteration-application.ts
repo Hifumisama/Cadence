@@ -1,7 +1,8 @@
 import { and, eq, inArray, max } from "drizzle-orm";
 import { db } from "../../db";
 import { jobs, plans } from "../../db/schema";
-import { appliquerSelection, cocherChangements, genererPromptsAssetsCrees, propositionParUuid } from "../agents/service";
+import { appliquerSelection, cocherChangements, propositionParUuid } from "../agents/service-proposals";
+import { genererPromptsAssetsCrees } from "../agents/service-assets";
 import { decisionIteration } from "./clip-sheet";
 import { SKILL_H3IR } from "../h3ir/result";
 import { creerJobRelance } from "../renders/job-retry";
@@ -30,7 +31,7 @@ export async function appliquerIterationEtGenererCore(
   if (fps != null && (!Number.isInteger(fps) || fps < 1)) return { ok: false, erreur: "FPS invalide." };
   if (seed != null && !/^\d{1,15}$/.test(seed)) return { ok: false, erreur: "Seed invalide : 15 chiffres au plus." };
   const prop = await propositionParUuid(propositionUuid);
-  // Since 2026-11-09, « Itérer » applies the sheet RECOMPILED by Open H3 IR (`plan-h3ir`, lib/agents/service.ts, genererReecriturePlan) with the
+  // Since 2026-11-09, « Itérer » applies the sheet RECOMPILED by Open H3 IR (`plan-h3ir`, lib/agents/service-clips.ts, genererReecriturePlan) with the
   // agent's decisions; an `iteration-plan` proposal no longer carries a change (it gives « reecrire »).
   if (!prop || (prop.skill !== "iteration-plan" && prop.skill !== SKILL_H3IR) || prop.portee !== "plan" || prop.cibleId !== planId) return { ok: false, erreur: "Proposition introuvable pour ce plan." };
   const vue = await lireProposition(propositionUuid);

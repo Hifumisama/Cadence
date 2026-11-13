@@ -223,7 +223,7 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
     if (!plan) throw new Error("Le plan visé n'existe plus.");
     // « Partir de cet essai »: the attempt's prompt was retouched (worker/h3ir.ts) instead of being recompiled; the rest is the same (description, duration written with the sheet).
     bruts = estResultatRetouche(json) ? depuisRetouche(json, plan) : depuisCompilationH3ir(json as ResultatH3ir, plan);
-    // Recompilation from « Itérer » (lib/agents/service.ts, genererReecriturePlan): the compiled decisions (description, duration, clip settings) are written
+    // Recompilation from « Itérer » (lib/agents/service-clips.ts, genererReecriturePlan): the compiled decisions (description, duration, clip settings) are written
     // with the sheet, in the same application; the references follow the compilation's manifest.
     const o = (run.options ?? {}) as { descriptionNouvelle?: unknown; dureeNouvelle?: unknown; reglagesNouveaux?: { creativite?: unknown; styleCamera?: unknown } | null };
     const nouvelle = typeof o.descriptionNouvelle === "string" ? o.descriptionNouvelle.trim() : "";
@@ -490,7 +490,7 @@ async function postSousTacheFicheH3ir(
 /** The choice of a clip's references by the small `references-plan` skill (called only when the code had doubts, lib/h3ir/preparation.ts). With no asset to
  * create, the references are written RIGHT AWAY on the clip (never over references posted in the meantime, except `rechoisir`) and the proposal is
  * closed (« appliquée »); with missing ones (two at most, valid code and parent), these are asset creations that the request applies, and the
- * references (missing ones included) are written in the same transaction (lib/agents/service.ts, `appliquerSelection`). */
+ * references (missing ones included) are written in the same transaction (lib/agents/service-proposals.ts, `appliquerSelection`). */
 async function postReferencesPlan(
   tx: Tx,
   run: RunAgent,
