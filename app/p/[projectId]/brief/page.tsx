@@ -43,7 +43,7 @@ export default async function BriefPage({ params }: { params: Promise<{ projectI
   const redige = brief.statut !== "partiel";
   const styleVue = await vueStyle(brief.contenu.style, conception?.style.source === "bibliotheque" ? conception.style.styleId : null);
   const episodeBase = premierEpisodeId ? `/p/${pid}/e/${premierEpisodeId}` : `/p/${pid}`;
-  // After creation: as long as clips have no sheet, a link leads back to the intents screen (« Écrire les fiches », tracked per clip).
+  // After creation: as long as clips have no sheet, a link leads to the Tournage page, where the sheets are written.
   const sansFiche = await plansSansFicheApresCreation(pid);
 
   return (
@@ -66,8 +66,8 @@ export default async function BriefPage({ params }: { params: Promise<{ projectI
             <span>
               {sansFiche} plan{sansFiche > 1 ? "s" : ""} sans fiche.
             </span>
-            <Link href={`/p/${pid}/creation`} className="btn btn-gold">
-              Relire les intents et écrire les fiches
+            <Link href={`${episodeBase}/tournage`} className="btn btn-gold">
+              Écrire les fiches
             </Link>
           </p>
         ) : null}

@@ -92,19 +92,6 @@ export async function lancerDemandesFiches(
   return { lancees: demandeIds.length, demandeIds, erreurs: [...new Set(erreurs)] };
 }
 
-/** Where the sheet requests stand (a project's creation thus follows its batch): status, current step, error, per request. */
-export async function etatDemandesFiches(demandeIds: number[]): Promise<{ id: number; planUuid: string; statut: Exclude<StatutDemande, "en_attente">; etape: string | null; erreur: string | null }[]> {
-  if (demandeIds.length === 0) return [];
-  const lignes = await db.select().from(demandes).where(inArray(demandes.id, demandeIds));
-  return lignes.map((d) => ({
-    id: d.id,
-    planUuid: (d.contexte as ContexteFichePlan).planUuid,
-    statut: d.statut as Exclude<StatutDemande, "en_attente">,
-    etape: etapeCouranteDemande(lireEtapes(d))?.libelle ?? null,
-    erreur: d.erreur,
-  }));
-}
-
 // --- the sheet of a clip: preparation then compilation (wave 4a) -------------------------------------------------------------------------
 
 type CtxPrep = NonNullable<ContexteFichePlan["preparation"]>;

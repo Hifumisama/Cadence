@@ -1,10 +1,9 @@
-import { and, asc, count, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { db } from "../../db";
-import { agentConversations, demandes, episodes, plans, scenes } from "../../db/schema";
-import { etatDemandesFiches } from "../tasks/requests-sheets";
+import { agentConversations, plans } from "../../db/schema";
 import { libelleEtatSousTache, libelleTache } from "./agents-display";
 import { lireConversation, lireProposition } from "./queries-agents";
-import { ETAPES_CREATION, dernieresDemandesParPlan, libelleSuiviFiche, normaliserEtapes, progression, statutEffectif, type EtapeCreation, type EtatDemandeFiche, type StatutCreation } from "./creation";
+import { ETAPES_CREATION, normaliserEtapes, progression, statutEffectif, type EtapeCreation, type StatutCreation } from "./creation";
 import { lireCreation } from "./creation-db";
 import type { VueSousTache } from "./types";
 
@@ -90,43 +89,4 @@ export async function plansSansFicheApresCreation(projectId: number): Promise<nu
   if (!c || statutEffectif(normaliserEtapes(c.etapes), c.statut as StatutCreation) !== "termine") return 0;
   const [n] = await db.select({ n: count() }).from(plans).where(and(eq(plans.projectId, projectId), eq(plans.statut, "brouillon")));
   return Number(n?.n ?? 0);
-}
-
-/** A clip as the preparation's end screen shows it: its intent (the description), to review before writing its sheet. */
-export type PlanIntent = { uuid: string; position: number; titre: string; scene: string | null; description: string; aUneFiche: boolean; atelierHref: string };
-
-/** The film's clips in screenplay order (scene, then `ordre`: the displayed position follows from it, never an identifier). */
-export async function lirePlansIntents(projectId: number): Promise<PlanIntent[]> {
-  const lignes = await db
-    .select({ uuid: plans.uuid, titre: plans.titre, description: plans.description, statut: plans.statut, episodeId: plans.episodeId, scene: scenes.titre })
-    .from(plans)
-    .innerJoin(episodes, eq(episodes.id, plans.episodeId))
-    .leftJoin(scenes, eq(scenes.id, plans.sceneId))
-    .where(eq(plans.projectId, projectId))
-    .orderBy(asc(episodes.numero), asc(plans.ordre), asc(plans.id));
-  const rangs = new Map<number, number>();
-  return lignes.map((l) => {
-    const position = (rangs.get(l.episodeId) ?? 0) + 1;
-    rangs.set(l.episodeId, position);
-    return {
-      uuid: l.uuid,
-      position,
-      titre: l.titre,
-      scene: l.scene ?? null,
-      description: l.description ?? "",
-      aUneFiche: l.statut !== "brouillon",
-      atelierHref: `/p/${projectId}/e/${l.episodeId}/montage/${l.uuid}`,
-    };
-  });
-}
-
-/** A clip's tracking after "Écrire les fiches": its last sheet request, and the sentence that states it (`libelleSuiviFiche`). */
-export type SuiviFichePlan = EtatDemandeFiche & { libelle: string };
-
-/** The latest sheet requests of the project's clips, read by `etatDemandesFiches` (one per clip: the most recent). Re-read by the intents screen
- * (app/api/creation/[projectId]/fiches): it survives a page reload, without keeping the ids on the client side. */
-export async function lireSuiviFiches(projectId: number): Promise<SuiviFichePlan[]> {
-  const lignes = await db.select({ id: demandes.id, planId: demandes.cibleId }).from(demandes).where(and(eq(demandes.projectId, projectId), eq(demandes.type, "fiche-plan")));
-  const ids = dernieresDemandesParPlan(lignes).map((d) => d.id);
-  return (await etatDemandesFiches(ids)).map((e) => ({ ...e, libelle: libelleSuiviFiche(e) }));
 }

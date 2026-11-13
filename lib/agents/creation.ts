@@ -154,31 +154,3 @@ export function statutEffectif(etapes: EtapeCreation[], stocke: StatutCreation):
 export function plansAEcrire(plans: { uuid: string; aUneFiche: boolean; demandeEnCours: boolean }[], tous = false): string[] {
   return plans.filter((p) => !p.demandeEnCours && (tous || !p.aUneFiche)).map((p) => p.uuid);
 }
-
-/** The state of a sheet request (`etatDemandesFiches`, lib/tasks/requests-*.ts), as the intents screen shows it. */
-export type EtatDemandeFiche = { id: number; planUuid: string; statut: "en_cours" | "termine" | "echoue" | "annulee"; etape: string | null; erreur: string | null };
-
-/** A tracking line: the current step ("Choix des références", "Création d'assets (2)", "Images (1/3)", "Compilation Open H3 IR"),
- * "Fiche écrite", or the failure with its reason (the asset at fault is named there by the request). Pure. */
-export function libelleSuiviFiche(e: Pick<EtatDemandeFiche, "statut" | "etape" | "erreur">): string {
-  switch (e.statut) {
-    case "en_cours":
-      return e.etape ?? "En file";
-    case "termine":
-      return "Fiche écrite";
-    case "annulee":
-      return "Annulée";
-    case "echoue":
-      return `Échec${e.etape ? ` (${e.etape})` : ""} : ${e.erreur ?? "raison inconnue"}`;
-  }
-}
-
-/** The LAST sheet request of each clip (highest id). Pure. */
-export function dernieresDemandesParPlan<T extends { id: number; planId: number }>(demandes: T[]): T[] {
-  const parPlan = new Map<number, T>();
-  for (const d of demandes) {
-    const deja = parPlan.get(d.planId);
-    if (!deja || d.id > deja.id) parPlan.set(d.planId, d);
-  }
-  return [...parPlan.values()];
-}

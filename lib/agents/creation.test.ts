@@ -3,12 +3,10 @@ import assert from "node:assert/strict";
 import {
   ETAPES_CREATION,
   decider,
-  dernieresDemandesParPlan,
   estOccupe,
   estRienAFaire,
   etapeCourante,
   etapesNeuves,
-  libelleSuiviFiche,
   normaliserEtapes,
   plansAEcrire,
   progression,
@@ -105,24 +103,6 @@ test("après la création : les plans à écrire, sans fiche par défaut, jamais
   assert.deepEqual(plansAEcrire(plans), ["a"]);
   assert.deepEqual(plansAEcrire(plans, true), ["a", "b"]);
   assert.deepEqual(plansAEcrire([]), []);
-});
-
-test("suivi des fiches : l'étape en cours, « Fiche écrite », l'échec avec sa raison ; la dernière demande de chaque plan", () => {
-  assert.equal(libelleSuiviFiche({ statut: "en_cours", etape: "Images (1/3)", erreur: null }), "Images (1/3)");
-  assert.equal(libelleSuiviFiche({ statut: "en_cours", etape: null, erreur: null }), "En file");
-  assert.equal(libelleSuiviFiche({ statut: "termine", etape: null, erreur: null }), "Fiche écrite");
-  assert.equal(libelleSuiviFiche({ statut: "annulee", etape: "Choix des références", erreur: null }), "Annulée");
-  assert.equal(
-    libelleSuiviFiche({ statut: "echoue", etape: "Images", erreur: "Pas de prompt d'image pour PROP_lanterne" }),
-    "Échec (Images) : Pas de prompt d'image pour PROP_lanterne",
-  );
-  const d = dernieresDemandesParPlan([
-    { id: 3, planId: 1 },
-    { id: 9, planId: 2 },
-    { id: 7, planId: 1 },
-    { id: 5, planId: 2 },
-  ]);
-  assert.deepEqual(d.map((x) => x.id).sort((a, b) => a - b), [7, 9]);
 });
 
 test("décision : une étape à venir se lance, sauf si la conversation est occupée", () => {
