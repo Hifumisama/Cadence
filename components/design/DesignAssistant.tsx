@@ -18,6 +18,7 @@ import {
   versCharge,
   type EtatAssistant,
 } from "@/lib/projects/design-ui";
+import { luminositeAmbiance } from "@/lib/projects/design";
 import { SceneAccueil, SceneDuree, SceneGenreTon, SceneLangue } from "./Scenes";
 import { Glissiere } from "./Slider";
 import { SceneStyle } from "./SceneStyle";
@@ -123,9 +124,9 @@ export function ConceptionAssistant({ styles, demos = {} }: { styles: StyleVue[]
     () =>
       ({
         "--cn-hue": teinteAmbiance(etat.genres),
-        "--cn-lum": (1 - etat.ton / 100).toFixed(2),
+        "--cn-lum": luminositeAmbiance(etat.genres),
       }) as CSSProperties,
-    [etat.genres, etat.ton],
+    [etat.genres],
   );
 
   return (
@@ -185,7 +186,7 @@ export function ConceptionAssistant({ styles, demos = {} }: { styles: StyleVue[]
         <div className="cn-lightbox" role="dialog" aria-modal="true" aria-label="Avant de rencontrer le scénariste" onClick={() => setConfirmer(false)} onKeyDown={(e) => e.key === "Escape" && setConfirmer(false)}>
           <div className="cn-confirmation" onClick={(e) => e.stopPropagation()}>
             <b>Avant de rencontrer le scénariste</b>
-            <p>Une fois l’entretien commencé, <b className="cn-fige">ces choix sont figés</b> : genre, ton, durée, langue et style ne se modifient plus. Relis-les si tu as un doute. La mise en scène, elle, se règle encore plus tard (Brief, scène ou plan).</p>
+            <p>Une fois l’entretien commencé, <b className="cn-fige">ces choix sont figés</b> : genre, durée, langue et style ne se modifient plus. Relis-les si tu as un doute. La mise en scène, elle, se règle encore plus tard (Brief, scène ou plan).</p>
             <div className="cn-confirmation-actions">
               <button type="button" className="btn" autoFocus onClick={() => setConfirmer(false)}>Revenir aux choix</button>
               <button type="button" className="btn btn-gold" onClick={() => void rencontrer()}>Rencontrer le scénariste</button>

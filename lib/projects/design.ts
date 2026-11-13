@@ -64,8 +64,8 @@ export const RYTHME_PAR_DEFAUT: RythmeBrief = "mesure";
 export const TON_PAR_DEFAUT = 50;
 export const GENRES_MAX = 2;
 
-/** Proposed genres, with the starting tone (0 = light, 100 = dark) that the slider takes when the user has not
- * adjusted it. `teinte` and `poids` are only used for display. */
+/** Proposed genres. `ton` (0 = light, 100 = dark), `teinte` and `poids` are only used for display (the ambient light of the design screens):
+ * the tone of the film is no longer a setting, it comes from the story, the style and the staging. */
 export const GENRES: readonly { nom: string; ton: number; /** HSL tint of the ambient light (never full red). */ teinte: number; /** Relative size of the bubble on screen. */ poids: number }[] = [
   { nom: "Action", ton: 55, teinte: 38, poids: 3.4 },
   { nom: "Aventure", ton: 40, teinte: 150, poids: 2.6 },
@@ -102,10 +102,6 @@ type StyleConception =
 
 export type Conception = {
   genres: string[];
-  /** 0 = light, 100 = dark. */
-  ton: number;
-  /** True when the user has moved the slider (otherwise the tone comes from the genres). */
-  tonAjuste: boolean;
   dureeSecondes: number;
   rythme: RythmeBrief;
   /** True when the user has looked at the duration and rhythm (otherwise these are the default values, flagged as such). */
@@ -127,13 +123,14 @@ export function tonDepuisGenres(genres: readonly string[]): number {
   return tons.length ? Math.round(tons.reduce((a, b) => a + b, 0) / tons.length) : TON_PAR_DEFAUT;
 }
 
-export function motDuTon(ton: number): string {
-  return ton <= 18 ? "lumineux" : ton <= 38 ? "léger" : ton <= 62 ? "nuancé" : ton <= 82 ? "grave" : "sombre";
+/** Luminosity of the ambient light of the design screens (CSS `--cn-lum`, « 0.18 » = dark): follows the genres, never set by hand. */
+export function luminositeAmbiance(genres: readonly string[]): string {
+  return (1 - tonDepuisGenres(genres) / 100).toFixed(2);
 }
 
-/** « Drame + Thriller, ton grave (82/100) »: the value of `genreTon` in the brief. */
-export function genreTonTexte(c: Pick<Conception, "genres" | "ton">): string {
-  return `${c.genres.join(" + ")}, ton ${motDuTon(c.ton)} (${c.ton}/100)`;
+/** « Drame + Thriller »: the value of `genreTon` in the brief (the tone itself is left to the story, the style and the staging). */
+export function genresTexte(c: Pick<Conception, "genres">): string {
+  return c.genres.join(" + ");
 }
 
 /** Number of clips for a duration and a rhythm: bounds (longest clips → shortest) and average value. */
@@ -159,11 +156,6 @@ export function validerConception(brut: unknown, bibliotheque: readonly Pick<Sty
   if (genres.length < 1 || genres.length > GENRES_MAX || genres.some((g) => typeof g !== "string" || !nomsGenres.includes(g)) || new Set(genres).size !== genres.length) {
     erreurs.push(`Genres : de 1 à ${GENRES_MAX} genres de la liste, sans doublon.`);
   }
-
-  const tonAjuste = o.tonAjuste === true;
-  let ton = o.ton;
-  if (ton == null) ton = tonDepuisGenres(genres as string[]);
-  if (typeof ton !== "number" || !Number.isInteger(ton) || ton < 0 || ton > 100) erreurs.push("Ton : un entier de 0 à 100.");
 
   const dureeSecondes = o.dureeSecondes ?? DUREE_PAR_DEFAUT_SECONDES;
   if (typeof dureeSecondes !== "number" || !Number.isInteger(dureeSecondes) || dureeSecondes < DUREE_MIN_SECONDES || dureeSecondes > DUREE_MAX_SECONDES) {
@@ -197,8 +189,6 @@ export function validerConception(brut: unknown, bibliotheque: readonly Pick<Sty
     ok: true,
     valeur: {
       genres: genres as string[],
-      ton: ton as number,
-      tonAjuste,
       dureeSecondes: dureeSecondes as number,
       rythme: rythme as RythmeBrief,
       dureeChoisie: o.dureeChoisie === true,
@@ -228,7 +218,7 @@ export function resoudreStyle(c: Pick<Conception, "style">, bibliotheque: readon
  * The sheet contains ONLY the style's name and clause: the long prompt and the image stay out of the model's view. */
 export function ficheDepuisConception(c: Conception, style: StyleResolu): Fiche {
   const contenu: Record<string, unknown> = {
-    genreTon: genreTonTexte(c),
+    genreTon: genresTexte(c),
     style: { nom: style.nom, clause: style.clause },
     langueDialogues: c.langue,
     dureeEpisodeSecondes: c.dureeSecondes,
@@ -238,9 +228,9 @@ export function ficheDepuisConception(c: Conception, style: StyleResolu): Fiche 
   return { contenu, statuts };
 }
 
-/** What the clap screen shows as « par défaut » (the tone, the duration and the rhythm, the language left untouched). */
-export function valeursParDefaut(c: Conception): { ton: boolean; duree: boolean; langue: boolean } {
-  return { ton: !c.tonAjuste, duree: !c.dureeChoisie, langue: !c.langueChoisie };
+/** What the clap screen shows as « par défaut » (the duration and the rhythm, the language left untouched). */
+export function valeursParDefaut(c: Conception): { duree: boolean; langue: boolean } {
+  return { duree: !c.dureeChoisie, langue: !c.langueChoisie };
 }
 
 /** What the conversation agent knows in addition to the brief: a project is a film (not a section of the brief). */

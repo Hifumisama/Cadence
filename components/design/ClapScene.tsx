@@ -4,7 +4,7 @@ import { useState } from "react";
 import { lancerCreationProjet } from "@/app/creation/actions";
 import { modifierNomProjet } from "@/app/projects/actions";
 import type { NoteAffichee } from "@/lib/agents/sheet-display";
-import { motDuTon, plansEstimes, valeursParDefaut, type Conception } from "@/lib/projects/design";
+import { plansEstimes, valeursParDefaut, type Conception } from "@/lib/projects/design";
 import { minutesSecondes } from "@/lib/projects/design-ui";
 import { urlMiniature } from "@/lib/thumbnails";
 import { posterPorteLeTitre } from "@/lib/posters/poster";
@@ -39,7 +39,7 @@ export function AfficheProjet({ conception, style, titre, affiche, reessayer }: 
       <div className="cn-poster-texte">
         <div className="cn-poster-tete">
           <p className="cn-poster-haut">CADENCE PRÉSENTE</p>
-          <p className="cn-poster-accroche">Un film {genres}, {motDuTon(conception.ton)}</p>
+          <p className="cn-poster-accroche">Un film {genres}</p>
         </div>
         <div className="cn-poster-pied">
           {titreDansImage ? null : <p className="cn-poster-titre">{titre.trim() || "Titre à venir"}</p>}
@@ -157,7 +157,6 @@ export function ClapScene({
             <dl className="cn-claps-grille">
               <Cellule cle="Format" valeur="Film" />
               <Cellule cle="Genre" valeur={conception.genres.join(" + ")} />
-              <Cellule cle="Ton" valeur={`${motDuTon(conception.ton)} · ${conception.ton}`} defaut={defauts.ton} />
               <Cellule cle="Durée" valeur={minutesSecondes(conception.dureeSecondes)} defaut={defauts.duree} />
               <Cellule cle="Rythme" valeur={`${conception.rythme} · ≈ ${plans.moyen} plans`} defaut={defauts.duree} />
               <Cellule cle="Dialogues" valeur={conception.langue} defaut={defauts.langue} />

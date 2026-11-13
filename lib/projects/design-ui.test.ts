@@ -5,7 +5,6 @@ import {
   DERNIERE_ETAPE,
   ETAPES_ASSISTANT,
   ETAPES_CONCEPTION,
-  ajusterTon,
   basculerGenre,
   choisirMiseEnScene,
   etapeMax,
@@ -14,7 +13,6 @@ import {
   lireEtatSauvegarde,
   minutesSecondes,
   miseEnSceneDuStyle,
-  reinitialiserTon,
   resumeEtape,
   styleComplet,
   suivreRecommandation,
@@ -29,31 +27,16 @@ const aucun = () => false;
 test("état de départ : film, français, 2 min, rythme mesuré, rien choisi", () => {
   const e = etatInitial();
   assert.deepEqual([e.langue, e.duree, e.rythme, e.genres.length, e.style], ["Français", 120, "mesure", 0, null]);
-  assert.equal(e.ton, 50);
 });
 
-test("genres : deux au maximum (le plus ancien part), le ton suit tant qu'il n'est pas ajusté", () => {
+test("genres : deux au maximum (le plus ancien part)", () => {
   let e = basculerGenre(etatInitial(), "Comédie");
-  assert.equal(e.ton, 15);
   e = basculerGenre(e, "Drame");
   assert.deepEqual(e.genres, ["Comédie", "Drame"]);
-  assert.equal(e.ton, 48);
   e = basculerGenre(e, "Thriller");
   assert.deepEqual(e.genres, ["Drame", "Thriller"]);
   e = basculerGenre(e, "Drame");
   assert.deepEqual(e.genres, ["Thriller"]);
-  assert.equal(e.ton, 82);
-});
-
-test("ton ajusté : il ne suit plus les genres, jusqu'au retour au ton du genre", () => {
-  let e = basculerGenre(etatInitial(), "Comédie");
-  e = ajusterTon(e, 140);
-  assert.deepEqual([e.ton, e.tonAjuste], [100, true]);
-  e = basculerGenre(e, "Drame");
-  assert.equal(e.ton, 100);
-  e = reinitialiserTon(e);
-  assert.deepEqual([e.ton, e.tonAjuste], [48, false]);
-  assert.equal(ajusterTon(etatInitial(), -5).ton, 0);
 });
 
 test("étapes : il faut un genre, puis un style complet ; etapeMax s'arrête à la première étape incomplète", () => {
@@ -81,7 +64,7 @@ test("résumés du ruban : vides tant que rien n'est choisi, sauf la durée et l
   const nom = (id: string) => (id === "g" ? "Gouache" : null);
   assert.deepEqual([0, 1, 2, 3, 4].map((i) => resumeEtape(i, e, nom)), ["Film IA", "", minutesSecondes(e.duree), "Français", ""]);
   e = { ...basculerGenre(etatInitial(), "Drame"), dureeChoisie: true, duree: 150, langueChoisie: true, langue: SANS_DIALOGUE, style: { source: "bibliotheque", styleId: "g" } };
-  assert.deepEqual([0, 1, 2, 3, 4].map((i) => resumeEtape(i, e, nom)), ["Film IA", "Drame · grave", "2 min 30", SANS_DIALOGUE, "Gouache"]);
+  assert.deepEqual([0, 1, 2, 3, 4].map((i) => resumeEtape(i, e, nom)), ["Film IA", "Drame", "2 min 30", SANS_DIALOGUE, "Gouache"]);
   assert.equal(resumeEtape(4, { ...e, style: { source: "libre", nom: " ", promptImage: "a", clause: "b" } }, nom), "Style libre");
   assert.equal(minutesSecondes(45), "45 s");
   assert.equal(minutesSecondes(60), "1 min");
@@ -106,10 +89,9 @@ test("sauvegarde en session : aller-retour, et toute valeur inattendue retombe s
   assert.equal(lireEtatSauvegarde(null), null);
   assert.equal(lireEtatSauvegarde("pas du json"), null);
   assert.equal(lireEtatSauvegarde("[1]"), null);
-  const abime = lireEtatSauvegarde(JSON.stringify({ genres: ["Inconnu", "Drame", "Action", "Western"], duree: 5, rythme: "x", langue: "Klingon", ton: 12, tonAjuste: false, style: { source: "?" } }))!;
+  const abime = lireEtatSauvegarde(JSON.stringify({ genres: ["Inconnu", "Drame", "Action", "Western"], duree: 5, rythme: "x", langue: "Klingon", style: { source: "?" } }))!;
   assert.deepEqual([abime.duree, abime.rythme, abime.langue, abime.style], [120, "mesure", "Français", null]);
   assert.deepEqual(abime.genres, ["Drame", "Action"], "genres inconnus retirés, deux au maximum");
-  assert.equal(abime.ton, 68, "ton non ajusté : recalculé depuis les genres");
 });
 
 // --- « Mise en scène » step (creativity and staging style of Open H3 IR, step 6 of /nouveau) ---------------------------

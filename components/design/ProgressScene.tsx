@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type 
 import { arreterCreationProjet, reprendreCreationProjet } from "@/app/creation/actions";
 import { SYMBOLE_SOUS_TACHE } from "@/lib/agents/agents-display";
 import type { VueCreation } from "@/lib/agents/creation-view";
-import { motDuTon, type Conception } from "@/lib/projects/design";
+import { luminositeAmbiance, type Conception } from "@/lib/projects/design";
 import { minutesSecondes, teinteAmbiance } from "@/lib/projects/design-ui";
 import { BoutonGenererImages, useEtatImages } from "@/components/images/ProjectImages";
 import { phraseCompteImages, type EtatImages } from "@/lib/assets/project-images";
@@ -27,7 +27,7 @@ const LIBELLES: Record<VueCreation["etapes"][number]["statut"], string> = {
 /** The first draft of the screenplay as the end screen states it: the first episode's scenes (name and number of clips), and where to read it. */
 export type PremierJet = { scenarioHref: string; nbPlans: number; dureeSecondes: number; scenes: { titre: string; nbPlans: number }[] };
 
-const NOMS_ETAPES = ["Format", "Genre & ton", "Durée", "Langue", "Style", "Mise en scène", "Scénario", "Clap", "Avancée"];
+const NOMS_ETAPES = ["Format", "Genre", "Durée", "Langue", "Style", "Mise en scène", "Scénario", "Clap", "Avancée"];
 
 /** Scene 8 of the design: the preparation's progress, step by step (the installer, lib/agents/creation.ts). Same data and same
  * polling as the old page; only the presentation changes: the design ribbon, the project's poster, the percentage on one
@@ -95,11 +95,11 @@ export function AvanceeScene({
     });
 
   const ambiance = useMemo(
-    () => (conception ? ({ "--cn-hue": teinteAmbiance(conception.genres), "--cn-lum": (1 - conception.ton / 100).toFixed(2) } as CSSProperties) : undefined),
+    () => (conception ? ({ "--cn-hue": teinteAmbiance(conception.genres), "--cn-lum": luminositeAmbiance(conception.genres) } as CSSProperties) : undefined),
     [conception],
   );
   const resumes = conception
-    ? ["Film", `${conception.genres.join("/")} · ${motDuTon(conception.ton)}`, minutesSecondes(conception.dureeSecondes), conception.langue, style.nom, miseEnScene, "fait", "fait"]
+    ? ["Film", conception.genres.join("/"), minutesSecondes(conception.dureeSecondes), conception.langue, style.nom, miseEnScene, "fait", "fait"]
     : [];
 
   const pct = vue && vue.total ? Math.round((vue.faites / vue.total) * 100) : 0;

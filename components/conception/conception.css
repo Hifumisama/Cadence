@@ -101,16 +101,11 @@
 .cn-bulle[aria-pressed="true"] { border-color: var(--or); color: var(--or-glow); box-shadow: 0 0 34px -6px rgba(201, 162, 75, 0.55), inset 0 0 18px -8px rgba(201, 162, 75, 0.6); transform: scale(1.06); }
 .cn-compte { margin-top: 26px; font-family: var(--font-mono); font-size: 12.5px; color: var(--ink-3); }
 .cn-compte b { color: var(--or); font-weight: 500; }
-.cn-ton { margin-top: clamp(20px, 4vh, 44px); }
-.cn-ton-mot { font-family: var(--font-brand); font-size: clamp(40px, 8vw, 96px); line-height: 1; text-align: center; margin: 0; color: var(--or-glow); transition: letter-spacing 0.5s var(--cn-ease); text-shadow: 0 0 60px rgba(201, 162, 75, 0.35); }
-.cn-ton-sous { text-align: center; color: var(--ink-3); margin: 6px 0 28px; min-height: 1.5em; }
 .cn-fader { position: relative; height: 90px; margin: 0 auto; max-width: 1000px; cursor: ew-resize; user-select: none; touch-action: pan-y; }
 .cn-onde { position: absolute; inset: 0; display: flex; align-items: center; gap: 3px; }
 .cn-onde i { flex: 1; background: var(--line-strong); border-radius: 2px; transition: height 0.35s var(--cn-ease), background 0.3s; }
 .cn-onde i.is-on { background: var(--or); }
 .cn-poignee { position: absolute; top: 0; bottom: 0; width: 3px; background: var(--or-glow); box-shadow: 0 0 16px rgba(240, 208, 137, 0.8); transform: translateX(-50%); pointer-events: none; transition: left 0.08s linear; }
-.cn-fader-bord { display: flex; justify-content: space-between; max-width: 1000px; margin: 14px auto 0; color: var(--ink-3); font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; }
-.cn-ton-info { text-align: center; margin-top: 22px; color: var(--ink-3); font-size: 14px; }
 
 /* 3. Durée et rythme */
 .cn-grande-duree { font-family: var(--font-brand); font-size: clamp(54px, 10vw, 130px); line-height: 1; margin: 0 0 4px; color: var(--or-glow); }
@@ -230,7 +225,6 @@
 .cn-accueil-etapes li::before { content: counter(accueil, decimal-leading-zero); grid-row: span 2; font-family: var(--font-mono); color: var(--or); align-self: center; }
 .cn-accueil-etapes b { font-weight: 500; color: var(--ink); }
 .cn-accueil-etapes span { color: var(--ink-3); }
-.cn-ton-titre { text-align: center; margin: 0 0 14px; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--or); }
 .cn-nouveau-style[aria-pressed="true"] { border-color: var(--or); color: var(--or-glow); }
 .cn-confirmation { display: grid; gap: 12px; width: min(460px, 90vw); padding: 24px; border: 1px solid var(--line-strong); background: var(--surface); }
 .cn-confirmation > b { font-family: var(--font-brand); font-weight: 400; font-size: 22px; }

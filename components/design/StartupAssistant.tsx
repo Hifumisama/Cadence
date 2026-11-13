@@ -9,7 +9,7 @@ import { estTacheActive } from "@/lib/agents/agents-display";
 import type { VueConversation } from "@/lib/agents/types";
 import type { Conception } from "@/lib/projects/design";
 import { ETAPES_CONCEPTION, minutesSecondes, teinteAmbiance } from "@/lib/projects/design-ui";
-import { motDuTon } from "@/lib/projects/design";
+import { luminositeAmbiance } from "@/lib/projects/design";
 import { lireAfficheClap, preparerAfficheClap } from "@/app/affiches/clap-actions";
 import { ClapScene, type AfficheEtat, type StyleAffiche } from "./ClapScene";
 import { RubanConception } from "./DesignRibbon";
@@ -24,7 +24,7 @@ const SCENARIO = 6;
 const CLAP = 7;
 
 function resumesFaits(c: Conception, nomStyle: string, miseEnScene: string): string[] {
-  return ["Film", `${c.genres.join("/")} · ${motDuTon(c.ton)}`, minutesSecondes(c.dureeSecondes), c.langue, nomStyle, miseEnScene];
+  return ["Film", c.genres.join("/"), minutesSecondes(c.dureeSecondes), c.langue, nomStyle, miseEnScene];
 }
 
 export function DemarrageAssistant({
@@ -101,8 +101,8 @@ export function DemarrageAssistant({
 
   const resumes = useMemo(() => resumesFaits(conception, style.nom, miseEnScene), [conception, style.nom, miseEnScene]);
   const ambiance = useMemo(
-    () => ({ "--cn-hue": teinteAmbiance(conception.genres), "--cn-lum": (1 - conception.ton / 100).toFixed(2) }) as CSSProperties,
-    [conception.genres, conception.ton],
+    () => ({ "--cn-hue": teinteAmbiance(conception.genres), "--cn-lum": luminositeAmbiance(conception.genres) }) as CSSProperties,
+    [conception.genres],
   );
 
   return (

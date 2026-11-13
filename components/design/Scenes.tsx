@@ -11,15 +11,14 @@ import {
   REPERES_DUREE,
   SANS_DIALOGUE,
   dureeDepuisPosition,
-  motDuTon,
   plansEstimes,
   positionDepuisDuree,
 } from "@/lib/projects/design";
-import { ajusterTon, basculerGenre, minutesSecondes, reinitialiserTon } from "@/lib/projects/design-ui";
+import { basculerGenre, minutesSecondes } from "@/lib/projects/design-ui";
 import { Curseur } from "./Cursor";
 import type { PropsScene } from "./types";
 
-/** The first four scenes of the design: format, genre and tone, duration and rhythm, language. The style scene is separate
+/** The first four scenes of the design: format, genre, duration and rhythm, language. The style scene is separate
  * (SceneStyle.tsx). Each scene only displays the state and changes it through `maj`; the rules live in lib/projects/design-ui.ts. */
 
 export function EnteteScene({ acte, titre, sous }: { acte: string; titre: ReactNode; sous?: string }) {
@@ -48,27 +47,12 @@ export function SceneAccueil() {
   );
 }
 
-/* ----------------------------------------------------------- 2. Genre and tone */
-
-function phraseTon(ton: number): string {
-  if (ton <= 18) return "Couleurs chaudes, humour, gestes francs.";
-  if (ton <= 38) return "Optimiste, rythme vif, enjeux qui ne pèsent pas.";
-  if (ton <= 62) return "Un mélange : ni tout à fait gai, ni tout à fait grave.";
-  if (ton <= 82) return "Enjeux lourds, silences, lumière contrastée.";
-  return "Menace, noirceur, peu d’espoir visible.";
-}
-
-const NB_BARRES = 64;
+/* ----------------------------------------------------------- 2. Genre */
 
 export function SceneGenreTon({ etat, maj }: PropsScene) {
-  const barres = useMemo(
-    () => Array.from({ length: NB_BARRES }, (_, k) => 14 + Math.abs(Math.sin(k * 0.55) * 34) + Math.abs(Math.sin(k * 0.17 + 1) * 28)),
-    [],
-  );
-  const seuil = Math.round((etat.ton / 100) * NB_BARRES);
   return (
     <>
-      <EnteteScene acte="Acte 02" titre={<>Quel <em>univers</em>, quelle <em>couleur</em> ?</>} sous="Le genre règle le ton de départ ; tu peux l’ajuster à la main, comme tu veux." />
+      <EnteteScene acte="Acte 02" titre={<>Quel <em>univers</em>, quelle <em>couleur</em> ?</>} sous="Un ou deux genres pour poser l’univers. Le ton se dessinera dans l’histoire, le style et la mise en scène." />
       <div className="cn-nuage" role="group" aria-label="Genres">
         {GENRES.map((g) => (
           <button
@@ -90,30 +74,6 @@ export function SceneGenreTon({ etat, maj }: PropsScene) {
           "Choisis un genre, ou deux pour un mélange. L’ambiance de la salle change avec eux."
         )}
       </p>
-
-      <div className="cn-ton">
-        <p className="cn-ton-titre">Style et Intensité</p>
-        <p className="cn-ton-mot" aria-live="polite" style={{ letterSpacing: `${(((etat.ton - 50) / 50) * 0.04).toFixed(3)}em` }}>
-          {motDuTon(etat.ton).replace(/^./, (c) => c.toUpperCase())}
-        </p>
-        <p className="cn-ton-sous">{phraseTon(etat.ton)}</p>
-        <Curseur className="cn-fader" valeur={etat.ton} min={0} max={100} etiquette="Ton : de lumineux à sombre" texteValeur={motDuTon(etat.ton)} onChange={(v) => maj((e) => ajusterTon(e, v))}>
-          <div className="cn-onde" aria-hidden="true">
-            {barres.map((h, k) => (
-              <i key={k} className={k < seuil ? "is-on" : ""} style={{ height: `${h * (0.4 + etat.ton / 100)}%` }} />
-            ))}
-          </div>
-          <div className="cn-poignee" style={{ left: `${etat.ton}%` }} aria-hidden="true" />
-        </Curseur>
-        <div className="cn-fader-bord" aria-hidden="true"><span>+ lumineux</span><span>+ sombre</span></div>
-        <p className="cn-ton-info">
-          {etat.tonAjuste ? "Ajusté à la main" : etat.genres.length ? `Calé sur ${etat.genres.join(" + ")}` : "Valeur neutre (aucun genre choisi)"}
-          <span className={`cn-tag${etat.tonAjuste ? " is-or" : ""}`}>{etat.tonAjuste ? "ajusté" : "par défaut"}</span>
-          {etat.tonAjuste && etat.genres.length ? (
-            <> <button type="button" className="cn-lien" onClick={() => maj(reinitialiserTon)}>Revenir au ton du genre</button></>
-          ) : null}
-        </p>
-      </div>
     </>
   );
 }

@@ -2,7 +2,7 @@
  * different leads (to take, to mix, or to throw away) for whoever has no idea, without imposing anything on whoever has one. Written in code, without an
  * LLM call: it is there from the opening, and the random draw guarantees three distinct genres. Pure (the draw is injectable). */
 
-import { motDuTon, type Conception } from "../projects/design";
+import type { Conception } from "../projects/design";
 
 type Piste = { genre: string; idee: string };
 
@@ -55,7 +55,6 @@ export function entreeAccroche(c: Conception, style: { nom: string; clause: stri
     MARQUE_PROJET_CONCU,
     `Format : film`,
     `Genre : ${c.genres.length ? c.genres.join(", ") : "non arrêté"}`,
-    `Ton : ${motDuTon(c.ton)}`,
     `Durée : ${dureeEnTexte(c.dureeSecondes)}`,
     `Langue des dialogues : ${c.langue}`,
     `Style visuel : « ${style.nom || "style libre"} »${style.clause.trim() ? ` : ${style.clause.trim()}` : ""}`,

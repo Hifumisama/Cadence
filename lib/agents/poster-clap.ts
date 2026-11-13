@@ -4,7 +4,7 @@ import { agentConversations, agentRuns, assetGenerations, assets, briefs, projec
 import { TYPE_AFFICHE, avecTitreDansImage, codeAffiche, formatAfficheParDefaut, promptAffiche } from "../posters/posters";
 import { nouvelleSeed } from "../assets/asset-generation";
 import { VARIANTE_AFFICHE } from "../llm/variants";
-import { motDuTon, styleDesImages } from "../projects/design";
+import { styleDesImages } from "../projects/design";
 import { lireConception } from "../projects/design-db";
 import type { Db } from "./appliers/common";
 import { ficheCourante } from "./sheet-db";
@@ -29,7 +29,6 @@ export type DonneesAffiche = {
   personnages: Pick<PersonnageBrief, "nom" | "age" | "apparence" | "gestuelle" | "reconnaissable">[];
   lieux: string;
   genres: string[];
-  ton: number;
   /** The style's long prompt (it changes if the style changes) and its short clause. */
   styleImage: string;
   clauseStyle: string;
@@ -39,8 +38,7 @@ const TITRES_PROVISOIRES = new Set(["", "sans titre", "projet", "untitled"]);
 
 const net = (s: unknown): string => (typeof s === "string" ? s.replace(/\s+/g, " ").trim() : "");
 
-/** Fingerprint of what feeds the poster: when it changes, the poster is redone; otherwise not. The tone counts by its WORD (a slider
- * that moves three points redoes nothing); the title counts (it is in the image). */
+/** Fingerprint of what feeds the poster: when it changes, the poster is redone; otherwise not. The title counts (it is in the image). */
 export function signatureAffiche(d: Omit<DonneesAffiche, "clauseStyle">): string {
   const canon = JSON.stringify({
     titre: net(d.titre),
@@ -48,7 +46,6 @@ export function signatureAffiche(d: Omit<DonneesAffiche, "clauseStyle">): string
     personnages: d.personnages.map((p) => [net(p.nom), net(p.age), net(p.apparence), net(p.gestuelle), net(p.reconnaissable)]),
     lieux: net(d.lieux),
     genres: [...d.genres].sort(),
-    ton: motDuTon(d.ton),
     style: createHash("sha1").update(d.styleImage).digest("hex"),
   });
   return createHash("sha1").update(canon).digest("hex").slice(0, 16);
@@ -65,7 +62,7 @@ export function entreeAfficheClap(d: DonneesAffiche): Record<string, unknown> {
     cible: "projet",
     titre: d.titre,
     resume: [d.arc, d.lieux ? `Lieux : ${d.lieux}` : "", autres.length ? `Autres personnages : ${autres.join(" ; ")}` : ""].map(net).filter(Boolean).join("\n"),
-    genreTon: `${d.genres.join(" + ")}, ton ${motDuTon(d.ton)}`,
+    genreTon: d.genres.join(" + "),
     clauseStyleDuProjet: d.clauseStyle,
     // The title is written into the image ("Title lettering" line added by the skill, and re-applied by the code on return) as long as it exists.
     titreDansImage: net(d.titre) !== "",
@@ -106,7 +103,6 @@ export async function donneesAffiche(db: Db, projectId: number): Promise<Donnees
     personnages,
     lieux,
     genres: conception.genres,
-    ton: conception.ton,
     styleImage: styleDesImages({ clauseStyle: projet.clauseStyle, stylePromptImage: projet.stylePromptImage }) || style?.clause || "",
     clauseStyle: projet.clauseStyle,
   };
@@ -135,7 +131,7 @@ export async function etatAfficheClap(db: Db, projectId: number, signature: stri
 }
 
 /** Creates the project's poster asset if it does not exist (the same as "Affiche" on the project page), and returns its identifier. */
-async function assurerAssetAffiche(db: Db, projectId: number, d: Pick<DonneesAffiche, "titre" | "arc" | "genres" | "ton">): Promise<number> {
+async function assurerAssetAffiche(db: Db, projectId: number, d: Pick<DonneesAffiche, "titre" | "arc" | "genres">): Promise<number> {
   const code = codeAffiche("projects", projectId);
   const [existant] = await db.select({ id: assets.id }).from(assets).where(and(eq(assets.projectId, projectId), eq(assets.code, code)));
   if (existant) return existant.id;
@@ -146,7 +142,7 @@ async function assurerAssetAffiche(db: Db, projectId: number, d: Pick<DonneesAff
       code,
       type: TYPE_AFFICHE,
       description: `Affiche : ${d.titre || "projet"}`,
-      promptGeneration: promptAffiche({ cible: "projects", titre: d.titre, resume: d.arc, genreTon: `${d.genres.join(" + ")}, ${motDuTon(d.ton)}`, titreDansImage: net(d.titre) !== "" }),
+      promptGeneration: promptAffiche({ cible: "projects", titre: d.titre, resume: d.arc, genreTon: d.genres.join(" + "), titreDansImage: net(d.titre) !== "" }),
     })
     .onConflictDoNothing();
   const [cree] = await db.select({ id: assets.id }).from(assets).where(and(eq(assets.projectId, projectId), eq(assets.code, code)));

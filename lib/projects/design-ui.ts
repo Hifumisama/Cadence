@@ -8,9 +8,6 @@ import {
   LANGUE_PAR_DEFAUT,
   RYTHME_PAR_DEFAUT,
   SANS_DIALOGUE,
-  TON_PAR_DEFAUT,
-  motDuTon,
-  tonDepuisGenres,
 } from "./design";
 import { RYTHMES_BRIEF, type RythmeBrief } from "../agents/types";
 import type { ProfilPersoId } from "../h3ir/character-profiles";
@@ -27,9 +24,6 @@ export type StyleChoisi =
 
 export type EtatAssistant = {
   genres: string[];
-  /** Displayed tone: follows the genres as long as `tonAjuste` is false. */
-  ton: number;
-  tonAjuste: boolean;
   duree: number;
   rythme: RythmeBrief;
   dureeChoisie: boolean;
@@ -44,7 +38,7 @@ export type EtatAssistant = {
   miseEnSceneChoisie: boolean;
 };
 
-export const ETAPES_ASSISTANT = ["Accueil", "Genre & ton", "Durée", "Langue", "Style", "Mise en scène"] as const;
+export const ETAPES_ASSISTANT = ["Accueil", "Genre", "Durée", "Langue", "Style", "Mise en scène"] as const;
 export const DERNIERE_ETAPE = ETAPES_ASSISTANT.length - 1;
 /** The whole film strip, visible from the start page: the six choices, then what follows the project's creation. */
 export const ETAPES_CONCEPTION = [...ETAPES_ASSISTANT, "Scénario", "Clap", "Avancée"] as const;
@@ -53,8 +47,6 @@ export const CLE_SESSION = "cadence.conception.v1";
 export function etatInitial(): EtatAssistant {
   return {
     genres: [],
-    ton: TON_PAR_DEFAUT,
-    tonAjuste: false,
     duree: DUREE_PAR_DEFAUT_SECONDES,
     rythme: RYTHME_PAR_DEFAUT,
     dureeChoisie: false,
@@ -83,19 +75,11 @@ export function suivreRecommandation(etat: EtatAssistant): EtatAssistant {
 /** A MANUAL staging choice (card clicked, « aucun » included): it is kept and no longer follows the recommendation. */
 export const choisirMiseEnScene = (etat: EtatAssistant, styleCamera: string): EtatAssistant => ({ ...etat, styleCamera, miseEnSceneChoisie: true });
 
-/** Ticks or unticks a genre; beyond `GENRES_MAX`, the oldest is replaced. The tone follows the genres as long as it has not been adjusted. */
+/** Ticks or unticks a genre; beyond `GENRES_MAX`, the oldest is replaced. */
 export function basculerGenre(etat: EtatAssistant, nom: string): EtatAssistant {
   const present = etat.genres.includes(nom);
   const genres = present ? etat.genres.filter((g) => g !== nom) : [...etat.genres, nom].slice(-GENRES_MAX);
-  return { ...etat, genres, ton: etat.tonAjuste ? etat.ton : tonDepuisGenres(genres) };
-}
-
-export function ajusterTon(etat: EtatAssistant, ton: number): EtatAssistant {
-  return { ...etat, ton: Math.max(0, Math.min(100, Math.round(ton))), tonAjuste: true };
-}
-
-export function reinitialiserTon(etat: EtatAssistant): EtatAssistant {
-  return { ...etat, tonAjuste: false, ton: tonDepuisGenres(etat.genres) };
+  return { ...etat, genres };
 }
 
 /** A free style is complete with its two prompts (the name and the image are optional). */
@@ -130,7 +114,7 @@ export function resumeEtape(i: number, etat: EtatAssistant, nomStyle: (id: strin
     case 0:
       return "Film IA";
     case 1:
-      return etat.genres.length ? `${etat.genres.join("/")} · ${motDuTon(etat.ton)}` : "";
+      return etat.genres.join("/");
     case 2:
       return minutesSecondes(etat.duree);
     case 3:
@@ -157,8 +141,6 @@ export function teinteAmbiance(genres: readonly string[]): number {
 export function versCharge(etat: EtatAssistant): Record<string, unknown> {
   return {
     genres: etat.genres,
-    ton: etat.ton,
-    tonAjuste: etat.tonAjuste,
     dureeSecondes: etat.duree,
     rythme: etat.rythme,
     dureeChoisie: etat.dureeChoisie,
@@ -187,7 +169,6 @@ export function lireEtatSauvegarde(brut: string | null): EtatAssistant | null {
   const depart = etatInitial();
   const nomsGenres = GENRES.map((g) => g.nom);
   const genres = (Array.isArray(o.genres) ? o.genres : []).filter((g): g is string => typeof g === "string" && nomsGenres.includes(g)).slice(0, GENRES_MAX);
-  const tonAjuste = o.tonAjuste === true;
   const s = o.style as Record<string, unknown> | null | undefined;
   let style: StyleChoisi | null = null;
   if (s && s.source === "bibliotheque" && typeof s.styleId === "string") style = { source: "bibliotheque", styleId: s.styleId };
@@ -204,8 +185,6 @@ export function lireEtatSauvegarde(brut: string | null): EtatAssistant | null {
   const styleCamera = styleCameraOuNull(o.styleCamera) ?? depart.styleCamera;
   return suivreRecommandation({
     genres,
-    ton: tonAjuste ? entier(o.ton, 0, 100, depart.ton) : tonDepuisGenres(genres),
-    tonAjuste,
     duree: entier(o.duree, DUREE_MIN_SECONDES, DUREE_MAX_SECONDES, depart.duree),
     rythme: (RYTHMES_BRIEF as readonly unknown[]).includes(o.rythme) ? (o.rythme as RythmeBrief) : depart.rythme,
     dureeChoisie: o.dureeChoisie === true,

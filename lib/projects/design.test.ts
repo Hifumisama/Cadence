@@ -16,9 +16,9 @@ import {
   pasDuree,
   positionDepuisDuree,
   ficheDepuisConception,
-  genreTonTexte,
+  genresTexte,
+  luminositeAmbiance,
   informationsFormat,
-  motDuTon,
   plansEstimes,
   resoudreStyle,
   styleDesEditions,
@@ -49,9 +49,10 @@ test("validerConception : valeurs par défaut posées pour les champs facultatif
   assert.equal(c.dureeSecondes, 120);
   assert.equal(c.rythme, "mesure");
   assert.equal(c.langue, "Français");
-  assert.equal(c.ton, tonDepuisGenres(["Drame", "Thriller"]));
-  assert.deepEqual(valeursParDefaut(c), { ton: true, duree: true, langue: true });
-  assert.deepEqual(valeursParDefaut(valide({ tonAjuste: true, dureeChoisie: true, langueChoisie: true })), { ton: false, duree: false, langue: false });
+  assert.deepEqual(valeursParDefaut(c), { duree: true, langue: true });
+  assert.deepEqual(valeursParDefaut(valide({ dureeChoisie: true, langueChoisie: true })), { duree: false, langue: false });
+  // An old design (or an old session) that still carries a tone is read all the same: the field is ignored.
+  assert.equal("ton" in valide({ ton: 80, tonAjuste: true }), false);
 });
 
 test("validerConception : les valeurs hors liste sont refusées, jamais corrigées", () => {
@@ -64,8 +65,6 @@ test("validerConception : les valeurs hors liste sont refusées, jamais corrigé
   refuse({ genres: ["Drame", "Thriller", "Action"] }, /Genres/);
   refuse({ genres: ["Drame", "Drame"] }, /Genres/);
   refuse({ genres: ["Inconnu"] }, /Genres/);
-  refuse({ ton: 101 }, /Ton/);
-  refuse({ ton: 40.5 }, /Ton/);
   refuse({ dureeSecondes: 29 }, /Durée/);
   refuse({ dureeSecondes: 5401 }, /Durée/);
   refuse({ rythme: "frénétique" }, /Rythme/);
@@ -82,12 +81,12 @@ test("validerConception : les dix langues et « Sans dialogue » passent, un sty
   assert.deepEqual(c.style, { source: "libre", nom: "Style libre", promptImage: "Long", clause: "Courte", image: "mon-style.webp" });
 });
 
-test("ton : moyenne des genres, mot et texte du brief", () => {
+test("lumière d'ambiance (moyenne des genres) et texte du brief : les genres seuls, sans mot de ton", () => {
   assert.equal(tonDepuisGenres(["Comédie"]), 15);
   assert.equal(tonDepuisGenres(["Drame", "Comédie"]), 48);
   assert.equal(tonDepuisGenres([]), 50);
-  assert.deepEqual([0, 18, 19, 38, 39, 62, 63, 82, 83, 100].map(motDuTon), ["lumineux", "lumineux", "léger", "léger", "nuancé", "nuancé", "grave", "grave", "sombre", "sombre"]);
-  assert.equal(genreTonTexte({ genres: ["Drame", "Thriller"], ton: 81 }), "Drame + Thriller, ton grave (81/100)");
+  assert.equal(luminositeAmbiance(["Comédie"]), "0.85");
+  assert.equal(genresTexte({ genres: ["Drame", "Thriller"] }), "Drame + Thriller");
   assert.equal(new Set(GENRES.map((g) => g.nom)).size, GENRES.length);
 });
 
@@ -150,14 +149,14 @@ test("les schémas du brief et de l'entretien acceptent le prompt long et l'imag
 });
 
 test("entrée de l'accroche d'un projet conçu : les choix sont dits au modèle, une seule fois", () => {
-  const c = valide({ genres: ["Thriller", "Drame"], ton: 80, tonAjuste: true, dureeSecondes: 150 });
+  const c = valide({ genres: ["Thriller", "Drame"], dureeSecondes: 150 });
   const e = entreeAccroche(c, { nom: "Film Noir 2", clause: "A moody noir look." });
   assert.equal(e.length, 1);
   const m = e[0]!.content;
   assert.ok(m.startsWith(MARQUE_PROJET_CONCU));
   assert.match(m, /Format : film/);
   assert.match(m, /Genre : Thriller, Drame/);
-  assert.match(m, /Ton : sombre|Ton : grave/);
+  assert.doesNotMatch(m, /Ton :/);
   assert.match(m, /Durée : 2 min 30/);
   assert.match(m, /Style visuel : « Film Noir 2 » : A moody noir look\./);
   const libre = entreeAccroche(c, { nom: "", clause: "" });
