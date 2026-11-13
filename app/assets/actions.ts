@@ -8,6 +8,10 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET, cheminAssetMedia } from "@/lib/media";
 import { PREFIXE_PAR_TYPE, TYPES_ASSET, construireCode, estMethodeAsset, nomFichierAsset, type TypeAsset } from "@/lib/assets/assetCode";
+import { z } from "zod";
+import { exiger, idSchema, texteSchema, verifier } from "@/lib/validation/args";
+
+const idsSchema = z.array(idSchema).max(5000);
 
 async function enregistrerFichierAsset(projectId: number, code: string, fichier: File): Promise<string> {
   if (fichier.size > TAILLE_MAX_UPLOAD_ASSET) {
@@ -30,6 +34,8 @@ export async function creerAssetRapide(
   type: string,
   nom: string,
 ): Promise<{ ok: true; code: string } | { ok: false; erreur: string }> {
+  const v = verifier(z.tuple([idSchema, z.string().max(40), texteSchema(1000)]), [projectId, type, nom]);
+  if (!v.ok) return v;
   if (!(TYPES_ASSET as readonly string[]).includes(type)) return { ok: false, erreur: "Type d'asset inconnu." };
   const label = nom.trim().slice(0, 120);
   const code = construireCode(type, label);
@@ -44,6 +50,8 @@ export async function creerAssetRapide(
 /** Changes an asset's displayed name. The code (the identifier) does not move: it names the file and is cited as-is by clips
  * and agents. An empty name reverts the asset to its readable code. */
 export async function renommerAsset(assetId: number, label: string): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const v = verifier(z.tuple([idSchema, texteSchema(1000)]), [assetId, label]);
+  if (!v.ok) return v;
   const propre = label.trim().slice(0, 120);
   const [asset] = await db.select({ id: assets.id }).from(assets).where(eq(assets.id, assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
@@ -55,6 +63,8 @@ export async function renommerAsset(assetId: number, label: string): Promise<{ o
 /** Validates (or un-validates) an asset: the only status decision that is entered (the rest is computed, lib/assets/asset-state.ts). Without a file,
  * there is nothing to validate. */
 export async function definirValidation(assetId: number, valide: boolean): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const v = verifier(z.tuple([idSchema, z.boolean()]), [assetId, valide]);
+  if (!v.ok) return v;
   const [asset] = await db.select({ fichier: assets.fichier }).from(assets).where(eq(assets.id, assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
   if (valide && !asset.fichier) return { ok: false, erreur: "Rien à valider : cet asset n'a pas encore de fichier." };
@@ -65,6 +75,7 @@ export async function definirValidation(assetId: number, valide: boolean): Promi
 
 /** Validates several assets at once (registry selection): those without a file are counted separately. */
 export async function validerAssets(ids: number[]): Promise<{ valides: number; sansFichier: number }> {
+  exiger(idsSchema, ids);
   const lignes = await db.select({ id: assets.id, fichier: assets.fichier }).from(assets).where(inArray(assets.id, [...new Set(ids)]));
   const avecFichier = lignes.filter((l) => l.fichier).map((l) => l.id);
   if (avecFichier.length) await db.update(assets).set({ valide: true }).where(inArray(assets.id, avecFichier));
@@ -81,6 +92,7 @@ export async function uploaderFichierAsset(
   assetId: number,
   formData: FormData,
 ) {
+  exiger(idSchema, assetId);
   const fichier = formData.get("fichier");
   if (!(fichier instanceof File) || fichier.size === 0) return;
 
@@ -114,6 +126,8 @@ async function supprimerSansRevalider(assetId: number): Promise<{ ok: true } | {
 export async function supprimerAsset(
   assetId: number,
 ): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const v = verifier(idSchema, assetId);
+  if (!v.ok) return v;
   const r = await supprimerSansRevalider(assetId);
   if (r.ok) revalidatePath("/", "layout");
   return r;
@@ -124,6 +138,7 @@ export async function supprimerAsset(
 export async function supprimerAssets(
   ids: number[],
 ): Promise<{ supprimes: number; bloques: { code: string; erreur: string }[] }> {
+  exiger(idsSchema, ids);
   let supprimes = 0;
   const bloques: { code: string; erreur: string }[] = [];
   for (const id of [...new Set(ids)]) {
@@ -147,6 +162,14 @@ export async function modifierChampAsset(
     methodeGeneration?: string | null;
   },
 ): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const v = verifier(
+    z.tuple([
+      idSchema,
+      z.object({ description: texteSchema().optional(), promptGeneration: texteSchema().optional(), methodeGeneration: z.string().max(80).nullish() }),
+    ]),
+    [assetId, champs],
+  );
+  if (!v.ok) return v;
   const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
   const valeurs: Partial<typeof assets.$inferInsert> = {};
@@ -167,6 +190,7 @@ export async function modifierChampAsset(
 /** Unlinks one specific reference (image/audio/video) without touching the rest of the
  * clip — unblocks the asset's deletion if that was its last citation. */
 export async function delierRef(refId: number) {
+  exiger(idSchema, refId);
   await db.delete(planRefs).where(eq(planRefs.id, refId));
   revalidatePath("/", "layout");
   

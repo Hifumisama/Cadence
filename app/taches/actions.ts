@@ -8,6 +8,10 @@ import { and, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { arreterCreation, idsRunsDeCreation } from "@/lib/agents/creation-db";
 import { demanderAnnulation, viderFile as viderFileDb, type ResultatAnnulation } from "@/lib/tasks/cancellation-db";
 import { analyserCle } from "@/lib/tasks/tasks";
+import { z } from "zod";
+import { exiger } from "@/lib/validation/args";
+
+const clesSchema = z.array(z.string().max(200)).max(1000);
 
 // « Vu »: the user has seen a finished or failed task
 // (header indicator). These actions reload no page: the indicator updates through
@@ -16,6 +20,7 @@ import { analyserCle } from "@/lib/tasks/tasks";
 /** Marks tasks as seen (`image:<uuid>` / `video:<id>` / `llm:<uuid>`). Unknown
  * keys are ignored. */
 export async function marquerVu(cles: string[]): Promise<{ ok: true }> {
+  exiger(clesSchema, cles);
   const maintenant = new Date();
   const uuids: string[] = [];
   const uuidsLlm: string[] = [];
@@ -93,6 +98,7 @@ export async function marquerToutVu(): Promise<{ ok: true }> {
  * connection to the LLM server, then marks the task cancelled.
  * Finished, failed or already cancelled: no effect. Idempotent. */
 export async function annulerTache(cle: string): Promise<{ ok: true; resultat: ResultatAnnulation }> {
+  exiger(z.string().max(200), cle);
   // The « Conception » line of the header groups a project's whole creation: cancelling it means stopping the installer
   // (otherwise it would immediately relaunch the cut task). What has already been written is not undone.
   const a = analyserCle(cle);
@@ -124,6 +130,7 @@ const ACTIFS = ["en_attente", "en_cours"] as const;
  * deleted: the task is only hidden (and marked seen); a generation's candidate stays
  * readable in its asset's popup. Active tasks cannot be removed (cancel them instead). */
 export async function retirerTaches(cles: string[]): Promise<{ ok: true }> {
+  exiger(clesSchema, cles);
   const maintenant = new Date();
   const uuids: string[] = [];
   const uuidsLlm: string[] = [];
@@ -174,6 +181,7 @@ export async function retirerTaches(cles: string[]): Promise<{ ok: true }> {
 /** « Vider la liste » (empty the list): hides at once all finished tasks of a category, `terminees`
  * (succeeded) or `echecs` (failed and cancelled). Active tasks are never touched. */
 export async function viderListe(categorie: "terminees" | "echecs"): Promise<{ ok: true }> {
+  exiger(z.enum(["terminees", "echecs"]), categorie);
   const maintenant = new Date();
   const marque = { masqueAt: maintenant, vuAt: sql`coalesce(vu_at, ${maintenant.toISOString()}::timestamp)` };
   const statutsGen = categorie === "terminees" ? ["termine"] : ["echoue", "annulee"];

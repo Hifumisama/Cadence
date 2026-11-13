@@ -14,6 +14,8 @@ import { reglagesDepuisCharge } from "@/lib/h3ir/settings";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET } from "@/lib/media";
 import { SUJET_AFFICHE_CLAP } from "@/lib/styles/subjects";
 import { listerStyles } from "@/lib/styles/styles-db";
+import { z } from "zod";
+import { verifier } from "@/lib/validation/args";
 
 /** Actions of the project design page (`/nouveau`). Each action returns `{ ok: true, … } | { ok: false, erreur }`: never
  * an exception for a business case. Plan: docs/PLAN_CONCEPTION_PROJET.md. */
@@ -56,6 +58,9 @@ export async function deposerImageStyleLibre(formData: FormData): Promise<{ ok: 
  * on failure the project is deleted (the other tables follow by cascade). The first episode is not created here: as for
  * « Créer avec l'agent », the proposal's skeleton does it (the film's episode exists as soon as the project is created). */
 export async function creerProjetConcu(brut: unknown): Promise<{ ok: true; projectId: number; conversationUuid: string } | Echec> {
+  // `brut` is validated in depth by validerConception below; only its shape (an object) is checked here.
+  const v = verifier(z.object({}).passthrough(), brut);
+  if (!v.ok) return v;
   const bibliotheque = await listerStyles();
   const valide = validerConception(brut, bibliotheque);
   if (!valide.ok) return { ok: false, erreur: valide.erreurs.join(" ") };

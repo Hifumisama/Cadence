@@ -50,7 +50,11 @@
 
 import { revalidatePath } from "next/cache";
 import * as service from "@/lib/agents/service-conversation";
-import type { CibleDemandee, Profondeur, Portee, Resultat } from "@/lib/agents/types";
+import { PORTEES, type CibleDemandee, type Profondeur, type Portee, type Resultat } from "@/lib/agents/types";
+import { z } from "zod";
+import { idSchema, texteSchema, uuidSchema, verifier } from "@/lib/validation/args";
+
+const cibleSchema = z.object({ id: idSchema.optional(), uuid: uuidSchema.optional(), code: z.string().max(255).optional() });
 
 /** Writes invalidate the page cache: the popup then re-reads its data through
  * the reads of lib/agents/queries-agents.ts. */
@@ -72,22 +76,30 @@ export async function ouvrirConversation(
   cible: CibleDemandee | null,
   profondeur?: Profondeur,
 ): Promise<Resultat<{ conversationUuid: string; reprise: boolean }>> {
+  const v = verifier(z.tuple([idSchema, z.enum(PORTEES), cibleSchema.nullable(), z.string().max(20).optional()]), [projectId, portee, cible, profondeur]);
+  if (!v.ok) return v;
   return rafraichir(await service.ouvrirConversation(projectId, portee, cible, profondeur));
 }
 
 /** DESIGNED project whose screenwriter hook failed: retries it (never a regeneration of a successful hook). */
 export async function relancerAccroche(conversationUuid: string): Promise<Resultat> {
+  const v = verifier(uuidSchema, conversationUuid);
+  if (!v.ok) return v;
   return rafraichir(await service.relancerAccroche(conversationUuid));
 }
 
 /** Complete depth: adds the user's message and starts a conversation turn
  * (task). Refused if a turn is already running on this conversation. */
 export async function envoyerMessage(conversationUuid: string, texte: string): Promise<Resultat<{ runUuid: string }>> {
+  const v = verifier(z.tuple([uuidSchema, texteSchema()]), [conversationUuid, texte]);
+  if (!v.ok) return v;
   return rafraichir(await service.envoyerMessage(conversationUuid, texte));
 }
 
 /** Reply through a screenwriter choice card (selected labels): the text sent is formulated server-side. */
 export async function repondreAuChoix(conversationUuid: string, libelles: string[]): Promise<Resultat<{ runUuid: string }>> {
+  const v = verifier(z.tuple([uuidSchema, z.array(texteSchema(1000)).max(50)]), [conversationUuid, libelles]);
+  if (!v.ok) return v;
   return rafraichir(await service.repondreAuChoix(conversationUuid, libelles));
 }
 
@@ -97,6 +109,8 @@ export async function repondreAuChoix(conversationUuid: string, libelles: string
  * The value is validated against the brief schema; the section switches to the `fourni` status.
  * Valid on a draft as well as on the project's validated brief. */
 export async function modifierChampBrief(projectId: number, section: string, valeur: unknown): Promise<Resultat> {
+  const v = verifier(z.tuple([idSchema, z.string().max(80), z.unknown()]), [projectId, section, valeur]);
+  if (!v.ok) return v;
   return rafraichir(await service.modifierChampBrief(projectId, section, valeur));
 }
 

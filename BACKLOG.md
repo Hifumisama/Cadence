@@ -12,11 +12,9 @@ Ce qu'on décide ensemble. Mis à jour à chaque point d'étape. Risque : **faib
 - Local : fait le 2026-11-13 (260 images rangées, 16 assets repassés « sans image » dont 11 victimes de la collision à regénérer ; sauvegarde dans data/_sauvegarde_assets_2026-11-13, à supprimer quand tout est vérifié).
 
 ## À faire, décidé
-- **Validation côté serveur (zod)** des server actions. Faible.
-- **Remplacer le reset CSS copié de Tailwind** (~390 lignes de `globals.css`). Faible, mais à valider à l'œil.
+- **Validation côté serveur (zod)** des server actions : en cours (branche menage/zod).
 
 ## À décider avec l'utilisateur
-- **Repli LLM `references-plan`** (~300 lignes, 1 appel contre 73 fiches) : le retirer = alerte ou choix par défaut quand le code hésite sur les images de référence. Moyen.
 - **Limite de 3 personnages qui parlent par plan** dans les skills `scenario-episode` / `scenario-scene` : garder, relever ou retirer, maintenant que les voix n'existent plus.
 - **Relecture du scénario** : chantier à part entière (étape de l'installateur, 3 propositions appliquées sur 9). À cadrer ensemble avant toute décision.
 
@@ -32,7 +30,10 @@ Ce qu'on décide ensemble. Mis à jour à chaque point d'étape. Risque : **faib
 Storyboard (animatic), musique d'épisode, latents/chaîne de plans, banc de skills, bouton « vérifier le GPU » dans l'interface.
 
 ## Fait (2026-11-12 et 13)
-Docs retirée · `lib/` par domaines · noms de fichiers et commentaires en anglais · plan-h3 retiré · scripts jetables retirés · knip + CI · `.claude/` et `CLAUDE.md` refaits · robustesse (boucle vidéo, upload d'asset, délais ComfyUI) · notifications navigateur retirées · manuel du montage en popup · voix retirées · classes CSS mortes retirées · `service.ts` et `requests-db.ts` scindés · tests sur base jetable · propositions simplifiées.
+Reset CSS condensé · Assets rangés par projet (260 images, local) · Docs retirée · `lib/` par domaines · noms de fichiers et commentaires en anglais · plan-h3 retiré · scripts jetables retirés · knip + CI · `.claude/` et `CLAUDE.md` refaits · robustesse (boucle vidéo, upload d'asset, délais ComfyUI) · notifications navigateur retirées · manuel du montage en popup · voix retirées · classes CSS mortes retirées · `service.ts` et `requests-db.ts` scindés · tests sur base jetable · propositions simplifiées.
+
+## Gardé après examen
+- **Repli LLM `references-plan`** (décidé le 2026-11-13) : 1 appel utile (plan drone sans décor nommé), coût faible. À réévaluer si l'usage sur les nouveaux projets reste à zéro.
 
 ## Refusé, avec la raison
 - **Vue SQL `v_taches`** : la complexité de `listerTaches` est dans les mappeurs par type, les lots et la fenêtre de création, pas dans les 6 requêtes. Une vue ne la réduirait pas.

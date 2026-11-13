@@ -7,6 +7,8 @@ import { jobs, montageEntrees, montageExports, plans } from "@/db/schema";
 import { entreesEpisode, reecrireRangs } from "@/lib/montage/montage-db";
 import { construireClips, recaler, segmentsExport, DUREE_MIN_CLIP } from "@/lib/montage/montage";
 import { getMontage } from "@/lib/montage/queries-montage";
+import { z } from "zod";
+import { idSchema, verifier } from "@/lib/validation/args";
 
 /** Actions of the Montage page (docs/PLAN_MONTAGE.md). They only touch the montage ENTRIES (`montage_entrees`): never a clip,
  * its order in the screenplay, nor its renders. The screenplay order, for its part, is changed with `deplacerPlan` (app/scenario/actions.ts). The
@@ -25,6 +27,8 @@ async function entree(entreeId: number) {
 /** Drag-and-drop of a clip, and any reordering: the complete sequence of the episode's entries, in the new order. Refused if
  * it no longer matches the entries in the database (another window has changed the montage in the meantime). */
 export async function reordonnerMontage(episodeId: number, ids: number[]): Promise<Resultat> {
+  const valide = verifier(z.tuple([idSchema, z.array(idSchema).max(5000)]), [episodeId, ids]);
+  if (!valide.ok) return valide;
   const r = await db.transaction(async (tx) => {
     const actuelles = await entreesEpisode(tx, episodeId);
     const parId = new Map(actuelles.map((e) => [e.id, e]));
@@ -40,6 +44,8 @@ export async function reordonnerMontage(episodeId: number, ids: number[]): Promi
 
 /** Non-destructive trim: start and end (seconds within the render); `fin` null = to the end. The file is never touched. */
 export async function rognerEntree(entreeId: number, debut: number, fin: number | null): Promise<Resultat> {
+  const valide = verifier(z.tuple([idSchema, z.number(), z.number().nullable()]), [entreeId, debut, fin]);
+  if (!valide.ok) return valide;
   if (!fini(debut) || debut < 0 || (fin != null && (!fini(fin) || fin < debut + DUREE_MIN_CLIP - 1e-6))) {
     return { ok: false, erreur: "Rognage invalide : la fin doit suivre le début d'au moins une demi-seconde." };
   }
@@ -53,6 +59,8 @@ export async function rognerEntree(entreeId: number, debut: number, fin: number 
 /** The render this entry reads (and that the export will take). `null` = revert to the clip's default render. Only a finished render,
  * with its file, of the same clip, can be kept. */
 export async function choisirRenduEntree(entreeId: number, renduId: number | null): Promise<Resultat> {
+  const valide = verifier(z.tuple([idSchema, idSchema.nullable()]), [entreeId, renduId]);
+  if (!valide.ok) return valide;
   const e = await entree(entreeId);
   if (!e) return { ok: false, erreur: "Ce plan n'est plus dans le montage." };
   if (renduId != null) {
@@ -68,6 +76,8 @@ export async function choisirRenduEntree(entreeId: number, renduId: number | nul
 /** Duplicate: one more entry on the same clip, right after, with the same render and the same trim (which is changed afterwards, separately).
  * No file is copied. */
 export async function dupliquerEntree(entreeId: number): Promise<{ ok: true; id: number } | { ok: false; erreur: string }> {
+  const valide = verifier(idSchema, entreeId);
+  if (!valide.ok) return valide;
   const r = await db.transaction(async (tx) => {
     const [e] = await tx.select().from(montageEntrees).where(eq(montageEntrees.id, entreeId));
     if (!e) return { ok: false as const, erreur: "Ce plan n'est plus dans le montage." };
@@ -88,6 +98,8 @@ export async function dupliquerEntree(entreeId: number): Promise<{ ok: true; id:
 /** Remove from the montage: the entry disappears, never the clip nor its renders (a clip without an entry goes to « Hors montage »). The montage
  * keeps at least one entry: an empty montage would be taken whole again at the next opening (see `assurerMontage`). */
 export async function retirerEntree(entreeId: number): Promise<Resultat> {
+  const valide = verifier(idSchema, entreeId);
+  if (!valide.ok) return valide;
   const r = await db.transaction(async (tx) => {
     const [e] = await tx.select().from(montageEntrees).where(eq(montageEntrees.id, entreeId));
     if (!e) return { ok: false as const, erreur: "Ce plan n'est plus dans le montage." };
@@ -103,6 +115,8 @@ export async function retirerEntree(entreeId: number): Promise<Resultat> {
 
 /** Add a clip to the montage (dragged from « Hors montage ») at position `index`, with its default render, whole clip. */
 export async function ajouterAuMontage(episodeId: number, planId: number, index: number): Promise<{ ok: true; id: number } | { ok: false; erreur: string }> {
+  const valide = verifier(z.tuple([idSchema, idSchema, z.number()]), [episodeId, planId, index]);
+  if (!valide.ok) return valide;
   const r = await db.transaction(async (tx) => {
     const [p] = await tx.select({ id: plans.id }).from(plans).where(and(eq(plans.id, planId), eq(plans.episodeId, episodeId)));
     if (!p) return { ok: false as const, erreur: "Ce plan n'appartient pas à cet épisode." };
@@ -120,6 +134,8 @@ export async function ajouterAuMontage(episodeId: number, planId: number, index:
 
 /** « Recaler sur l'ordre des scènes »: the entries take back the screenplay order of their clip, with kept trims and selected renders kept. */
 export async function recalerMontage(episodeId: number): Promise<Resultat> {
+  const valide = verifier(idSchema, episodeId);
+  if (!valide.ok) return valide;
   await db.transaction(async (tx) => {
     const toutes = await entreesEpisode(tx, episodeId);
     const scenario = (await tx.select({ id: plans.id }).from(plans).where(eq(plans.episodeId, episodeId)).orderBy(plans.ordre, plans.id)).map((p) => p.id);
@@ -132,6 +148,8 @@ export async function recalerMontage(episodeId: number): Promise<Resultat> {
 /** « Exporter l'épisode »: the snapshot of what goes out (selected renders of the entries, in order, trim applied), queued for the
  * worker (worker/montage-export.ts), which joins them end to end with ffmpeg. Entries without a render or in failure are ignored. */
 export async function exporterEpisode(episodeId: number): Promise<{ ok: true; nbSegments: number; nbIgnores: number; dureeSecondes: number } | { ok: false; erreur: string }> {
+  const valide = verifier(idSchema, episodeId);
+  if (!valide.ok) return valide;
   const [enCours] = await db
     .select({ id: montageExports.id })
     .from(montageExports)

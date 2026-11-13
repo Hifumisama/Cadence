@@ -24,6 +24,17 @@ import { MEDIA_ROOT, cheminAssetMedia, cheminGenerationMedia, cheminSourceImport
 import { nbImagesEnAttente } from "@/lib/tasks/queries-tasks";
 import { cheminCanevasAffiche } from "@/worker/canvas-poster";
 import { PLAFOND_FILE_IMAGES } from "@/lib/tasks/tasks";
+import { z } from "zod";
+import { idSchema, texteSchema, uuidSchema, verifier } from "@/lib/validation/args";
+
+const essaiSchema = z.object({
+  consigne: texteSchema(4000),
+  base: z.union([z.literal("actuelle"), z.object({ essai: uuidSchema }), z.null()]),
+  jointes: z
+    .array(z.union([z.object({ origine: z.literal("asset"), assetId: idSchema }), z.object({ origine: z.literal("import"), fichier: z.string().max(255) })]))
+    .max(10)
+    .optional(),
+});
 
 // An asset's sheet works « like the clip sheet »: a directive is written in French, an agent translates it into a prompt (Krea 2 without a
 // base image, Qwen Image Edit with one), the attempt goes into the image queue, and the attempt log keeps each one's directive, base and prompt.
@@ -42,6 +53,8 @@ export async function lancerEssai(
   assetId: number,
   p: { consigne: string; base: BaseEssai; jointes?: ImageJointe[] },
 ): Promise<Resultat & { uuid?: string }> {
+  const v = verifier(z.tuple([idSchema, essaiSchema]), [assetId, p]);
+  if (!v.ok) return v;
   const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
 
@@ -158,6 +171,8 @@ export async function lancerEssai(
 
 /** Removes an asset's image: it becomes « sans image » (« à produire ») again, and the next attempt starts from scratch with Krea 2. The attempts remain. */
 export async function retirerImageAsset(assetId: number): Promise<Resultat> {
+  const v = verifier(idSchema, assetId);
+  if (!v.ok) return v;
   const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
   if (!asset.fichier) return { ok: true };
@@ -170,6 +185,8 @@ export async function retirerImageAsset(assetId: number): Promise<Resultat> {
 /** Duplicates an asset: same type, same description, same prompt and a copy of the image, under a new code. For a variant (another outfit,
  * another lighting) you duplicate then retouch the copy, without touching the original. No link is kept between the two. */
 export async function dupliquerAsset(assetId: number): Promise<{ ok: true; code: string } | { ok: false; erreur: string }> {
+  const v = verifier(idSchema, assetId);
+  if (!v.ok) return v;
   const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
   const existants = new Set((await db.select({ code: assets.code }).from(assets).where(eq(assets.projectId, asset.projectId))).map((a) => a.code));

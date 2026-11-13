@@ -11,11 +11,16 @@ import { TYPE_AFFICHE, avecTitreDansImage, codeAffiche, promptAffiche, type Cibl
 import { ecrirePoster, lirePoster } from "@/lib/posters/poster-application";
 import { resoudreAffiche } from "@/lib/agents/poster";
 import { MEDIA_ROOT, cheminPosterMedia } from "@/lib/media";
+import { z } from "zod";
+import { exiger, idSchema, verifier } from "@/lib/validation/args";
+
+const cibleAfficheSchema = z.string().max(20);
 
 /** Opens the poster generation page of a project or an episode. The poster asset (hidden from the registry) is
  * created ON THE FIRST CLICK, with a prompt proposed from the title and summary; afterwards it is found as-is, edited prompt
  * included. For a better prompt: « Demander à l'agent » on the page (same path as for an asset). */
 export async function ouvrirAffiche(cible: CibleAffiche, id: number): Promise<void> {
+  exiger(z.tuple([cibleAfficheSchema, idSchema]), [cible, id]);
   const contexte = await resoudreAffiche(db, cible, id);
   if (!contexte) throw new Error(cible === "projects" ? "Ce projet n'existe pas." : "Cet épisode n'existe pas.");
   const code = codeAffiche(cible, id);
@@ -38,6 +43,7 @@ export async function ouvrirAffiche(cible: CibleAffiche, id: number): Promise<vo
 
 /** Removes the poster (back to the fallback gradient). The poster asset and its candidates remain: one can re-adopt one. */
 export async function retirerAffiche(cible: CibleAffiche, id: number): Promise<void> {
+  exiger(z.tuple([cibleAfficheSchema, idSchema]), [cible, id]);
   const courant = await lirePoster(cible, id);
   if (courant === undefined) return;
   await ecrirePoster(cible, id, null);
@@ -48,6 +54,8 @@ export async function retirerAffiche(cible: CibleAffiche, id: number): Promise<v
 /** « Écrire le titre dans l'image »: adds or removes the title line of the prompt (the rest is not touched). The prompt is
  * the reference: on adoption, a prompt that carries the line gives a poster without an overlaid title. */
 export async function reglerTitreAffiche(cible: CibleAffiche, id: number, actif: boolean): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const v = verifier(z.tuple([cibleAfficheSchema, idSchema, z.boolean()]), [cible, id, actif]);
+  if (!v.ok) return v;
   const contexte = await resoudreAffiche(db, cible, id);
   if (!contexte) return { ok: false, erreur: "Introuvable." };
   const [asset] = await db.select().from(assets).where(and(eq(assets.projectId, contexte.projectId), eq(assets.code, codeAffiche(cible, id))));

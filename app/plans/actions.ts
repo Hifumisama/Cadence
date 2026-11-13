@@ -22,6 +22,11 @@ import { ORDRE_SECTIONS, decouperSections, extraireBlocPrompt, validerPromptColl
 import { promptDiffere, raisonNonRetenable, sectionsDuPromptEnvoye } from "@/lib/renders/renders";
 import { MEDIA_ROOT } from "@/lib/media";
 import { assemblerPrompt } from "@/lib/clips/prompt";
+import { z } from "zod";
+import { exiger, idSchema, texteSchema, uuidSchema, verifier } from "@/lib/validation/args";
+
+const sectionsSchema = z.record(z.string().max(80), texteSchema());
+const reglagesPlanSchema = z.object({ dureeGenerationSecondes: z.number().nullish(), fps: z.number().nullish(), seed: z.string().max(40).nullish() });
 
 async function updatePromptSection(
   planId: number,
@@ -124,6 +129,16 @@ export async function figerEtLancer(
   /** Clip sheet: the user's instruction and the number of the attempt being started from, kept on the attempt created. */
   essai: { consigne?: string | null; depuisNumero?: number | null } = {},
 ): Promise<{ ok: true; numeroRendu: number } | { ok: false; erreur: string }> {
+  const valide = verifier(
+    z.tuple([
+      idSchema,
+      reglagesPlanSchema.extend({ sections: sectionsSchema }),
+      z.enum(["previsualiser", "final", "variante"]),
+      z.object({ consigne: texteSchema(4000).nullish(), depuisNumero: z.number().int().nullish() }),
+    ]),
+    [planId, brouillon, mode, essai],
+  );
+  if (!valide.ok) return valide;
   const { dureeGenerationSecondes: duree, fps, seed } = brouillon;
   if (duree != null && (!Number.isInteger(duree) || duree < DUREE_GENERATION_MIN || duree > DUREE_GENERATION_MAX)) {
     return { ok: false, erreur: `Durée de génération : entre ${DUREE_GENERATION_MIN} et ${DUREE_GENERATION_MAX} s.` };
@@ -170,6 +185,11 @@ export async function appliquerIterationEtGenerer(
   /** Settings edited by hand on the page (duration, FPS, seed), written in the same transaction as the attempt. */
   reglages: { dureeGenerationSecondes?: number; fps?: number; seed?: string } = {},
 ): Promise<{ ok: true; numeroRendu: number; notes: string[] } | { ok: false; erreur: string }> {
+  const valide = verifier(
+    z.tuple([idSchema, uuidSchema, z.object({ consigne: texteSchema(4000).nullable(), depuisNumero: z.number().int().nullable() }), reglagesPlanSchema]),
+    [planId, propositionUuid, essai, reglages],
+  );
+  if (!valide.ok) return valide;
   const r = await appliquerIterationEtGenererCore(planId, propositionUuid, essai, reglages);
   revalidatePath("/", "layout");
   return r;
@@ -178,6 +198,7 @@ export async function appliquerIterationEtGenerer(
 /** Writes the edited sections without launching a render: called before adding or removing a reference, because these two
  * gestures rewrite the prompt server-side (declaration, renumbering) and would overwrite an unfrozen draft. */
 export async function ecrireSections(planId: number, sections: Record<string, string>) {
+  exiger(z.tuple([idSchema, sectionsSchema]), [planId, sections]);
   for (const [section, contenu] of Object.entries(sections)) {
     if ((ORDRE_SECTIONS as readonly string[]).includes(section)) await updatePromptSection(planId, section, contenu);
   }
@@ -191,6 +212,7 @@ export async function ecrireSections(planId: number, sections: Record<string, st
  * `en_attente`/`echoue` has not had its validation round trip, and
  * it is not this button that should move it forward. */
 export async function lancerPassageNuit(episodeId: number): Promise<{ n: number }> {
+  exiger(idSchema, episodeId);
   const aTraiter = await db
     .select({ id: plans.id })
     .from(plans)
@@ -238,6 +260,7 @@ export type PlanPrevisualisation = {
 /** The episode's clips as the « Toutes les prévisualisations » window lists them, to choose what to (re)render. Drafts
  * (sheet not developed) are not included. */
 export async function listerPrevisualisations(episodeId: number): Promise<PlanPrevisualisation[]> {
+  exiger(idSchema, episodeId);
   const c = await classerPourPrevisualisations(episodeId);
   const toutes = await db
     .select({ id: plans.id, uuid: plans.uuid, titre: plans.titre, statut: plans.statut })
@@ -264,6 +287,7 @@ export async function lancerPrevisualisations(
   episodeId: number,
   planUuids: string[],
 ): Promise<{ n: number; dejaEnFile: number }> {
+  exiger(z.tuple([idSchema, z.array(uuidSchema).max(1000)]), [episodeId, planUuids]);
   const c = await classerPourPrevisualisations(episodeId);
   // In the episode's order: the worker takes attempts in creation order, and a clip linked as « suite » takes the last frame of the render
   // of its predecessor (lib/clips/clip-continuity.ts): the predecessor must go first.
@@ -286,6 +310,7 @@ export async function lancerPrevisualisations(
  * has changed since its last render. Each clip restarts in the mode of its last render (preview stays preview,
  * final stays final) and with the clip's seed and the prompt and duration as they are now. Skipped: clips already queued or running. */
 export async function relancerPlansPerimes(episodeId: number): Promise<{ n: number; dejaEnFile: number }> {
+  exiger(idSchema, episodeId);
   const episode = await db.select({ id: plans.id, statut: plans.statut }).from(plans).where(eq(plans.episodeId, episodeId)).orderBy(plans.ordre, plans.id); // in order: see lancerPrevisualisations
   const perimes = episode.length ? await getPlansPerimes({ planIds: episode.map((p) => p.id) }) : new Map();
 
@@ -316,6 +341,7 @@ export async function ajouterRef(
   /** The chosen slot (the clicked box); images stay numbered 1..n without gaps, so it only counts for videos and audios. */
   slotVoulu?: number,
 ) {
+  exiger(z.tuple([idSchema, z.enum(Object.keys(MAX_REFS) as [RefLabel["type"], ...RefLabel["type"][]]), idSchema, z.number().int().positive().optional()]), [planId, type, assetId, slotVoulu]);
   const existantes = await db
     .select()
     .from(planRefs)
@@ -347,6 +373,7 @@ export async function ajouterRef(
 /** Removes a reference: the remaining images are renumbered 1..n, the prompt follows (lines of the reference
  * removed, labels rewritten, prose mentions replaced by the asset's name). */
 export async function supprimerRef(refId: number) {
+  exiger(idSchema, refId);
   await db.transaction((tx) => retirerRefDuPlan(tx, refId));
   revalidatePath("/", "layout");
 }
@@ -368,6 +395,21 @@ type ValeursScenario = {
  * a clip sheet (user feedback 2026-09-27): nothing prevents coming back
  * to correct the description afterwards. */
 export async function updatePlanScenario(planId: number, valeurs: ValeursScenario): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const valide = verifier(
+    z.tuple([
+      idSchema,
+      z.object({
+        titre: texteSchema(255),
+        description: texteSchema(),
+        dureeSecondes: z.number().optional(),
+        liaison: z.string().max(40).optional(),
+        creativite: z.string().max(40).nullish(),
+        styleCamera: z.string().max(80).nullish(),
+      }),
+    ]),
+    [planId, valeurs],
+  );
+  if (!valide.ok) return valide;
   const duree = valeurs.dureeSecondes;
   if (duree !== undefined && (typeof duree !== "number" || !Number.isInteger(duree) || duree < DUREE_GENERATION_MIN || duree > DUREE_GENERATION_MAX)) {
     return { ok: false, erreur: `Durée de rendu : un entier de ${DUREE_GENERATION_MIN} à ${DUREE_GENERATION_MAX} s.` };
@@ -403,6 +445,8 @@ export async function supprimerPlan(
   plansHref: string,
   force = false,
 ): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const valide = verifier(z.tuple([idSchema, texteSchema(2000), z.boolean()]), [planId, plansHref, force]);
+  if (!valide.ok) return valide;
   const r = await retirerPlan(planId, force);
   if (!r.ok) return r;
   redirect(plansHref);
@@ -410,6 +454,8 @@ export async function supprimerPlan(
 
 /** The same deletion, without leaving the page (the drawer of the Scénario page: the clip disappears from the scene, we stay where we are). */
 export async function retirerPlan(planId: number, force = false): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const valide = verifier(z.tuple([idSchema, z.boolean()]), [planId, force]);
+  if (!valide.ok) return valide;
   if (!force) {
     const [ref] = await db
       .select()
@@ -430,6 +476,8 @@ export async function retirerPlan(planId: number, force = false): Promise<{ ok: 
  * and replaces the clip's; if it does not read, nothing is written and the reasons are returned. Each save keeps its text in
  * the history; the very first time, the prior prompt is kept there too, so that one can return to it. */
 export async function enregistrerPrompt(planId: number, brut: string): Promise<{ ok: true } | { ok: false; erreurs: string[] }> {
+  const valide = verifier(z.tuple([idSchema, texteSchema(50_000)]), [planId, brut]);
+  if (!valide.ok) return { ok: false, erreurs: [valide.erreur] };
   const texte = extraireBlocPrompt(brut);
   const { erreurs } = validerPromptColle(texte);
   if (erreurs.length > 0) return { ok: false, erreurs };
@@ -461,6 +509,8 @@ export async function validerPretUpscale(
   /** The clip's current text is that of no attempt (edited by hand): `remplacer` sets it to that of the kept attempt, `garder` validates without touching it. Without an answer, validation stops with `conflit`. */
   texte?: "remplacer" | "garder",
 ): Promise<{ ok: true } | { ok: false; erreur: string; conflit?: ConflitDescription }> {
+  const valide = verifier(z.tuple([idSchema, idSchema, z.enum(["remplacer", "garder"]).optional()]), [planId, jobId, texte]);
+  if (!valide.ok) return valide;
   const [job] = await db.select().from(jobs).where(and(eq(jobs.id, jobId), eq(jobs.planId, planId)));
   if (!job) return { ok: false, erreur: "Essai introuvable pour ce plan." };
   if (job.statut !== "termine" || !job.cheminSortie) return { ok: false, erreur: "Cet essai n'est pas terminé : on ne valide qu'un essai qu'on peut regarder." };
@@ -495,6 +545,8 @@ export async function validerPretUpscale(
 
 /** « Rouvrir l'itération »: the clip is no longer ready (the kept attempt is forgotten, the attempts remain). */
 export async function rouvrirIteration(planId: number): Promise<Resume> {
+  const valide = verifier(idSchema, planId);
+  if (!valide.ok) return valide;
   await db.update(plans).set({ pretUpscaleAt: null, renduRetenuId: null, updatedAt: new Date() }).where(eq(plans.id, planId));
   revalidatePath("/", "layout");
   return { ok: true };
@@ -513,8 +565,10 @@ export async function preparerBaseIteration(
   jobId: number,
   confirmerDescription = false,
 ): Promise<{ ok: true; restaure: boolean } | { ok: false; erreur: string; conflit?: ConflitDescription }> {
+  const valide = verifier(z.tuple([idSchema, idSchema, z.boolean()]), [planId, jobId, confirmerDescription]);
+  if (!valide.ok) return valide;
   const lignes = await db.select().from(jobs).where(eq(jobs.planId, planId));
-  const base = lignes.find((j) => j.id === jobId);
+  const base =lignes.find((j) => j.id === jobId);
   if (!base) return { ok: false, erreur: "Essai de départ introuvable pour ce plan." };
   const lisibles = lignes.filter((j) => j.statut === "termine" && !!j.cheminSortie);
   const dernier = lisibles.reduce<(typeof lisibles)[number] | null>((m, j) => (!m || j.numeroRendu > m.numeroRendu ? j : m), null);
@@ -552,6 +606,8 @@ export async function preparerBaseIteration(
  * goes; its video file goes from storage too, unless another attempt references it; if it was the kept attempt the clip is no longer
  * ready (back to « en itération »); if it was the last attempt the clip becomes a draft again; the `plans.statut` projection follows. */
 export async function supprimerEssai(planId: number, jobId: number): Promise<{ ok: true; fichierSupprime: boolean } | { ok: false; erreur: string }> {
+  const valide = verifier(z.tuple([idSchema, idSchema]), [planId, jobId]);
+  if (!valide.ok) return valide;
   const [plan] = await db.select().from(plans).where(eq(plans.id, planId));
   if (!plan) return { ok: false, erreur: "Plan introuvable." };
   const lignes = await db.select().from(jobs).where(eq(jobs.planId, planId));

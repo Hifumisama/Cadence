@@ -3,11 +3,15 @@
 import { configLlm } from "@/lib/llm/config";
 import { ecrireModeleChoisi } from "@/lib/llm/model-chosen";
 import { listerModeles } from "@/worker/llamaSwap";
+import { z } from "zod";
+import { verifier } from "@/lib/validation/args";
 
 /** Chooses the LLM model (header badge). `null` reverts to the configured model (`LLM_LOCAL_MODELE`).
  * The choice applies to the next calls, including those already queued: the worker reads it at the start of each call.
  * Returns `{ ok: true } | { ok: false, erreur }`, never an exception for a business case. */
 export async function choisirModeleLlm(modele: string | null): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const v = verifier(z.string().max(1000).nullable(), modele);
+  if (!v.ok) return v;
   if (modele == null) {
     await ecrireModeleChoisi(null);
     return { ok: true };

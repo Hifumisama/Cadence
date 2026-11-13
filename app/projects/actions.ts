@@ -10,9 +10,15 @@ import { dirname, extname, join } from "node:path";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET, cheminPosterMedia, type PosterCible } from "@/lib/media";
 import { inventaireProjet, supprimerProjetComplet } from "@/lib/projects/project-deletion";
 import { creativiteOuNull, styleCameraOuNull } from "@/lib/h3ir/settings";
+import { z } from "zod";
+import { exiger, idSchema, texteSchema } from "@/lib/validation/args";
+
+const nomSchema = z.string().trim().min(1).max(255);
+const reglagesSchema = z.object({ creativite: z.string().max(40).nullish(), styleCamera: z.string().max(80).nullish() });
 
 /** Creates the project (a film) and its single episode WITHOUT redirecting: « Créer avec l'agent » then opens the agent popup on the empty project. */
 export async function creerProjetSansRedirection(valeurs: { nom: string; creativite?: string | null; styleCamera?: string | null }): Promise<{ projectId: number }> {
+  exiger(reglagesSchema.extend({ nom: nomSchema }), valeurs);
   // Creativity and staging style (Open H3 IR): chosen at the « Mise en scène » step of the design; when absent, the project inherits the defaults.
   const [projet] = await db
     .insert(projects)
@@ -41,6 +47,7 @@ async function enregistrerPoster(cible: PosterCible, id: number, fichier: File):
 }
 
 export async function uploaderPosterProjet(projectId: number, formData: FormData) {
+  exiger(idSchema, projectId);
   const fichier = formData.get("fichier");
   if (!(fichier instanceof File) || fichier.size === 0) return;
   const nomFichier = await enregistrerPoster("projects", projectId, fichier);
@@ -50,6 +57,7 @@ export async function uploaderPosterProjet(projectId: number, formData: FormData
 
 /** What the deletion will take away — for the confirmation (lib/projects/project-deletion.ts). */
 export async function lireInventaireSuppression(projectId: number) {
+  exiger(idSchema, projectId);
   return inventaireProjet(projectId);
 }
 
@@ -61,12 +69,14 @@ export async function lireInventaireSuppression(projectId: number) {
  * Operational warning: as long as only one project exists, deleting it
  * breaks `getDefaultProjectId()` (lib/queries.ts) until a new project is created — no safeguard added here, as it was not requested. */
 export async function supprimerProjet(projectId: number) {
+  exiger(idSchema, projectId);
   await supprimerProjetComplet(projectId);
   revalidatePath("/", "layout");
   redirect("/");
 }
 
 export async function modifierNomProjet(projectId: number, nom: string) {
+  exiger(z.tuple([idSchema, nomSchema]), [projectId, nom]);
   await db.update(projects).set({ nom }).where(eq(projects.id, projectId));
   revalidatePath("/", "layout");
 }
@@ -74,6 +84,7 @@ export async function modifierNomProjet(projectId: number, nom: string) {
 /** Creativity and staging style of the project (Open H3 IR): the most general level, which the scenes and then the clips can override (lib/h3ir/settings.ts).
  * Empty or unknown value = default setting; the style « aucun » is a value (no staging style). */
 export async function modifierReglagesCameraProjet(projectId: number, valeurs: { creativite: string | null; styleCamera: string | null }) {
+  exiger(z.tuple([idSchema, reglagesSchema]), [projectId, valeurs]);
   await db
     .update(projects)
     .set({ creativite: creativiteOuNull(valeurs.creativite), styleCamera: styleCameraOuNull(valeurs.styleCamera) })
@@ -83,6 +94,7 @@ export async function modifierReglagesCameraProjet(projectId: number, valeurs: {
 
 /** The displayed « titre » of the film is the project's (modifierNomProjet), not its episode's: only the summary is edited here. */
 export async function modifierEpisode(episodeId: number, valeurs: { resume: string }) {
+  exiger(z.tuple([idSchema, z.object({ resume: texteSchema() })]), [episodeId, valeurs]);
   await db.update(episodes).set({ resume: valeurs.resume }).where(eq(episodes.id, episodeId));
   revalidatePath("/", "layout");
 }

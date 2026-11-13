@@ -7,6 +7,8 @@ import { revalidatePath } from "next/cache";
 import { recomposerOrdre } from "@/lib/clips/clip-order";
 import { creativiteOuNull, styleCameraOuNull } from "@/lib/h3ir/settings";
 import { conserverConsigneAuteur, intentAffichee, memeDescription } from "@/lib/clips/intent";
+import { z } from "zod";
+import { exiger, idSchema, texteSchema, uuidSchema, verifier } from "@/lib/validation/args";
 
 /** Places a clip in a scene (or « sans scène » if `sceneId` is null),
  * right before `avantPlanId` — or, without a reference, at the end of the clips of the target
@@ -45,6 +47,7 @@ async function placerPlan(planId: number, sceneId: number | null, avantPlanId: n
 
 /** Drag and drop of a clip (Scénario): changes scene and/or position. */
 export async function deplacerPlan(planId: number, sceneId: number | null, avantPlanId: number | null) {
+  exiger(z.tuple([idSchema, idSchema.nullable(), idSchema.nullable()]), [planId, sceneId, avantPlanId]);
   await placerPlan(planId, sceneId, avantPlanId);
   revalidatePath("/", "layout");
 }
@@ -56,6 +59,19 @@ export async function modifierScene(
   sceneId: number,
   valeurs: { titre: string; fonction: string; ambiance?: string; creativite?: string | null; styleCamera?: string | null },
 ) {
+  exiger(
+    z.tuple([
+      idSchema,
+      z.object({
+        titre: texteSchema(255),
+        fonction: texteSchema(),
+        ambiance: texteSchema().optional(),
+        creativite: z.string().max(40).nullish(),
+        styleCamera: z.string().max(80).nullish(),
+      }),
+    ]),
+    [sceneId, valeurs],
+  );
   const titre = valeurs.titre.trim();
   if (!titre) return;
   await db
@@ -75,6 +91,7 @@ export async function modifierScene(
  * `avantSceneId`, or at the end. The clips follow their scene: the order of the clips
  * of the episode is recomposed in blocks, in the new order of the scenes. */
 export async function deplacerScene(sceneId: number, avantSceneId: number | null) {
+  exiger(z.tuple([idSchema, idSchema.nullable()]), [sceneId, avantSceneId]);
   const [scene] = await db.select().from(scenes).where(eq(scenes.id, sceneId));
   if (!scene) return;
   await db.transaction(async (tx) => {
@@ -105,6 +122,7 @@ export async function deplacerScene(sceneId: number, avantSceneId: number | null
  * simply detaches its clips ("sans scène") rather than
  * blocking the action or deleting the clips themselves. */
 export async function supprimerScene(sceneId: number) {
+  exiger(idSchema, sceneId);
   const [scene] = await db.select().from(scenes).where(eq(scenes.id, sceneId));
   if (!scene) return;
   await db.transaction(async (tx) => {
@@ -126,6 +144,8 @@ const MAX_TEXTE_PLAN = 4000;
  * fin de plan »): the author's instruction, hidden and therefore absent from what is edited, is kept; the former end state, dropped since 2026-11-08, is removed. An
  * unchanged text writes nothing (the sheet and the renders are therefore not flagged « à refaire » for nothing). */
 export async function modifierTextePlan(planUuid: string, texte: string): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const v = verifier(z.tuple([uuidSchema, texteSchema()]), [planUuid, texte]);
+  if (!v.ok) return v;
   const propre = texte.trim();
   if (!propre) return { ok: false, erreur: "Le texte d'un plan ne peut pas être vide : c'est ce que la fiche met en images." };
   if (propre.length > MAX_TEXTE_PLAN) return { ok: false, erreur: `Le texte est trop long (${MAX_TEXTE_PLAN} caractères au plus).` };

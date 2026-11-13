@@ -17,6 +17,8 @@ import { poserGenerationsLot } from "@/lib/assets/generation-launch";
 import { idsSansImage } from "@/lib/assets/project-images";
 import { type EcarteLot } from "@/lib/assets/generation-batch";
 import { supprimerGenerationEtFichiers } from "@/lib/assets/generation-sources";
+import { z } from "zod";
+import { idSchema, verifier } from "@/lib/validation/args";
 
 import {
   MEDIA_ROOT,
@@ -43,6 +45,8 @@ export async function lancerGenerationsLot(
   projectId: number,
   assetIds: number[],
 ): Promise<{ ok: true; lancees: number; ecartes: EcarteLot[] } | { ok: false; erreur: string }> {
+  const v = verifier(z.tuple([idSchema, z.array(idSchema).max(5000)]), [projectId, assetIds]);
+  if (!v.ok) return v;
   const r = await poserGenerationsLot(projectId, assetIds);
   revalidatePath("/", "layout");
   return r;
@@ -55,6 +59,8 @@ export async function lancerGenerationsLot(
 export async function genererImagesManquantes(
   projectId: number,
 ): Promise<{ ok: true; lancees: number; ecartes: EcarteLot[] } | { ok: false; erreur: string }> {
+  const v = verifier(idSchema, projectId);
+  if (!v.ok) return v;
   const lignes = await db.select({ id: assets.id, type: assets.type, fichier: assets.fichier }).from(assets).where(and(eq(assets.projectId, projectId), horsAffiches));
   const ids = idsSansImage(lignes);
   if (ids.length === 0) return { ok: false, erreur: "Toutes les images de référence sont déjà là." };
@@ -68,6 +74,8 @@ export async function deposerSourceImport(
   assetId: number,
   formData: FormData,
 ): Promise<{ ok: true; fichier: string; src: string } | { ok: false; erreur: string }> {
+  const v = verifier(idSchema, assetId);
+  if (!v.ok) return v;
   const [asset] = await db.select({ id: assets.id }).from(assets).where(eq(assets.id, assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
   const f = formData.get("fichier");
@@ -95,12 +103,16 @@ export async function deposerSourceImport(
  * produced the retained result. The asset goes back to « en cours »: a new
  * result has to be validated again. */
 export async function adopterGeneration(generationId: number): Promise<Resultat> {
+  const v = verifier(idSchema, generationId);
+  if (!v.ok) return v;
   const r = await adopterCandidat(generationId, MEDIA_ROOT);
   if (r.ok) revalidatePath("/", "layout");
   return r;
 }
 
 export async function supprimerGeneration(generationId: number): Promise<Resultat> {
+  const v = verifier(idSchema, generationId);
+  if (!v.ok) return v;
   const [gen] = await db.select().from(assetGenerations).where(eq(assetGenerations.id, generationId));
   if (!gen) return { ok: true };
   if (gen.statut === "en_cours") return { ok: false, erreur: "Génération en cours : attends sa fin." };
