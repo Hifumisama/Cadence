@@ -32,17 +32,16 @@ export type RefVue = {
 
 type Type = RefLabel["type"];
 
-const LABEL_TYPE: Record<Type, string> = { picture: "Picture", video: "Video", audio: "Audio" };
-const NOM_TYPE: Record<Type, string> = { picture: "Image", video: "Vidéo", audio: "Audio" };
-const NOM_TYPE_PLURIEL: Record<Type, string> = { picture: "Images", video: "Vidéos", audio: "Audios" };
+const LABEL_TYPE: Record<Type, string> = { picture: "Picture", video: "Video" };
+const NOM_TYPE: Record<Type, string> = { picture: "Image", video: "Vidéo" };
+const NOM_TYPE_PLURIEL: Record<Type, string> = { picture: "Images", video: "Vidéos" };
 
 // Expected media kind for each reference type.
-const KIND_PAR_TYPE: Record<Type, MediaKind> = { picture: "image", video: "video", audio: "audio" };
+const KIND_PAR_TYPE: Record<Type, MediaKind> = { picture: "image", video: "video" };
 
 const TITRE_GALERIE: Record<Type, string> = {
   picture: "Choisir une image de référence",
   video: "Choisir une vidéo de référence",
-  audio: "Choisir un audio de référence (voix)",
 };
 
 function Miniature({ asset }: { asset: NonNullable<RefVue["asset"]> }) {
@@ -53,19 +52,10 @@ function Miniature({ asset }: { asset: NonNullable<RefVue["asset"]> }) {
       </div>
     );
   }
-  // Image and video: can be enlarged full screen (MediaZoom). Audio: a note, the player is in the gallery.
-  if (asset.kind === "audio") {
-    return (
-      <div className="ref-thumb is-audio">
-        <span className="ref-note" aria-hidden="true">
-          <Icone nom="musique" taille={22} />
-        </span>
-      </div>
-    );
-  }
+  // Image and video: can be enlarged full screen (MediaZoom).
   return (
     <MediaZoom
-      kind={asset.kind}
+      kind={asset.kind === "video" ? "video" : "image"}
       src={asset.src}
       apercu={asset.kind === "image" ? urlMiniature(asset.src, 192) : undefined}
       alt={asset.code}
@@ -74,8 +64,8 @@ function Miniature({ asset }: { asset: NonNullable<RefVue["asset"]> }) {
   );
 }
 
-/** The clip's references, beside the player: BOXES, one per slot that H3 accepts (6 images, 2 videos, 3 audios). A filled box shows the
- * image, the video (enlargeable) or the audio note, with its `<Picture 1>` label as cited in the prompt; an empty box offers to put a
+/** The clip's references, beside the player: BOXES, one per slot that H3 accepts (6 images, 2 videos). A filled box shows the
+ * image, or the video (enlargeable), with its `<Picture 1>` label as cited in the prompt; an empty box offers to put a
  * registry asset in it. Adding or removing a reference rewrites the prompt server-side (declaration, renumbering). */
 export function ReferencesCases({ planId, projectId, refs, assets }: { planId: number; projectId: number; refs: RefVue[]; assets: NoeudPicker[] }) {
   const router = useRouter();
@@ -122,7 +112,7 @@ export function ReferencesCases({ planId, projectId, refs, assets }: { planId: n
 
   const parType = (t: Type) => refs.filter((r) => r.type === t).sort((a, b2) => a.slot - b2.slot);
   const dejaPris = new Set(choix ? parType(choix).flatMap((r) => (r.asset ? [r.asset.id] : [])) : []);
-  const ordre: Type[] = ["picture", "video", "audio"];
+  const ordre: Type[] = ["picture", "video"];
 
   const onAjouter = (assetId: number) => {
     if (!choix) return;

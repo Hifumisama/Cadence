@@ -36,18 +36,6 @@ test("retirer la dernière image : rien à renuméroter", () => {
   assert.ok(!r.subject_definitions!.includes("lighthouse"));
 });
 
-test("retirer un son : ses lignes partent, les slots image ne bougent pas", () => {
-  const s = {
-    ...sections,
-    subject_definitions: `${sections.subject_definitions}\n<Audio 2> is a gull.`,
-    retention_analysis: `${sections.retention_analysis}\n<Audio 2>: reference - the gull.`,
-  };
-  const r = retirerReference(s, { type: "audio", slot: 2, nom: "a gull" });
-  assert.equal(r.subject_definitions, sections.subject_definitions);
-  assert.equal(r.retention_analysis, sections.retention_analysis);
-  assert.equal(r.summary, sections.summary);
-});
-
 test("ajouter une image : une définition et une rétention, rien dans la prose", () => {
   const r = ajouterReference({ ...sections }, { type: "picture", slot: 4, nom: "the boat" });
   assert.ok(r.subject_definitions!.endsWith("<Subject 4> is the boat from <Picture 4>."));
@@ -67,13 +55,13 @@ test("ajouterReference : un effet (vfx) est repris en weak_reference", () => {
   assert.match(s.retention_analysis!, /^<Subject 2> \(not cited in a shot\): weak_reference - /);
 });
 
-test("emplacementLibre : un trou laissé par un son est rebouché, un emplacement choisi est respecté, plein = null", () => {
-  assert.equal(emplacementLibre("audio", [1, 3], 3), 2);
-  assert.equal(emplacementLibre("audio", [1], 3, 3), 3);
+test("emplacementLibre : un trou laissé par une vidéo est rebouché, un emplacement choisi est respecté, plein = null", () => {
+  assert.equal(emplacementLibre("video", [1, 3], 3), 2);
+  assert.equal(emplacementLibre("video", [1], 3, 3), 3);
   assert.equal(emplacementLibre("video", [2], 2), 1);
   // images stay 1..n: the chosen slot does not count
   assert.equal(emplacementLibre("picture", [1, 2], 6, 5), 3);
-  assert.equal(emplacementLibre("audio", [1, 2, 3], 3), null);
+  assert.equal(emplacementLibre("video", [1, 2, 3], 3), null);
 });
 
 test("retirer puis remettre une image : la citation revient dans la prose, la rétention dit où elle apparaît", () => {
@@ -98,11 +86,9 @@ test("retablirCitations : mot entier et même casse seulement, nom trop court ig
   assert.equal(r.sections.subject_definitions, s.subject_definitions);
   assert.deepEqual(r.shots, ["[Shot 1]"]);
   assert.deepEqual(retablirCitations(s, { type: "picture", slot: 2, nom: "ir" }).sections, s);
-  assert.equal(retablirCitations({ overall_soundscape: "a gull cries" }, { type: "audio", slot: 2, nom: "gull" }).sections.overall_soundscape, "a <Audio 2> cries");
 });
 
-test("roleParDefaut : voix d'un personnage, sinon type puis nom ; rétention « reference » pour un son", () => {
+test("roleParDefaut : type puis nom", () => {
   assert.deepEqual(roleParDefaut("picture", { typeAsset: "decor", libelleType: "Décor", libelle: "Couloir bleu" }), { role: "Décor, Couloir bleu", retention: null });
-  assert.deepEqual(roleParDefaut("audio", { typeAsset: "personnage", libelleType: "Personnage", libelle: "Maya" }), { role: "Voix du personnage", retention: "reference" });
   assert.deepEqual(roleParDefaut("picture", { typeAsset: null, libelleType: null, libelle: "x" }), { role: "Référence, x", retention: null });
 });

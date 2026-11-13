@@ -1,6 +1,6 @@
 import { libelleAsset, slugifyCode } from "../assets/assetCode";
 import { LANGUE_AUTO } from "./engine-language";
-import { MAX_REFS_AUDIO, MAX_REFS_VISUELLES } from "../clips/clip-continuity";
+import { MAX_REFS_VISUELLES } from "../clips/clip-continuity";
 import { SHOT_MIN_FICHE_SECONDES } from "../clips/clip-checks";
 import { estCreativite, estProfilPerso, STYLE_AUCUN, type Creativite } from "./settings";
 import { PROFILS_PERSO } from "./character-profiles";
@@ -55,14 +55,12 @@ export type BriefH3ir = {
   director_profile?: { name: string; notes: string };
   effort: "standard";
   seed?: number;
-  transcripts?: Record<string, string>;
 };
 
-/** A character in the registry: their fixed voice if they have one (the cleaned master, its sha256 and the line the test says). */
+/** A character in the registry. */
 export type PersonnageEntree = {
   code: string;
   label: string | null;
-  voix: { chemin: string; sha256: string; description: string | null; repliqueBase: string | null } | null;
 };
 
 /** A reference of the clip (`plan_refs`) with its asset. `chemin`: the file as an absolute path, null if it does not exist yet. */
@@ -178,7 +176,7 @@ export function briefDepuisPlan(entree: EntreeBrief, options: OptionsBrief = {})
     dialogue.push({ text: texte, language: langue, speaker: perso ? libelleAsset(perso) : r.nom, voiceover: !!perso && voixOff.has(perso.code) });
   }
 
-  // --- Assets: the images of those who speak first (the package links the voice to the first one), then the rest in slot order ---
+  // --- Assets: the images of those who speak first, then the rest in slot order ---
   const rang = (r: ReferenceEntree) => {
     const i = parlants.findIndex((p) => p.code === r.code);
     return i < 0 ? parlants.length : i;
@@ -195,25 +193,7 @@ export function briefDepuisPlan(entree: EntreeBrief, options: OptionsBrief = {})
     };
   });
 
-  // --- Voice: one `voice_timbre` audio per character who speaks and whose voice is fixed; its transcription is the test line ---
   const liens: LienFichier[] = ordonnees.map((r) => ({ path: r.chemin!, code: r.code, type: r.type as LienFichier["type"] }));
-  const transcripts: Record<string, string> = {};
-  let nbVoix = 0;
-  for (const p of parlants) {
-    if (!p.voix) {
-      avertissements.push(`${libelleAsset(p)} parle mais n'a pas de voix fixée : le modèle inventera sa voix.`);
-      continue;
-    }
-    if (nbVoix >= MAX_REFS_AUDIO) {
-      avertissements.push(`Plus de ${MAX_REFS_AUDIO} personnages parlent : la voix de ${libelleAsset(p)} n'est pas transmise.`);
-      continue;
-    }
-    nbVoix++;
-    liens.push({ path: p.voix.chemin, code: p.code, type: "audio" });
-    const note = p.voix.description?.trim();
-    assets.push({ path: p.voix.chemin, kind: "audio", role: "voice_timbre", ...(note ? { note: `${libelleAsset(p)} : ${note}` } : { note: libelleAsset(p) }) });
-    if (p.voix.repliqueBase?.trim()) transcripts[p.voix.sha256] = p.voix.repliqueBase.trim();
-  }
 
   // --- Intent: narration, scene ambiance (in French at this step) ---
   const morceaux = [narration];
@@ -247,7 +227,6 @@ export function briefDepuisPlan(entree: EntreeBrief, options: OptionsBrief = {})
   const seed = Number(entree.plan.seed);
   if (entree.plan.seed != null && Number.isSafeInteger(seed)) brief.seed = seed;
   else avertissements.push("Le plan n'a pas de seed utilisable : le paquet prend la sienne.");
-  if (Object.keys(transcripts).length > 0) brief.transcripts = transcripts;
 
   return { brief, refus: null, avertissements, liens };
 }

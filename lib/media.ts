@@ -100,10 +100,6 @@ export function posterSrc(cible: PosterCible, id: number, fichier: string | null
   return `/api/media/${cheminPosterMedia(cible, id, fichier)}`;
 }
 
-export function cheminVoixMedia(assetId: number, fichier: string): string {
-  return `voix/${assetId}/${fichier}`;
-}
-
 /** Service URL of an asset's own file, or null if it is not (or no longer) on the storage. */
 export function assetMediaSrc(fichier: string | null): string | null {
   if (!fichier || !fichierMediaExiste(fichier)) return null;

@@ -27,7 +27,6 @@ const ctx = (over: Partial<ContexteIteration> = {}): ContexteIteration => ({
   refs: [
     { type: "picture", slot: 1, asset: "CHAR_mai" },
     { type: "picture", slot: 2, asset: "DEC_clairiere" },
-    { type: "audio", slot: 1, asset: "CHAR_mai" },
   ],
   registre: [
     { code: "CHAR_mai", type: "personnage", image: true },

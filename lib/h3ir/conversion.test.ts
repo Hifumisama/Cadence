@@ -6,7 +6,6 @@ import type { ResultatH3ir } from "./result";
 
 const SHA_MAI = "a".repeat(64);
 const SHA_DEC = "b".repeat(64);
-const SHA_VOIX = "c".repeat(64);
 
 function resultat(surcharge: Partial<ResultatH3ir> = {}, compilation: Partial<ResultatH3ir["compilation"]> = {}): ResultatH3ir {
   return {
@@ -18,7 +17,6 @@ function resultat(surcharge: Partial<ResultatH3ir> = {}, compilation: Partial<Re
     liens: [
       { path: "/m/mai.png", code: "CHAR_mai", type: "picture" },
       { path: "/m/salle.png", code: "DEC_salle", type: "picture" },
-      { path: "/m/voix/mai.wav", code: "CHAR_mai", type: "audio" },
     ],
     avertissements: [],
     compilation: {
@@ -27,8 +25,8 @@ function resultat(surcharge: Partial<ResultatH3ir> = {}, compilation: Partial<Re
       mode: "ref2va",
       promptTokens: 400,
       sections: {
-        subject_definitions: "<Picture 1> is [[Mai]]. <Picture 2> is the room. <Audio 1> is Mai's voice.",
-        summary: "[ref generation + audio reference] Mai enters the room.",
+        subject_definitions: "<Picture 1> is [[Mai]]. <Picture 2> is the room.",
+        summary: "[ref generation] Mai enters the room.",
         retention_analysis: "<Picture 1> (…): fully_preserved - …",
         detailed_description: "[Shot 1] Mai (<Picture 1>) enters <Picture 2>.",
         overall_soundscape: "Rain.",
@@ -37,7 +35,6 @@ function resultat(surcharge: Partial<ResultatH3ir> = {}, compilation: Partial<Re
       manifest: [
         { slot: 1, label: "<Picture 1>", kind: "image", sha256: SHA_MAI, role: "subject" },
         { slot: 2, label: "<Picture 2>", kind: "image", sha256: SHA_DEC, role: "environment" },
-        { slot: 1, label: "<Audio 1>", kind: "audio", sha256: SHA_VOIX, role: "voice_timbre" },
       ],
       diagnostics: [
         { rule: "R15", severity: "WARN", message: "wardrobe not restated" },
@@ -46,7 +43,7 @@ function resultat(surcharge: Partial<ResultatH3ir> = {}, compilation: Partial<Re
       dureeEffectiveSecondes: 8,
       ...compilation,
     },
-    fichiers: { [SHA_MAI]: "/m/mai.png", [SHA_DEC]: "/m/salle.png", [SHA_VOIX]: "/m/voix/mai.wav" },
+    fichiers: { [SHA_MAI]: "/m/mai.png", [SHA_DEC]: "/m/salle.png" },
     tentatives: [
       { seed: 50, dureeMs: 1000, issue: "relance", raison: "x" },
       { seed: 51, dureeMs: 1000, issue: "ok" },
@@ -73,7 +70,6 @@ test("depuisCompilationH3ir : un seul changement `fiche` sur le plan, de moteur 
   assert.match(c.libelle, /Le départ.*Open H3 IR/);
   const a = apresDe();
   assert.equal(a.moteur, "h3ir");
-  assert.equal(a.voixDuPrompt, true);
   assert.equal(a.dureeGenerationSecondes, undefined, "le plan garde sa durée");
   assert.equal(a.description, undefined);
   assert.equal(depuisCompilationH3ir(resultat(), PLAN, { groupe: "ep-1", sousGroupe: "Scène" })[0]!.sousGroupe, "Scène");
@@ -86,20 +82,19 @@ test("depuisCompilationH3ir : les six sections du compilateur, dans leurs six no
   assert.equal(a.sections!.non_diegetic_music, "");
 });
 
-test("depuisCompilationH3ir : le manifeste devient les références (images par emplacement, voix = le personnage)", () => {
+test("depuisCompilationH3ir : le manifeste devient les références (images par emplacement)", () => {
   const a = apresDe();
   assert.deepEqual(a.refs, [
     { type: "picture", slot: 1, asset: "CHAR_mai", role: "subject", retention: null },
     { type: "picture", slot: 2, asset: "DEC_salle", role: "environment", retention: null },
-    { type: "audio", slot: 1, asset: "CHAR_mai", role: "Voix du personnage", retention: "reference" },
   ]);
 });
 
 test("depuisCompilationH3ir : les avertissements disent le moteur, l'essai, la seed, les diagnostics et ceux du brief", () => {
-  const c = fiche(resultat({ avertissements: ["Le garde parle mais n'a pas de voix fixée."] }));
+  const c = fiche(resultat({ avertissements: ["Le plan n'a pas de seed utilisable."] }));
   const textes = c.avertissements!.map((w) => `${w.type}|${w.texte}`);
   assert.ok(textes.some((t) => t.startsWith("info|Compilée par Open H3 IR (written, essai 2, seed 51)")));
-  assert.ok(textes.includes("alerte_controle|Le garde parle mais n'a pas de voix fixée."));
+  assert.ok(textes.includes("alerte_controle|Le plan n'a pas de seed utilisable."));
   assert.ok(textes.includes("alerte_controle|Open H3 IR · R15 : wardrobe not restated"));
   assert.ok(textes.includes("info|Open H3 IR · I2 : fyi"));
   assert.ok(!c.avertissements!.some((w) => w.type === "bloque_controle"));
@@ -148,7 +143,7 @@ test("lireApresFiche garde `moteur: h3ir` ; la fiche produite passe `verifierFic
     dureeGenerationSecondes: 8,
   };
   assert.equal(verifierFiche(lireApresFiche(brut), etat), null);
-  // Without the voice's reference, the <Audio 1> label of the prompt would remain orphaned: refused.
-  const sansVoix = { ...brut, refs: brut.refs.filter((r: { type: string }) => r.type !== "audio") };
-  assert.match(verifierFiche(lireApresFiche(sansVoix), etat) ?? "", /sans référence/);
+  // Without its reference, the <Picture 1> label of the prompt would remain orphaned: refused.
+  const sansImage = { ...brut, refs: brut.refs.filter((r: { slot: number }) => r.slot !== 1) };
+  assert.match(verifierFiche(lireApresFiche(sansImage), etat) ?? "", /sans référence/);
 });

@@ -53,7 +53,7 @@ test("verifierFiche : écriture complète sur un plan vide acceptée", () => {
   assert.equal(verifierFiche(complete(), etatVide()), null);
 });
 
-test("verifierFiche : refus clairs (rien à écrire, durée, slots, voix, assets, nature)", () => {
+test("verifierFiche : refus clairs (rien à écrire, durée, slots, assets, nature)", () => {
   const a = complete();
   assert.match(verifierFiche({}, etatVide()) ?? "", /Rien à écrire/);
   assert.match(verifierFiche({ ...a, dureeGenerationSecondes: 16 }, etatVide()) ?? "", /Durée/);
@@ -61,10 +61,8 @@ test("verifierFiche : refus clairs (rien à écrire, durée, slots, voix, assets
   const sept = Array.from({ length: 7 }, (_, i) => ({ type: "picture" as const, slot: i + 1, asset: `PROP_${i}` }));
   assert.match(verifierFiche({ refs: sept }, etatVide()) ?? "", /6 au plus/);
   assert.match(verifierFiche({ refs: [{ type: "picture", slot: 7, asset: "PROP_0" }] }, etatVide()) ?? "", /Slot 7/);
-  assert.match(verifierFiche({ refs: [1, 2, 3, 4].map((slot) => ({ type: "audio" as const, slot, asset: "CHAR_maya" })) }, etatVide()) ?? "", /3 au plus/);
   assert.match(verifierFiche({ refs: [{ type: "picture", slot: 1, asset: "PROP_x" }] }, etatVide()) ?? "", /n'existe pas/);
   assert.match(verifierFiche({ refs: [{ type: "picture", slot: 1, asset: "VOIX_off" }] }, etatVide()) ?? "", /pas d'image/);
-  assert.match(verifierFiche({ refs: [{ type: "audio", slot: 2, asset: "CHAR_maya" }] }, etatVide()) ?? "", /pas un personnage avec une voix/);
   assert.match(verifierFiche({ sections: { autre: "x" } as never }, etatVide()) ?? "", /Section de prompt inconnue/);
   assert.match(
     verifierFiche({ refs: [{ type: "picture", slot: 1, asset: "CHAR_maya" }, { type: "picture", slot: 1, asset: "DEC_couloir" }] }, etatVide()) ?? "",
@@ -83,8 +81,6 @@ test("verifierFiche : aucune écriture ne laisse un label orphelin (partielle co
   assert.match(verifierFiche({ sections: { detailed_description: "[Shot 1] <Picture 3> appears." } }, etat) ?? "", /sans référence.*Picture 3/);
   // replacing the references without rewriting the sections that cite the old ones → refused
   assert.match(verifierFiche({ refs: [] }, etat) ?? "", /Picture 1/);
-  // an audio reference (a character's voice) makes <Audio 1> legitimate
-  assert.equal(verifierFiche({ sections: { summary: "with <Audio 1>" } }, etatVide({ refs: [{ type: "audio", slot: 1, asset: "CHAR_maya" }] })), null);
 });
 
 // --- overwrite (ticking) -------------------------------------------------------------
@@ -166,25 +162,25 @@ test("ApresFiche.reglages (« Itérer ») : lus, suffisants pour une écriture, 
   assert.match(verifierFiche({ reglages: { styleCamera: "kubrick" } }, etat) ?? "", /Style de mise en scène inconnu/);
 });
 
-// --- an inconsistency ALREADY there (line unlinked, <Audio 1> lines left) no longer blocks an unrelated correction (2026-10-14) ---
+// --- an inconsistency ALREADY there (a cited label whose reference was unlinked) no longer blocks an unrelated correction (2026-10-14) ---
 
 test("verifierFiche : un label orphelin déjà présent n'empêche pas une écriture qui ne l'aggrave pas ; un nouveau orphelin refuse toujours", async () => {
   const { verifierFiche, labelsOrphelinsActuels, evaluerEcrasementFiche } = await import("./sheets");
   const etat = {
     titre: "Geste préparatoire",
-    sections: { subject_definitions: "<Subject 1> is Mai from <Picture 1>.\n<Audio 1> is the voice-timbre reference for <Subject 1>.", detailed_description: "[Shot 1] <Subject 1> raises the wand." },
+    sections: { subject_definitions: "<Subject 1> is Mai from <Picture 1>.\n<Picture 2> is the room.", detailed_description: "[Shot 1] <Subject 1> raises the wand." },
     refs: [{ type: "picture" as const, slot: 1, asset: "CHAR_mai" }],
-    // the voice was unlinked from the clip: <Audio 1> no longer has a reference
+    // <Picture 2> was unlinked from the clip: it no longer has a reference
     registre: new Map([["CHAR_mai", "personnage"]]),
     aUnRendu: true,
     generationEnCours: false,
     dureeGenerationSecondes: 10,
   };
-  assert.deepEqual(labelsOrphelinsActuels(etat), ["Audio:1"]);
+  assert.deepEqual(labelsOrphelinsActuels(etat), ["Picture:2"]);
   assert.equal(verifierFiche({ sections: { detailed_description: "[Shot 1] <Subject 1> raises the wand, arm already lifted." } }, etat), null);
   assert.match(verifierFiche({ sections: { detailed_description: "[Shot 1] <Subject 1> raises the wand. <Picture 3> appears." } }, etat) ?? "", /sans référence.*Picture 3/);
   const ev = evaluerEcrasementFiche({ sections: { detailed_description: "x" } }, etat);
-  assert.ok(ev.avertissements.some((a) => /citait déjà <Audio 1> sans référence/.test(a.texte)));
+  assert.ok(ev.avertissements.some((a) => /citait déjà <Picture 2> sans référence/.test(a.texte)));
 });
 
 test("fiche qui cite un asset créé par la même proposition : acceptée en aperçu (la clé existe), refusée sans elle", () => {

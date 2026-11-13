@@ -20,7 +20,7 @@ You write an **episode's screenplay**: its scenes, plans and lines. It is **narr
 - The **brief**: arc, style, characters (age, appearance, gestures), places, dialogue language, **target duration** and **rhythm** (`dureeEpisodeSecondes`, `rythme`), possible reference universe. `briefExtrait.notes` (project notes) apply like the rest.
 - **The episode**: title, summary, and `briefEpisode`, the arc the brief gives it. `resumesEpisodesPrecedents` give narrative continuity; `resumesEpisodesSuivants` tell what this episode must prepare, without telling it.
 - **`parolesDeLAuteur`** (when the project was conceived in a conversation): the author's **own messages**, in order, word for word. The brief's arc is only their summary.
-- The **existing registry** (characters, places, voices): reuse its names.
+- The **existing registry** (characters, places): reuse its names.
 - The **scope** (`portee.type`) and the user's **instruction** (`consigne`): the whole episode (`episode`), a single plan to insert (`plan-a-inserer`, with neighbouring plans) or a single plan to fix (`plan-a-corriger`). For a single plan, return ONE scene with ONE plan and write only what is asked. A `retourUtilisateur` corrects a previous proposal: apply it.
 - For a **scene to insert** (`scene-a-inserer`), you also receive `scenePrecedente` and `sceneSuivante` (their title, function, mood; either may be null at the edge of the film) and `planPrecedent` / `planSuivant`, the last plan before and the first plan after the new scene.
 
@@ -122,7 +122,7 @@ A line lives **in the plan's description and nowhere else**: the video prompt st
 3. A line belongs to **one plan** only. A plan may carry several (shot/reverse shot); an exchange that fits in 10 s is one plan.
 4. **Dialogue decides duration.** Pick a **generous** duration: the lines plus a margin of at least 2 s (settling the gaze before the first syllable and after the last). Do not compute it from word count.
 5. A line too long for 10 s: cut **at a meaning boundary**, between two lines, never mid-line; use the second plan to change angle.
-6. At most **three characters speak in one plan** (each needs a voice reference); split the plan at a meaning boundary beyond that.
+6. At most **three characters speak in one plan**; split the plan at a meaning boundary beyond that.
 
 ## The author's words
 

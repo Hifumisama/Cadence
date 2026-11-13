@@ -114,8 +114,7 @@ function resumeBrief(contenu: unknown) {
 }
 
 /** Complete clip sheet: clip + sectioned prompt + refs (with the associated
- * asset) + jobs history. The dialogue lives in the prompt (`<d>`); voices are audio refs, read by
- * lib/voice/queries-voice-clip.ts for voices. Found by `uuid` (public identifier,
+ * asset) + jobs history. The dialogue lives in the prompt (`<d>`). Found by `uuid` (public identifier,
  * see docs/FRICTIONS.md F03); the episodeId filter keeps the URL
  * consistent with the displayed episode. */
 export async function getPlanDetail(uuid: string, episodeId?: number) {
@@ -142,7 +141,9 @@ export async function getPlanDetail(uuid: string, episodeId?: number) {
       })
       .from(planRefs)
       .leftJoin(assets, eq(planRefs.assetId, assets.id))
-      .where(eq(planRefs.planId, plan.id)),
+      .where(eq(planRefs.planId, plan.id))
+      // The `audio` value stays in the Postgres enum (removing a value is heavy) but no reference of that type is used any more.
+      .then((rows) => rows.flatMap((r) => (r.type === "audio" ? [] : [{ ...r, type: r.type }]))),
     db
       .select()
       .from(jobs)
@@ -265,8 +266,7 @@ export type AssetCitation = { planId: number; planUuid: string; position: number
  *
  * `citations` details EACH ref line that cites the asset, not just the clip numbers — necessary to be able to unlink a
  * specific citation without deleting the others (deleting a cited asset is blocked until it has been unlinked from each clip).
- * A character's voice is a field of the asset (`voixMaster`, ...); it enters a clip as an audio reference whose asset is
- * the character: it is a citation like any other. */
+ */
 export async function getAssetsRegistre(projectId?: number) {
   const pid = projectId ?? (await getDefaultProjectId());
   const tousLesAssets = await db.select().from(assets).where(and(eq(assets.projectId, pid), horsAffiches)).orderBy(assets.code);

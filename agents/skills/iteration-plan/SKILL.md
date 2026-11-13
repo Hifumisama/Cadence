@@ -85,7 +85,7 @@ When the cause is a missing image and **no** registry asset fits, suggest it in 
 
 - **`plan`**: title, intention (French), liaison, wanted duration, fps.
 - **`promptActuel`**: the six sections of the prompt that produced the render (read-only: it helps the diagnosis; you never edit it).
-- **`references`**: the plan's current references (label → asset code, type, role). Voices appear as audio references: you do not touch them.
+- **`references`**: the plan's current references (label → asset code, type, role).
 - **`registre`**: the project's assets (code, type, description, `image`: whether its image exists).
 - **`reglages`**: the plan's effective creativity and staging style (`actuelle` / `actuel`, and where it is set), and `choix`: every allowed value with its effect.
 - **`retourVisionnage`**: the user's instruction. **`historique`**: corrections already tried. **`plansVoisins`**: previous and next plans, read-only.

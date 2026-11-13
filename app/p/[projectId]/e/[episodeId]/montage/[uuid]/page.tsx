@@ -8,7 +8,6 @@ import { getPelliculePlans } from "@/lib/clips/queries-clip-sheet";
 import { infosMedia } from "@/lib/assets/assetMedia";
 import { controlerStructure, DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, verifierCoherenceRefs, WORKFLOW_IMPORT_MANUEL } from "@/lib/clips/clip-checks";
 import { demosMiseEnScene } from "@/lib/media";
-import { getVoixDuPlan } from "@/lib/voice/queries-voice-clip";
 import { essaiEnFile, essaiVoisin, etatPlan, LIBELLE_ETAT_PLAN, libelleEssai, planSuivant, texteConsigne, trierEssais } from "@/lib/clips/clip-sheet";
 import { ReferencesCases, type RefVue } from "@/components/clip/ReferencesCheckboxes";
 import type { NoeudPicker } from "@/components/clip/AssetPickerModal";
@@ -72,10 +71,9 @@ export default async function PlanPage({
 
   const { plan, position, promptSections, refs, jobHistory } = detail;
 
-  const [assetsRegistre, scenesEpisode, audioRefs, pellicule, projet] = await Promise.all([
+  const [assetsRegistre, scenesEpisode, pellicule, projet] = await Promise.all([
     getAssetsRegistre(pid),
     getScenesEpisode(eid),
-    getVoixDuPlan(plan.id),
     getPelliculePlans(eid),
     getProject(pid),
   ]);
@@ -91,13 +89,9 @@ export default async function PlanPage({
     contenu: s.contenu,
   }));
 
-  // Each linked line's audio IS the clip's <Audio N> ref: it counts as declared
-  // without being in plan_refs, and need not be cited (validated sheets and the
-  // sheet contract never cite voices).
   const { labelsOrphelins, refsNonCitees } = verifierCoherenceRefs(
     sectionsPourControle,
     refs.map((r) => ({ type: r.type, slot: r.slot })),
-    audioRefs,
   );
   const structure = controlerStructure(sectionsPourControle, plan.dureeGenerationSecondes);
 

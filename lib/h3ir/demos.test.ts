@@ -50,7 +50,7 @@ test("le brief des deux séries : répliques extraites et normalisées pour les 
     description: a.description,
     chemin: `/m/${a.code}.png`,
   }));
-  const personnages = ASSETS_DEMOS.filter((a) => a.type === "personnage").map((a) => ({ code: a.code, label: a.label, voix: null }));
+  const personnages = ASSETS_DEMOS.filter((a) => a.type === "personnage").map((a) => ({ code: a.code, label: a.label }));
   const base = { langueDialogues: "French", codesVoixOff: [], personnages, references: refs, scene: { titre: "Styles", ambiance: null } };
   const avec = briefDepuisPlan({ ...base, plan: { description: DESCRIPTION_DEMOS_AVEC_REPLIQUES, dureeSecondes: 10, seed: "424242424242" } }, { director: "villeneuve" });
   assert.ok(avec.brief, avec.refus ?? "");

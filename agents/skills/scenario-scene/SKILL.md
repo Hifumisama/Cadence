@@ -117,7 +117,7 @@ A line lives **in the plan's description and nowhere else**: the video prompt st
 3. A line belongs to **one plan** only. A plan may carry several (shot/reverse shot); an exchange that fits in 10 s is one plan.
 4. **Dialogue decides duration.** Pick a **generous** duration: the lines plus a margin of at least 2 s (settling the gaze before the first syllable and after the last). Do not compute it from word count.
 5. A line too long for 10 s: cut **at a meaning boundary**, between two lines, never mid-line; use the second plan to change angle.
-6. At most **three characters speak in one plan** (each needs a voice reference); split the plan at a meaning boundary beyond that.
+6. At most **three characters speak in one plan**; split the plan at a meaning boundary beyond that.
 
 ## The author's words
 

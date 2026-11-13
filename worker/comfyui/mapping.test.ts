@@ -14,7 +14,6 @@ const entree: SubmissionInput = {
   dureeSecondes: 8,
   fps: 24,
   refsImage: [{ slot: 1, cheminLocal: "C:/x/CHAR_maya.png" }],
-  refsAudio: [],
   refsVideo: [],
   activerUpscale: false,
 };
@@ -91,7 +90,6 @@ test("durée hors 4-10 s : erreur franche, jamais de repli sur la durée du fich
 // --- References ---
 
 const img = (slot: number) => ({ slot, cheminLocal: `C:/x/IMG_${slot}.png`, nomDistant: `cadence_assets_IMG_${slot}.png` });
-const aud = (slot: number, dureeSecondes?: number | null) => ({ slot, cheminLocal: `C:/x/prise_${slot}.wav`, dureeSecondes });
 const vid = (slot: number) => ({ slot, cheminLocal: `C:/x/KEY_${slot}.mp4` });
 
 test("plan sans audio : aucun lien audio, les références de l'export sont purgées", () => {
@@ -115,22 +113,6 @@ test("six images : ref_image_0 à ref_image_5 câblés sur 6 couples LoadImage +
   }
 });
 
-test("trois audios : ref_audio_0 à ref_audio_2, sur le nœud LoadAudio du noyau", () => {
-  const g = injecterValeurs(workflow, { ...entree, refsAudio: [aud(1, 6.05), aud(2, 2.504), aud(3, null)] });
-  for (let i = 0; i < 3; i++) {
-    assert.deepEqual(g[NODE_IDS.refNode]!.inputs[`ref_audios.ref_audio_${i}`], [`ref_audio_${i + 1}`, 0]);
-    assert.equal(g[`ref_audio_${i + 1}`]!.class_type, "LoadAudio");
-    assert.deepEqual(Object.keys(g[`ref_audio_${i + 1}`]!.inputs), ["audio"]);
-  }
-  assert.equal(g.ref_audio_1!.inputs.audio, "prise_1.wav", "à défaut de nom distant, le nom du fichier");
-});
-
-test("emplacement non contigu : le lien suit l'emplacement (<Audio 2> du prompt = ref_audio_1)", () => {
-  const g = injecterValeurs(workflow, { ...entree, refsAudio: [aud(2, 3)] });
-  assert.deepEqual(g[NODE_IDS.refNode]!.inputs["ref_audios.ref_audio_1"], ["ref_audio_2", 0]);
-  assert.equal("ref_audios.ref_audio_0" in g[NODE_IDS.refNode]!.inputs, false);
-});
-
 test("vidéo de référence : LoadVideo puis GetVideoComponents (noyau), les images alimentent ref_videos", () => {
   const g = injecterValeurs(workflow, { ...entree, refsVideo: [vid(1)] });
   assert.deepEqual(g[NODE_IDS.refNode]!.inputs["ref_videos.ref_video_0"], ["ref_video_1_images", 0]);
@@ -140,14 +122,12 @@ test("vidéo de référence : LoadVideo puis GetVideoComponents (noyau), les ima
   assert.deepEqual(g.ref_video_1_images!.inputs.video, ["ref_video_1", 0]);
 });
 
-test("limites : 7 références visuelles, 4 audios, emplacements hors plage ou en double", () => {
+test("limites : 7 références visuelles, emplacements hors plage ou en double", () => {
   const cas: SubmissionInput[] = [
     { ...entree, refsImage: [1, 2, 3, 4, 5, 6, 7].map(img) },
     { ...entree, refsImage: [1, 2, 3, 4, 5].map(img), refsVideo: [vid(1), vid(2)] },
-    { ...entree, refsAudio: [1, 2, 3, 4].map((s) => aud(s)) },
     { ...entree, refsImage: [img(7)] },
     { ...entree, refsImage: [img(0)] },
-    { ...entree, refsAudio: [aud(1), aud(1)] },
   ];
   for (const c of cas) assert.throws(() => verifierEntree(c), ErreurEntreeInvalide);
   assert.doesNotThrow(() => verifierEntree({ ...entree, refsImage: [1, 2, 3, 4].map(img), refsVideo: [vid(1), vid(2)] }));

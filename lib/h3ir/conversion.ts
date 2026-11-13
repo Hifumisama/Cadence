@@ -54,14 +54,16 @@ export function depuisCompilationH3ir(
     const numero = LABEL.exec(m.label);
     const slot = numero ? Number(numero[2]) : m.slot;
     if (m.kind === "video" || lien.type === "video") {
-      ajouter("alerte_controle", `${lien.code} est une vidéo de référence : une fiche n'écrit que des images et des voix, elle n'est pas reportée (les vidéos déjà liées au plan restent).`);
+      ajouter("alerte_controle", `${lien.code} est une vidéo de référence : une fiche n'écrit que des images, elle n'est pas reportée (les vidéos déjà liées au plan restent).`);
       continue;
     }
-    // An audio is a voice (`voice_timbre`, the asset is the character).
-    if (m.kind === "audio") refs.push({ type: "audio", slot, asset: lien.code, role: "Voix du personnage", retention: "reference" });
-    else refs.push({ type: "picture", slot, asset: lien.code, role: m.role ?? null, retention: null });
+    if (m.kind === "audio") {
+      ajouter("alerte_controle", `${lien.code} est un audio de référence : une fiche n'écrit que des images, il n'est pas reporté.`);
+      continue;
+    }
+    refs.push({ type: "picture", slot, asset: lien.code, role: m.role ?? null, retention: null });
   }
-  refs.sort((a, b) => (a.type === b.type ? a.slot - b.slot : a.type === "picture" ? -1 : 1));
+  refs.sort((a, b) => a.slot - b.slot);
   if (!refs.some((r) => r.type === "picture")) ajouter("bloque_controle", "La compilation ne cite aucune image de référence : la fiche n'est pas écrite.");
 
   // --- compiler diagnostics ---
@@ -72,7 +74,7 @@ export function depuisCompilationH3ir(
   }
   if (c.diagnostics.length > diagnostics.length) ajouter("info", `… et ${c.diagnostics.length - diagnostics.length} autres diagnostics d'Open H3 IR (voir le résultat de la tâche).`);
 
-  const fiche: ApresFiche = { sections, refs, voixDuPrompt: true, moteur: "h3ir" };
+  const fiche: ApresFiche = { sections, refs, moteur: "h3ir" };
   return [
     {
       groupe: options.groupe ?? "fiches",
@@ -101,7 +103,7 @@ export function depuisRetouche(res: ResultatRetouche, plan: { uuid: string; titr
   for (const nom of SECTIONS_OBLIGATOIRES) {
     if (!sections[nom]) avertissements.push({ type: "bloque_controle", texte: `Le prompt retouché n'a pas de section « ${nom} » : la fiche n'est pas écrite.` });
   }
-  const fiche: ApresFiche = { sections, passages: res.passages, voixDuPrompt: true, moteur: "h3ir" };
+  const fiche: ApresFiche = { sections, passages: res.passages, moteur: "h3ir" };
   return [
     {
       groupe: options.groupe ?? "fiches",

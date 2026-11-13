@@ -18,54 +18,41 @@ export type PromptSection = {
 export const WORKFLOW_IMPORT_MANUEL = "import-manuel";
 
 export type RefLabel = {
-  type: "picture" | "video" | "audio";
+  type: "picture" | "video";
   slot: number;
 };
 
 /** H3 MiniMax limits (see docs/REGISTRE_ASSETS.md and the inspection of the
- * ComfyUI graph): 6 image refs, 2 video refs, 3 audio refs per clip. */
+ * ComfyUI graph): 6 image refs, 2 video refs per clip. */
 export const MAX_REFS: Record<RefLabel["type"], number> = {
   picture: 6,
   video: 2,
-  audio: 3,
 };
 
-/** Consistency of the refs: each label <Picture N>/<Audio N>/<Video N> cited
+/** Consistency of the refs: each label <Picture N>/<Video N> cited
  * in the prompt must exist in the clip's refs table, and
  * vice versa.
- *
- * `derivees`: the audio refs that are a character's VOICE (its master,
- * `lib/voice/queries-voice-clip.ts`). They count as
- * declared (a prompt that cites them has no orphan label) but are
- * never « uncited »: the compiled sheets and the validated sheets of
- * episode 1 do not cite the voices (docs/FRICTIONS.md, « iteration-plan
- * branché », 2026-10-02). A plan_refs ref (image) that is not cited
- * remains flagged. */
+ */
 export function verifierCoherenceRefs(
   sections: PromptSection[],
   refs: RefLabel[],
-  derivees: RefLabel[] = [],
 ): { labelsOrphelins: string[]; refsNonCitees: string[] } {
   const texte = sections.map((s) => s.contenu).join("\n");
   const labelParType: Record<RefLabel["type"], string> = {
     picture: "Picture",
     video: "Video",
-    audio: "Audio",
   };
 
   const labelsCites = new Set(
-    [...texte.matchAll(/<(Picture|Video|Audio)\s+(\d+)>/g)].map(
+    [...texte.matchAll(/<(Picture|Video)\s+(\d+)>/g)].map(
       (m) => `${m[1]}:${m[2]}`,
     ),
   );
   const labelsDeclares = new Set(
     refs.map((r) => `${labelParType[r.type]}:${r.slot}`),
   );
-  const labelsDerives = new Set(
-    derivees.map((r) => `${labelParType[r.type]}:${r.slot}`),
-  );
 
-  const labelsOrphelins = [...labelsCites].filter((l) => !labelsDeclares.has(l) && !labelsDerives.has(l));
+  const labelsOrphelins = [...labelsCites].filter((l) => !labelsDeclares.has(l));
   const refsNonCitees = [...labelsDeclares].filter((l) => !labelsCites.has(l));
 
   return { labelsOrphelins, refsNonCitees };

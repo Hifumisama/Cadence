@@ -8,8 +8,6 @@ import type { PromptSection } from "./clip-checks";
  * the attempt the image comes from). Pure except `extraireDerniereImage`. */
 
 export const MAX_REFS_VISUELLES = 6;
-/** Maximum number of audio references (voice) of a clip. */
-export const MAX_REFS_AUDIO = 3;
 
 /** The clip cannot receive its continuity for lack of room: its visual refs (images + videos) are already at the ceiling. */
 export const raccordSansPlace = (nbRefsVisuelles: number): boolean => nbRefsVisuelles >= MAX_REFS_VISUELLES;
@@ -28,7 +26,7 @@ const LIGNE_RETENTION = (n: number) =>
 
 const ajouterLigne = (contenu: string, ligne: string) => (contenu.trim() ? `${contenu.trimEnd()}\n${ligne}` : ligne);
 
-/** `[reference generation + audio reference]` → `[reference generation + audio reference + keyframe completion]` (types combined with « + », without repetition). */
+/** `[reference generation]` → `[reference generation + keyframe completion]` (types combined with « + », without repetition). */
 function ajouterTypeKeyframe(summary: string): string {
   const m = /^\s*\[([^\]]*)\]/.exec(summary);
   if (!m) return `[keyframe completion] ${summary.trim()}`.trim();

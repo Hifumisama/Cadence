@@ -46,7 +46,7 @@ export type ContexteIteration = {
   /** The clip's current description (intent). */
   description?: string;
   /** The clip's references (plan_refs: images, sounds, videos), with the asset's code. */
-  refs: { type: "picture" | "audio" | "video"; slot: number; asset?: string | null }[];
+  refs: { type: "picture" | "video"; slot: number; asset?: string | null }[];
   /** The project's assets: what `references.ajouter` may cite; `image`: its file exists (absent = unknown). */
   registre?: { code: string; type: string; image?: boolean }[];
   dureeGenerationSecondes: number;
@@ -333,7 +333,7 @@ export function contexteDepuisEntree(entree: unknown): ContexteIteration {
   const refs: ContexteIteration["refs"] = [];
   for (const r of e.references ?? []) {
     if (typeof r.slot !== "number") continue;
-    if (r.type === "picture" || r.type === "audio" || r.type === "video") refs.push({ type: r.type, slot: r.slot, asset: r.asset ?? null });
+    if (r.type === "picture" || r.type === "video") refs.push({ type: r.type, slot: r.slot, asset: r.asset ?? null });
   }
   const creativite = e.reglages?.creativite?.actuelle;
   const style = e.reglages?.styleMiseEnScene?.actuel;

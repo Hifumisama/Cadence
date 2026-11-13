@@ -596,6 +596,13 @@
       "when": 1796749200000,
       "tag": "0084_colonnes_mortes_plans",
       "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "7",
+      "when": 1796835600000,
+      "tag": "0085_retrait_voix",
+      "breakpoints": true
     }
   ]
 }

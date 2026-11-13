@@ -8,13 +8,12 @@ import { SECTIONS_FICHE, cleNouvelAsset, estSectionFiche, evaluerEcrasementFiche
 import { REFUS_SUPPRESSION, type Applicateur, type Db } from "./common";
 
 /** `fiche` target (step 3): the clip sheet, that is the H3 prompt in six sections
- * (`plan_prompt_sections`), the picture/audio references (`plan_refs`) and the generation duration.
+ * (`plan_prompt_sections`), the picture references (`plan_refs`) and the generation duration.
  * `cibleRef` = the clip's uuid; `modifier` operation only (an existing clip).
  * `apres` = { sections?, refs?, dureeGenerationSecondes? } (lib/agents/sheets.ts, `ApresFiche`):
  * - COMPLETE write (Open H3 IR): the six sections AND the references, which replace those of the clip;
  * - PARTIAL write (iteration-plan, upcoming): only some sections, without `refs`: the other
  *   sections and the references do not move.
- * The voices (plan_dialogues) are never touched: their `<Audio N>` slots are taken as they are.
  * Refuses any write that would leave a label without its reference, a slot out of bounds, a missing asset.
  * A draft clip moves to « en attente » (developed), as with « Développer en fiche de plan ». */
 
@@ -34,7 +33,7 @@ async function planParUuid(db: Db, projectId: number, uuid: string | null) {
   return p ?? null;
 }
 
-/** The state of the clip that the sheet would replace (sections, references, voices, registry, render). */
+/** The state of the clip that the sheet would replace (sections, references, registry, render). */
 async function lireEtatPlanFiche(db: Db, projectId: number, plan: { id: number; titre: string; statut: string; duree: number }): Promise<EtatPlanFiche> {
   const [lignes, refs, registre, rendus] = await Promise.all([
     db.select({ section: planPromptSections.section, contenu: planPromptSections.contenu }).from(planPromptSections).where(eq(planPromptSections.planId, plan.id)),
@@ -52,7 +51,7 @@ async function lireEtatPlanFiche(db: Db, projectId: number, plan: { id: number; 
   return {
     titre: plan.titre,
     sections,
-    refs: refs.map((r) => ({ type: r.type, slot: r.slot, asset: r.asset })),
+    refs: refs.flatMap((r) => (r.type === "audio" ? [] : [{ type: r.type, slot: r.slot, asset: r.asset }])),
     registre: new Map(registre.map((a) => [a.code, a.type])),
     aUnRendu: plan.statut === "previsualise" || plan.statut === "termine" || rendus.some((j) => j.statut === "termine" && j.chemin != null),
     generationEnCours: rendus.some((j) => j.statut === "en_attente" || j.statut === "en_cours"),
@@ -127,7 +126,7 @@ async function ecrireFiche(tx: Tx, projectId: number, p: { id: number; statut: s
   }
 
   if (apres.refs) {
-    await tx.delete(planRefs).where(and(eq(planRefs.planId, p.id), inArray(planRefs.type, ["picture", "audio"])));
+    await tx.delete(planRefs).where(and(eq(planRefs.planId, p.id), eq(planRefs.type, "picture")));
     if (apres.refs.length) {
       const codes = [...new Set(apres.refs.map((r) => r.asset))];
       const ids = new Map(
@@ -140,7 +139,6 @@ async function ecrireFiche(tx: Tx, projectId: number, p: { id: number; statut: s
           slot: r.slot,
           assetId: ids.get(r.asset)!,
           role: r.role ?? null,
-          retention: r.type === "audio" ? (r.retention ?? null) : null,
         })),
       );
     }

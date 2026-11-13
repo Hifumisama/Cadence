@@ -54,25 +54,13 @@ test("structure : la forme à intervalle des plans validés est acceptée", () =
   assert.deepEqual(court, ["shot_trop_court"]);
 });
 
-test("cohérence des refs : la voix d'une réplique (ref dérivée) n'a pas à être citée", () => {
+test("cohérence des refs : un label cité sans référence est orphelin, une référence non citée est signalée", () => {
   const sections = [
     { section: "subject_definitions", contenu: "<Subject 1> is Maya from <Picture 1>." },
-    { section: "detailed_description", contenu: "[Shot 1] <Subject 1> says <d>[Français] Pas un bruit.</d> A door creaks <Audio 2>." },
+    { section: "detailed_description", contenu: "[Shot 1] <Subject 1> waits. A door creaks <Video 2>." },
   ];
-  const refs = [
-    { type: "picture" as const, slot: 1 },
-    { type: "audio" as const, slot: 2 },
-  ];
-  // The take of the line of dialogue (slot 1): declared, never « non citée ».
-  assert.deepEqual(verifierCoherenceRefs(sections, refs, [{ type: "audio", slot: 1 }]), { labelsOrphelins: [], refsNonCitees: [] });
-  // An uncited plan_refs ref stays flagged, even with derived voices.
-  const sansPorte = [sections[0]!, { section: "detailed_description", contenu: "[Shot 1] <Subject 1> says <d>[Français] Pas un bruit.</d>" }];
-  assert.deepEqual(verifierCoherenceRefs(sansPorte, refs, [{ type: "audio", slot: 1 }]).refsNonCitees, ["Audio:2"]);
-  // Citing the voice remains possible (declared by derivation: no orphan)…
-  const citeVoix = [sections[0]!, { section: "detailed_description", contenu: "[Shot 1] <Subject 1> speaks <Audio 1>. A door creaks <Audio 2>." }];
-  assert.deepEqual(verifierCoherenceRefs(citeVoix, refs, [{ type: "audio", slot: 1 }]).labelsOrphelins, []);
-  // … but a label that matches nothing stays orphan.
-  assert.deepEqual(verifierCoherenceRefs(citeVoix, refs, []).labelsOrphelins, ["Audio:1"]);
+  assert.deepEqual(verifierCoherenceRefs(sections, [{ type: "picture", slot: 1 }]), { labelsOrphelins: ["Video:2"], refsNonCitees: [] });
+  assert.deepEqual(verifierCoherenceRefs(sections, [{ type: "picture", slot: 1 }, { type: "video", slot: 2 }, { type: "picture", slot: 3 }]), { labelsOrphelins: [], refsNonCitees: ["Picture:3"] });
 });
 
 // --- Open H3 IR sheets: effective duration (image grid) and 1.2 s floor --------------------------------------

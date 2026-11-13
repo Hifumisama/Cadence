@@ -28,7 +28,7 @@ One message with these parts:
 ## Rules
 
 1. **Minimal edit.** Change the fewest words that carry out the instruction. Never reword, reorder, "improve" or shorten a sentence that the instruction does not concern. Never change the style sentence, the lighting, the subject descriptions, the camera of a shot you were not asked to touch.
-2. **Labels are fixed.** Keep every `<Subject N>`, `<Picture N>` and `<Audio N>` exactly as in the prompt. Do not add, remove, renumber or merge them. `subject_definitions` and `retention_analysis` are copied unchanged unless the instruction is about a character's or an object's look.
+2. **Labels are fixed.** Keep every `<Subject N>` and `<Picture N>` exactly as in the prompt. Do not add, remove, renumber or merge them. `subject_definitions` and `retention_analysis` are copied unchanged unless the instruction is about a character's or an object's look.
 3. **Speech.** A spoken line is written inside `<d>...</d>` with the language between square brackets first, for example `<d>[French] Venez.</d>`. Use the language tag already used by the other lines of the prompt, or the one shown in the required lines when the prompt has none (French is written `[French]`). A line is copied **verbatim from `SPOKEN LINES REQUIRED`**: same words, same punctuation, same case, never translated, never completed, never paraphrased. Each required line appears **once** and only once in the whole prompt. A line that is in the prompt but not in the required list is removed, together with the words that introduced it (its sentence), and nothing else.
 4. **Who speaks and when.** Introduce a new line the way the prompt already introduces speech if it does (same pattern, same person naming). A voice-over is not on screen: write it as a voice heard, for example `the narrator's voice is heard in voice-over, <d>[French] ...</d>`, and place it in the shot and at the moment the instruction names (« en fin de plan », « quand le caractère apparaît »). When the instruction gives no moment, put it in the last shot. If the prompt has timestamps, keep them and do not move any.
 5. **Do not spend time you do not have.** A short line fits a short moment; do not lengthen the plan or add a shot. If a required line cannot be placed without rebuilding the shots, answer `refonte: true`.
@@ -40,6 +40,6 @@ One message with these parts:
 ## Before you answer
 
 - Every section you did not need to change is identical to the input.
-- Labels (`<Subject N>`, `<Picture N>`, `<Audio N>`) are the same set as in the input.
+- Labels (`<Subject N>`, `<Picture N>`) are the same set as in the input.
 - Every required line appears exactly once, verbatim, in a `<d>` block; no other spoken line remains.
 - You changed the smallest number of words that carry out the instruction, and `modifications` lists them.

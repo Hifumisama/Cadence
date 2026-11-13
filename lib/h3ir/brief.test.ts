@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { briefDepuisPlan, normaliserReplique, separerDescription, type EntreeBrief, type PersonnageEntree, type ReferenceEntree } from "./brief";
 
-const MAI: PersonnageEntree = { code: "CHAR_mai", label: "Mai", voix: { chemin: "/m/voix/1/mai.wav", sha256: "a".repeat(64), description: "voix grave et posée", repliqueBase: "Bonjour." } };
-const GARDE: PersonnageEntree = { code: "CHAR_le_garde", label: null, voix: null };
+const MAI: PersonnageEntree = { code: "CHAR_mai", label: "Mai" };
+const GARDE: PersonnageEntree = { code: "CHAR_le_garde", label: null };
 
 const ref = (code: string, typeAsset: string, slot: number, chemin: string | null = `/m/${code}.png`, type: ReferenceEntree["type"] = "picture"): ReferenceEntree => ({
   type,
@@ -80,7 +80,7 @@ test("briefDepuisPlan : intent sans répliques, avec l'ambiance mais sans le tit
   assert.equal(brief.seed, 123456789012345);
 });
 
-test("briefDepuisPlan : rôles par type, images de celui qui parle en tête, voix en voice_timbre avec sa transcription", () => {
+test("briefDepuisPlan : rôles par type, images de celui qui parle en tête", () => {
   const { brief } = briefDepuisPlan(entree());
   assert.ok(brief);
   assert.deepEqual(
@@ -89,21 +89,17 @@ test("briefDepuisPlan : rôles par type, images de celui qui parle en tête, voi
       ["image", "subject", "/m/CHAR_mai.png"],
       ["image", "environment", "/m/DEC_salle.png"],
       ["image", "subject", "/m/CHAR_le_garde.png"],
-      ["audio", "voice_timbre", "/m/voix/1/mai.wav"],
     ],
   );
   assert.equal(brief.assets[0]!.note, "Mai — desc CHAR_mai");
-  assert.equal(brief.assets[3]!.note, "Mai : voix grave et posée");
-  assert.deepEqual(brief.transcripts, { ["a".repeat(64)]: "Bonjour." });
 });
 
-test("briefDepuisPlan : un keyframe est une storyboard ; un locuteur sans voix fixée donne un avertissement", () => {
+test("briefDepuisPlan : un keyframe est une storyboard", () => {
   const description = "Le garde ouvre.\nLe garde : « Halte ! »";
   const { brief, avertissements } = briefDepuisPlan(entree({ plan: { description, dureeSecondes: 5, seed: null }, references: [ref("KEY_porte", "keyframe", 1)] }));
   assert.ok(brief);
   assert.equal(brief.assets[0]!.role, "storyboard");
   assert.equal(brief.dialogue[0]!.text, "Halte!");
-  assert.ok(avertissements.some((a) => a.includes("Le garde") && a.includes("pas de voix fixée")));
   assert.ok(avertissements.some((a) => a.includes("seed")));
   assert.equal("seed" in brief, false);
 });
@@ -140,7 +136,6 @@ test("briefDepuisPlan : un effet visuel part en style (référence faible), un p
       ["/m/CHAR_mai.png", "subject"],
       ["/m/VFX_feu.png", "style"],
       ["/m/PROP_lame.png", "subject"],
-      ["/m/voix/1/mai.wav", "voice_timbre"],
     ],
   );
 });

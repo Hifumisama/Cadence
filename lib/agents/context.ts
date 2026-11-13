@@ -649,7 +649,7 @@ async function historiqueDuPlan(db: Db, projectId: number, planId: number) {
 /** The `iteration-plan` input for ONE clip that has a render (routing by clip state, 2026-10-02: without a render, no
  * blind correction). See agents/skills/iteration-plan/SKILL.md, "Ce que tu reçois":
  * - `plan` (title, intent, wanted duration, fps), `promptActuel` (the six STORED sections, labels included);
- * - `references`: each label of the clip → asset, role, retention; voices (`voix: true`) with their line of dialogue;
+ * - `references`: each label of the clip → asset, role, retention;
  * - `retourVisionnage` (required), `historique`;
  * - `planche`: a DESCRIPTOR of the render (job, path relative to MEDIA_ROOT, contact-sheet cap). The images are
  *   NEVER stored in agent_runs.entree: the worker rebuilds the contact sheet at run time
@@ -691,9 +691,9 @@ export async function entreeIterationPlan(
       .orderBy(asc(planRefs.type), asc(planRefs.slot)),
     historiqueDuPlan(db, projectId, p.id),
   ]);
-  const libelleType = { picture: "Picture", audio: "Audio", video: "Video" } as const;
+  const libelleType = { picture: "Picture", video: "Video" } as const;
   const references = [
-    ...refs.map((r) => ({
+    ...refs.flatMap((r) => (r.type === "audio" ? [] : [{ ...r, type: r.type }])).map((r) => ({
       label: `<${libelleType[r.type]} ${r.slot}>`,
       type: r.type,
       slot: r.slot,

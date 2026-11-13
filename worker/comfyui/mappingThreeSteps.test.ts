@@ -30,7 +30,6 @@ const entree: SubmissionInput = {
   dureeSecondes: 8,
   fps: 24,
   refsImage: [{ slot: 1, cheminLocal: "C:/x/CHAR_maya.png", nomDistant: "cadence_assets_CHAR_maya.png" }],
-  refsAudio: [{ slot: 1, cheminLocal: "C:/x/voix.flac", nomDistant: "cadence_voix.flac", dureeSecondes: 6.05 }],
   refsVideo: [],
   activerUpscale: true,
 };
@@ -86,7 +85,6 @@ test("upscale : même conditioning que la génération (prompt, durée, résolut
   }
   assert.deepEqual(u.ref_img_1, g.ref_img_1);
   assert.deepEqual(u.ref_img_1_charge, g.ref_img_1_charge);
-  assert.deepEqual(u.ref_audio_1, g.ref_audio_1);
 });
 
 test("upscale : charge le latent de la génération, sauvegarde le sien, graine propre", () => {

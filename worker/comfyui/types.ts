@@ -14,7 +14,6 @@ export type SubmissionInput = {
   /** `dureeSecondes`: 4 to 10 (node 22:23). `fps`: the clip's TARGET fps, informative — the graph generates at 24 fps and
    * sets the final frame rate itself (nodes 168/169/170, see workflows/README.md). */
   refsImage: RefMedia[]; // max 6 (images + videos), slot 1 to 6
-  refsAudio: (RefMedia & { dureeSecondes?: number | null })[]; // max 3, slot 1 to 3; measured duration of the take
   refsVideo: RefMedia[]; // slot 1 to 3
   activerUpscale: boolean;
   /** Resolution (0.2 / 0.3 / 0.4 MP, node `22:9`); absent = that of the file. Above 0.2 MP, a final render is native: without upscale. */

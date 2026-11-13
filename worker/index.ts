@@ -14,7 +14,7 @@ import { finaliserLotsOrphelins } from "../lib/agents/batches";
 import { annulationDemandeeVideo, finirAnnulationVideo } from "../lib/tasks/cancellation-db";
 import { domaineDe } from "../lib/renders/gpu";
 import { configLlm } from "../lib/llm/config";
-import { cheminAssetMedia, cheminVoixMedia } from "../lib/media";
+import { cheminAssetMedia } from "../lib/media";
 import { assemblerPrompt } from "../lib/clips/prompt";
 import { raccordSansPlace, sectionsAvecRaccord } from "../lib/clips/clip-continuity";
 import { getAllParams } from "../lib/params";
@@ -112,7 +112,7 @@ async function construireSubmissionInput(
   const [sections, refs] = await Promise.all([
     db.select().from(planPromptSections).where(eq(planPromptSections.planId, planId)),
     db
-      .select({ type: planRefs.type, slot: planRefs.slot, fichier: assets.fichier, assetId: assets.id, assetType: assets.type, voixMaster: assets.voixMaster })
+      .select({ type: planRefs.type, slot: planRefs.slot, fichier: assets.fichier })
       .from(planRefs)
       .leftJoin(assets, eq(planRefs.assetId, assets.id))
       .where(eq(planRefs.planId, planId)),
@@ -127,13 +127,6 @@ async function construireSubmissionInput(
     nomDistant: nomDistantDepuisChemin(cheminRelatif),
   });
   const refAsset = (fichier: string | null) => ref(cheminAssetMedia(fichier ?? ""));
-
-  // Audio: the characters' voices. The prompt is the source
-  // of the lines (2026-10-14): the voice of a speaking character is an audio reference of the sheet whose asset is the CHARACTER
-  // (its master); without a master, the video model invents the voice (never blocking).
-  const audioVoix = refs
-    .filter((r) => r.type === "audio" && r.assetType === "personnage")
-    .flatMap((r) => (r.voixMaster && r.assetId != null ? [{ slot: r.slot, ...ref(cheminVoixMedia(r.assetId, r.voixMaster)), dureeSecondes: null as number | null }] : []));
 
   const refsImage = refs
     .filter((r) => r.type === "picture" && r.fichier)
@@ -155,7 +148,6 @@ async function construireSubmissionInput(
       dureeSecondes: plan.dureeGenerationSecondes,
       fps: plan.fps,
       refsImage: raccord ? [...refsImage, raccord.ref] : refsImage,
-      refsAudio: audioVoix,
       refsVideo,
       activerUpscale,
       megapixels: MEGAPIXELS_VIDEO,
@@ -257,7 +249,7 @@ async function traiterJob(job: typeof jobs.$inferSelect): Promise<boolean> {
       })
       .where(eq(jobs.id, job.id));
 
-    for (const ref of [...input.refsImage, ...input.refsAudio, ...input.refsVideo]) {
+    for (const ref of [...input.refsImage, ...input.refsVideo]) {
       if (ref.cheminLocal) {
         await client.uploadRef(ref.cheminLocal, ref.nomDistant ?? ref.cheminLocal.split(/[\\/]/).pop()!);
       }

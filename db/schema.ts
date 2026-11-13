@@ -233,11 +233,10 @@ export const planRefs = pgTable("plan_refs", {
   slot: integer("slot").notNull(), // the N of <Picture N> / <Audio N> / <Video N>
   assetId: integer("asset_id").references(() => assets.id),
   role: text("role"),
-  retention: varchar("retention", { length: 30 }), // audio only: "reference"...
+  retention: varchar("retention", { length: 30 }), // no longer written (it was for audio references)
 });
 
-// There is no longer a table of lines (migration 0062, 2026-10-14): the dialogue lives in the video prompt (`<d>`), the voice of a character
-// is its field `voix_master`.
+// There is no longer a table of lines (migration 0062, 2026-10-14): the dialogue lives in the video prompt (`<d>`).
 
 // Asset registry as a tree by subject (deriveDeId) — see
 // lib/queries.ts:getAssetsTree. Full manual editing from /assets.
@@ -276,15 +275,7 @@ export const assets = pgTable("assets", {
   fichierAt: timestamp("fichier_at"),
   // Validated by hand (or by default on file import). The displayed status and criticality are COMPUTED (lib/assets/asset-state.ts):
   // no more `statut` or `critique` column. A file replaced by an adopted generation goes back to false.
-  valide: boolean("valide").notNull().default(false),  // CHARACTER voice (voice/master workstream, 2026-10-14): a voice only exists carried by a character (the voice-over is one). Not
-  // applicable to other types. `voixDescription`: the desired voice, in free text (null = left to the model); `voixRepliqueBase`: the
-  // line the test says; `voixMaster`: the kept cleaned audio, `voixVideo`: the test video that produced it (both under
-  // voix/<assetId>/). The master serves as the audio reference `<Audio N>` of the character's clips, never blocking.
-  voixDescription: text("voix_description"),
-  voixRepliqueBase: text("voix_replique_base"),
-  voixMaster: varchar("voix_master", { length: 255 }),
-  voixVideo: varchar("voix_video", { length: 255 }),
-  voixMasterAt: timestamp("voix_master_at"),
+  valide: boolean("valide").notNull().default(false),
   deriveDeId: integer("derive_de_id"),
 }, (table) => [
   unique().on(table.projectId, table.code),
@@ -318,10 +309,6 @@ export const assetGenerations = pgTable("asset_generations", {
   // « From images » mode (edition method): true = Lightning 4 steps,
   // false = « Qualité » (40 steps CFG 4). null for text mode.
   lightning: boolean("lightning"),
-  // Test video of a voice master: requested duration in seconds. null for images.
-  dureeSecondes: real("duree_secondes"),
-  // Voice master (« master_voix » method): the test line. null for images.
-  texteReference: text("texte_reference"),
   seed: text("seed").notNull(),
   comfyuiPromptId: varchar("comfyui_prompt_id", { length: 100 }),
   fichier: varchar("fichier", { length: 255 }),
@@ -334,9 +321,6 @@ export const assetGenerations = pgTable("asset_generations", {
   etapeLibelle: varchar("etape_libelle", { length: 80 }),
   // Generation launched by a BATCH: the worker adopts it automatically at its end (it becomes the asset's image).
   adoptionAuto: boolean("adoption_auto").notNull().default(false),
-  // What the method freezes at launch when the columns above are not enough (see lib/assets/asset-generation.ts,
-  // `ParametresMasterVoix`): the character image of a voice master. null for images and sounds.
-  parametres: jsonb("parametres"),
   apercuFichier: varchar("apercu_fichier", { length: 255 }),
   apercuAt: timestamp("apercu_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

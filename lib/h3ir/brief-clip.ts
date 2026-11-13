@@ -1,12 +1,11 @@
-import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "../../db";
 import { assets, briefs, planRefs, plans, projects, scenes } from "../../db/schema";
 import { codesEnVoixOff } from "../agents/conversion";
 import { langueDesDialogues } from "./dialogue-language";
-import { cheminAssetMedia, cheminVoixMedia, MEDIA_ROOT } from "../media";
+import { cheminAssetMedia, MEDIA_ROOT } from "../media";
 import { briefDepuisPlan, type OptionsBrief, type PersonnageEntree, type ReferenceEntree, type ResultatBrief } from "./brief";
 import { resoudreReglages, STYLE_AUCUN, type ReglagesResolus } from "./settings";
 
@@ -128,21 +127,12 @@ export async function chargerBriefPlan(
   let slot = Math.max(0, ...gardees.filter((l) => l.type !== "audio").map((l) => l.slot));
   const references: ReferenceEntree[] = [...gardees.map(versEntree), ...ajoutes.map((a) => versEntree({ ...a, type: "picture", slot: ++slot }))];
 
-  // The characters in the registry, with their fixed voice (the master): the brief only keeps those of the characters who speak in the clip.
+  // The characters in the registry: the brief only keeps those of the characters who speak in the clip.
   const persos = await db
-    .select({ id: assets.id, code: assets.code, label: assets.label, voixMaster: assets.voixMaster, voixDescription: assets.voixDescription, voixRepliqueBase: assets.voixRepliqueBase })
+    .select({ code: assets.code, label: assets.label })
     .from(assets)
     .where(and(eq(assets.projectId, projectId), eq(assets.type, "personnage")));
-  const personnages: PersonnageEntree[] = persos.map((p) => {
-    const chemin = p.voixMaster ? cheminSiExiste(cheminVoixMedia(p.id, p.voixMaster)) : null;
-    return {
-      code: p.code,
-      label: p.label,
-      voix: chemin
-        ? { chemin, sha256: createHash("sha256").update(readFileSync(chemin)).digest("hex"), description: p.voixDescription, repliqueBase: p.voixRepliqueBase }
-        : null,
-    };
-  });
+  const personnages: PersonnageEntree[] = persos;
 
   const [leBrief] = await db.select({ contenu: briefs.contenu }).from(briefs).where(eq(briefs.projectId, projectId));
   const voixOff = codesEnVoixOff(

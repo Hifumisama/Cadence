@@ -4,14 +4,13 @@ import { ORDRE_SECTIONS, type NomSection } from "../clips/prompt";
 import type { Avertissement } from "./types";
 import { estCreativite, estMiseEnScene, STYLE_AUCUN } from "../h3ir/settings";
 
-/** Step 3 of the pipeline: a clip's SHEET (H3 prompt in six sections, picture/audio references, generation
+/** Step 3 of the pipeline: a clip's SHEET (H3 prompt in six sections, picture references, generation
  * duration). PURE rules (no database or Next), shared by the conversion, the `fiche` applier,
  * the service and the tests. See docs/FRICTIONS.md, "Étape 3 branchée" (2026-10-02).
  *
  * A sheet is written in full (Open H3 IR: the six sections AND the references, "régénérer = tout
  * régénérer") or in part (iteration-plan, lib/agents/iteration-clip.ts: only the corrected sections,
- * without touching the others or the references). Voices are NEVER `plan_refs` rows: their `<Audio N>` slots
- * come from `plan_dialogues` and remain the database's. */
+ * without touching the others or the references). */
 
 // --- batch subtasks ---------------------------------------------------------
 
@@ -33,15 +32,15 @@ export const cleNouvelAsset = (code: string): string => `nouvel-asset-${code}`;
 export const SECTIONS_FICHE = ORDRE_SECTIONS;
 type SectionsFiche = Partial<Record<NomSection, string>>;
 
-/** A clip's image or sound reference (a `plan_refs` row). `asset` = registry code. */
-export type RefFiche = { type: "picture" | "audio"; slot: number; asset: string; role?: string | null; retention?: string | null };
+/** A clip's image reference (a `plan_refs` row). `asset` = registry code. */
+export type RefFiche = { type: "picture"; slot: number; asset: string; role?: string | null; retention?: string | null };
 
 /** A passage replaced by a correction after viewing (iteration-plan): DISPLAY only (the review
  * shows "before → after" instead of the whole section). The applier only reads `sections`. */
 type PassageFiche = { section: string; avant: string; apres: string };
 
 /** `apres` of a `fiche` change. Absent field = not touched (partial write). `refs` present =
- * the clip's picture/audio references are REPLACED by this list (videos and voices stay).
+ * the clip's picture references are REPLACED by this list (videos stay).
  * `passages` (iteration-plan): the replacements that produced `sections`, for the review; never written. */
 export type ApresFiche = {
   sections?: SectionsFiche;
@@ -55,9 +54,6 @@ export type ApresFiche = {
   /** Keys (`cleNouvelAsset`) of the assets that the SAME proposal creates and that `refs` cites: the sheet applies after them (their image does not
    * exist yet, the sheet cites them anyway: the page's check says "pas encore d'image"). */
   dependDeCles?: string[];
-  /** Lines of dialogue are no longer linked to the clip (decision 2026-10-14): the sheet carries its voices itself, as audio references whose asset is
-   * the CHARACTER who speaks in the prompt. The clip's old links (`plan_dialogues`) are detached on write and no longer count. */
-  voixDuPrompt?: boolean;
   /** The sheet comes from the Open H3 IR compiler (lib/h3ir/conversion.ts): the applier then keeps the replaced prompt in the prompt's history
    * (source "avant") and records the new one there (source "compilation"). */
   moteur?: "h3ir";
@@ -79,10 +75,10 @@ export function lireApresFiche(apres: unknown): ApresFiche {
     for (const [k, v] of Object.entries(a.sections as Record<string, unknown>)) if (typeof v === "string") (s as Record<string, string>)[k] = v;
     sortie.sections = s;
   }
-  if (Array.isArray(a.refs)) sortie.refs = a.refs as RefFiche[];
+  // An old proposal may still carry audio references (voices, removed): only the images are kept.
+  if (Array.isArray(a.refs)) sortie.refs = (a.refs as RefFiche[]).filter((r) => r.type === "picture");
   if (a.dureeGenerationSecondes !== undefined) sortie.dureeGenerationSecondes = a.dureeGenerationSecondes as number;
   if (typeof a.description === "string" && a.description.trim()) sortie.description = a.description.trim();
-  if (a.voixDuPrompt === true) sortie.voixDuPrompt = true;
   if (a.moteur === "h3ir") sortie.moteur = "h3ir";
   if (a.reglages && typeof a.reglages === "object") {
     const r = a.reglages as Record<string, unknown>;
@@ -103,8 +99,8 @@ export type EtatPlanFiche = {
   titre: string;
   /** Current content per section (absent = no line). */
   sections: Partial<Record<string, string>>;
-  /** Current references (picture, audio, video), with the asset's code and type. */
-  refs: { type: "picture" | "audio" | "video"; slot: number; asset: string | null }[];
+  /** Current references (picture, video), with the asset's code and type. */
+  refs: { type: "picture" | "video"; slot: number; asset: string | null }[];
   /** The project's registry codes → type. */
   registre: Map<string, string>;
   aUnRendu: boolean;
@@ -117,8 +113,8 @@ const DUREE_MIN = DUREE_GENERATION_MIN;
 const DUREE_MAX = DUREE_GENERATION_MAX;
 
 /** Reason for REFUSING to write this sheet on this clip, or null. Checks the content (known sections,
- * whole duration 4–10, slots 1–6 images and 1–3 audio, unique, assets
- * existing and of the right kind) AND the final state: no write may leave a `<Picture N>` / `<Audio N>` label
+ * whole duration 4–10, slots 1–6 images, unique, assets
+ * existing and of the right kind) AND the final state: no write may leave a `<Picture N>` label
  * without the reference it cites. */
 export function verifierFiche(apres: ApresFiche, etat: EtatPlanFiche): string | null {
   const sections = apres.sections ?? {};
@@ -136,22 +132,17 @@ export function verifierFiche(apres: ApresFiche, etat: EtatPlanFiche): string | 
 
   if (apres.refs) {
     const images = apres.refs.filter((r) => r.type === "picture");
-    const sons = apres.refs.filter((r) => r.type === "audio");
-    if (apres.refs.some((r) => r.type !== "picture" && r.type !== "audio")) return "Une fiche n'écrit que des références d'image ou de son.";
+    if (apres.refs.some((r) => r.type !== "picture")) return "Une fiche n'écrit que des références d'image.";
     if (images.length > MAX_REFS.picture) return `${images.length} images de référence : ${MAX_REFS.picture} au plus.`;
-    if (sons.length > MAX_REFS.audio) return `${sons.length} références audio : ${MAX_REFS.audio} au plus (les voix des personnages).`;
     const vus = new Set<string>();
     for (const r of apres.refs) {
-      const max = r.type === "picture" ? MAX_REFS.picture : MAX_REFS.audio;
-      if (!Number.isInteger(r.slot) || r.slot < 1 || r.slot > max) return `Slot ${String(r.slot)} invalide pour une référence ${r.type === "picture" ? "d'image (1 à 6)" : "audio (1 à 3)"}.`;
+      if (!Number.isInteger(r.slot) || r.slot < 1 || r.slot > MAX_REFS.picture) return `Slot ${String(r.slot)} invalide pour une référence d'image (1 à ${MAX_REFS.picture}).`;
       const cle = `${r.type}:${r.slot}`;
-      if (vus.has(cle)) return `Deux références sur le même slot (${r.type === "picture" ? "Picture" : "Audio"} ${r.slot}).`;
+      if (vus.has(cle)) return `Deux références sur le même slot (Picture ${r.slot}).`;
       vus.add(cle);
       const type = etat.registre.get(r.asset);
       if (type == null) return `L'asset ${r.asset} n'existe pas dans ce projet.`;
       if (r.type === "picture" && type === "voix") return `${r.asset} (${type}) n'a pas d'image : il ne peut pas être une référence d'image.`;
-      // A character's voice is an audio reference to the character (its master): the only audio reference of a sheet.
-      if (r.type === "audio" && !(apres.voixDuPrompt && type === "personnage")) return `${r.asset} (${type}) n'est pas un personnage avec une voix : seule la voix d'un personnage est une référence audio de la fiche.`;
     }
   }
 
@@ -197,7 +188,7 @@ export function evaluerEcrasementFiche(apres: ApresFiche, etat: EtatPlanFiche): 
     : [];
   const avant: ApresFiche = {};
   if (ecrites.length) avant.sections = Object.fromEntries(ecrites.map((s) => [s, etat.sections[s] ?? ""])) as SectionsFiche;
-  if (apres.refs) avant.refs = refsRemplacees.map((r) => ({ type: r.type as "picture" | "audio", slot: r.slot, asset: r.asset ?? "?" }));
+  if (apres.refs) avant.refs = refsRemplacees.map((r) => ({ type: r.type as "picture", slot: r.slot, asset: r.asset ?? "?" }));
   if (apres.dureeGenerationSecondes !== undefined) avant.dureeGenerationSecondes = etat.dureeGenerationSecondes;
 
   const perdu: string[] = [];

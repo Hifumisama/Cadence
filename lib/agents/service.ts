@@ -812,7 +812,7 @@ async function plansPourFiches(projectId: number, portee: Portee, cibleId: numbe
   const ids = lignes.map((p) => p.id);
   const [remplies, refs, rendus, lesScenes] = await Promise.all([
     db.select({ planId: planPromptSections.planId }).from(planPromptSections).where(and(inArray(planPromptSections.planId, ids), sql`length(trim(${planPromptSections.contenu})) > 0`)),
-    db.select({ planId: planRefs.planId, n: count() }).from(planRefs).where(and(inArray(planRefs.planId, ids), inArray(planRefs.type, ["picture", "audio"]))).groupBy(planRefs.planId),
+    db.select({ planId: planRefs.planId, n: count() }).from(planRefs).where(and(inArray(planRefs.planId, ids), eq(planRefs.type, "picture"))).groupBy(planRefs.planId),
     db.select({ planId: jobs.planId }).from(jobs).where(and(inArray(jobs.planId, ids), eq(jobs.statut, "termine"), isNotNull(jobs.cheminSortie))),
     db.select({ id: scenes.id, titre: scenes.titre }).from(scenes).where(inArray(scenes.episodeId, [...new Set(lignes.map((p) => p.episodeId))])),
   ]);

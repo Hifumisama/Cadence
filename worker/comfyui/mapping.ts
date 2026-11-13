@@ -48,9 +48,8 @@ export type WorkflowJson = Record<string, NodeAPI>;
 
 /** The model always generates at 24 fps (tooltip of `length` on node 5: « Frame count at 24 fps »). */
 export const FPS_GENERATION = 24;
-/** MiniMax H3 limits applied by Cadence: 6 images + videos, 3 audios (the nodes accept 9 / 3). */
+/** MiniMax H3 limit applied by Cadence: 6 images + videos (the node accepts 9). */
 const MAX_REFS_VISUELLES = 6;
-const MAX_REFS_AUDIO = 3;
 
 /** Input refused BEFORE any submission: retrying would change nothing (the worker does not replay it). */
 export class ErreurEntreeInvalide extends Error {
@@ -90,9 +89,6 @@ export function verifierEntree(input: SubmissionInput): void {
   if (visuelles.length > MAX_REFS_VISUELLES) {
     throw new ErreurEntreeInvalide(`${visuelles.length} références image/vidéo : ${MAX_REFS_VISUELLES} au plus.`);
   }
-  if (input.refsAudio.length > MAX_REFS_AUDIO) {
-    throw new ErreurEntreeInvalide(`${input.refsAudio.length} références audio : ${MAX_REFS_AUDIO} au plus.`);
-  }
   const controlerSlots = (nom: string, slots: number[], max: number) => {
     for (const s of slots) {
       if (!Number.isInteger(s) || s < 1 || s > max) throw new ErreurEntreeInvalide(`Emplacement ${nom} ${s} hors de 1 à ${max}.`);
@@ -101,7 +97,6 @@ export function verifierEntree(input: SubmissionInput): void {
   };
   controlerSlots("image", input.refsImage.map((r) => r.slot), MAX_REFS_VISUELLES);
   controlerSlots("vidéo", input.refsVideo.map((r) => r.slot), 3);
-  controlerSlots("audio", input.refsAudio.map((r) => r.slot), MAX_REFS_AUDIO);
 }
 
 /** Wires the final output (node 34) according to the mode: upscale (final at base resolution), native final (above it) or preview. Modifies `graphe` in place;
@@ -165,18 +160,6 @@ export function injecterReferences(graphe: WorkflowJson, input: SubmissionInput,
         _meta: { title: `Ref image ${slot} (générée par Cadence)` },
       };
       refNode.inputs[`ref_images.ref_image_${slot - 1}`] = [nodeId, 0];
-    });
-
-    input.refsAudio.forEach((ref) => {
-      const { slot } = ref;
-      const nodeId = `ref_audio_${slot}`;
-      // LoadAudio, a CORE ComfyUI node (no more third-party pack): loads the whole file, without cutting.
-      graphe[nodeId] = {
-        class_type: "LoadAudio",
-        inputs: { audio: nomDistant(ref) },
-        _meta: { title: `Ref audio ${slot} (générée par Cadence)` },
-      };
-      refNode.inputs[`ref_audios.ref_audio_${slot - 1}`] = [nodeId, 0];
     });
 
     input.refsVideo.forEach((ref) => {
