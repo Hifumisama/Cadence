@@ -14,6 +14,8 @@ uniquement (statuts, validation).
 - `workflows/` : graphes ComfyUI (format API). `deploy/gpu/` : image Docker GPU (RunPod).
 - Pas de dossier `docs/` pour l'instant : l'ancienne documentation est dans l'historique git (`git log -- docs/`), sa recréation est prévue plus tard. Les renvois à `docs/…` ou « FRICTIONS » dans les commentaires sont des repères historiques.
 
+- `BACKLOG.md` : ce qui est décidé, en attente ou refusé (à tenir à jour à chaque point d'étape).
+
 ## Commandes
 
 - `npm run dev:setup` (Postgres Docker + migrations), puis `npm run dev:all` (web + worker sur l'hôte).
