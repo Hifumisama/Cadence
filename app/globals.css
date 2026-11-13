@@ -1388,6 +1388,10 @@ button {
   border-radius: 1px;
   transform: rotate(45deg);
 }
+.shot.st-brouillon.st-fiche .node {
+  background: rgba(201, 162, 75, 0.4);
+  border-color: var(--or);
+}
 .shot.st-brouillon:hover .node {
   transform: rotate(45deg) scale(1.35);
 }
@@ -4365,6 +4369,11 @@ button {
 .tm-cadre-etat.is-brouillon {
   border: 1px dashed var(--ink-4);
 }
+/* Sheet written, nothing rendered yet: the dashed dot of a draft fills with gold. Intention only keeps the plain dashed dot. */
+.tm-cadre-etat.is-brouillon.is-fiche {
+  border: 1px solid var(--or);
+  background: rgba(201, 162, 75, 0.4);
+}
 .tm-cadre-nom {
   display: block;
   margin-top: 5px;
@@ -5219,7 +5228,9 @@ button {
 .mt-sec { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-4); margin: 0 0 6px; }
 .mt-note { margin: 8px 0 0; font-size: 12px; color: var(--ink-4); }
 .mt-path { margin: 8px 0 0; font-size: 12px; color: var(--ink-4); overflow-wrap: anywhere; }
-.mt-rendus { display: flex; flex-direction: column; gap: 6px; }
+/* About 4 renders visible (≈ 52px + 6px gap), the rest scrolls: the inspector must not push the page down. */
+.mt-rendus { display: flex; flex-direction: column; gap: 6px; max-height: 232px; overflow-y: auto; padding-right: 2px; }
+.mt-rendu { flex: none; }
 .mt-rendu { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 3px; background: var(--surface-2); text-align: left; cursor: pointer; }
 .mt-rendu:hover { border-color: var(--line-strong); }
 .mt-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--ink-4); }

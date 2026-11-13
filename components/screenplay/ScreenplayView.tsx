@@ -36,19 +36,14 @@ const pluriel = (n: number, mot: string) => `${n} ${mot}${n > 1 ? "s" : ""}`;
 const aplatir = (t: string) => intentAffichee(t).replace(/\s*\n+\s*/g, " · ");
 /** The dot on a row's filmstrip follows the derived state (the same as in the grid), not the sheet's status. */
 const NOEUD = { brouillon: "st-brouillon", iteration: "st-encours", pret: "st-termine" } as const;
-const libellePlan = (p: PlanVue) => `Plan ${p.position}, ${p.titre}, ${LIBELLE_ETAT[p.etat].toLowerCase()}${p.intentionChangee ? `, ${LIBELLE_INTENTION_CHANGEE[p.intentionChangee].toLowerCase()}` : ""}`;
+const libellePlan = (p: PlanVue) => `Plan ${p.position}, ${p.titre}, ${LIBELLE_ETAT[p.etat].toLowerCase()}${ficheRedigee(p) ? ", fiche rédigée" : ""}${p.intentionChangee ? `, ${LIBELLE_INTENTION_CHANGEE[p.intentionChangee].toLowerCase()}` : ""}`;
 
 /** The « texte modifié » marker: the clip's text has changed since its sheet or its last render (never regenerated on its own). */
 const RepereIntention = ({ p }: { p: PlanVue }) => (p.intentionChangee ? <span className="sc-intention" title={LIBELLE_INTENTION_CHANGEE[p.intentionChangee]}>Texte modifié</span> : null);
 
-/** Where a clip stands before any render: « Intention seule » (sheet not developed yet) or « Fiche rédigée » (developed, not rendered).
- * Once a render exists, the derived state (iteration / ready) takes over. */
-const RepereFiche = ({ p }: { p: PlanVue }) =>
-  p.etat === "brouillon" ? (
-    <span className="sc-etat" title={p.statut === "brouillon" ? "La fiche du plan n'est pas encore écrite" : "La fiche est écrite, aucun rendu lancé"}>
-      {p.statut === "brouillon" ? "Intention seule" : "Fiche rédigée"}
-    </span>
-  ) : null;
+/** Before any render, a clip is either « intention seule » (sheet not developed: plain dashed dot) or « fiche rédigée » (developed, not
+ * rendered: the dot fills with gold). Once a render exists, the derived state (iteration / ready) takes over. */
+const ficheRedigee = (p: PlanVue) => p.etat === "brouillon" && p.statut !== "brouillon";
 
 /** The message at the bottom of the screen. With `cle` and `planId`, a « Voir » link leads to this clip (move to another scene). */
 type Signal = { texte: string; cle?: string; planId?: number };
@@ -520,7 +515,7 @@ export function VueScenario({
                     <Vignette src={p.src} />
                     {!p.src ? <span className={`sc-extrait${p.description ? "" : " is-vide"}`}>{p.description ? aplatir(p.description) : "Sans description"}</span> : null}
                     <span className="sc-pos num">{pad(p.position)}</span>
-                    <span className={`tm-cadre-etat is-${p.etat}`} aria-hidden="true">
+                    <span className={`tm-cadre-etat is-${p.etat}${ficheRedigee(p) ? " is-fiche" : ""}`} aria-hidden="true">
                       {p.etat === "pret" ? "✓" : ""}
                     </span>
                   </span>
@@ -528,7 +523,6 @@ export function VueScenario({
                   <span className="sc-cadre-temps num">
                     {minutage(p.debut)} · {p.duree} s
                   </span>
-                  <RepereFiche p={p} />
                   <RepereIntention p={p} />
                 </PlanDeplacable>
                   </div>
@@ -547,7 +541,7 @@ export function VueScenario({
                     sceneId={courant.id}
                     suivantId={courant.plans[i + 1]?.id ?? null}
                     axe="y"
-                    className={`shot ${NOEUD[p.etat]}`}
+                    className={`shot ${NOEUD[p.etat]}${ficheRedigee(p) ? " st-fiche" : ""}`}
                     libelle={libellePlan(p)}
                     selectionne={p.id === planSel}
                     tabIndex={p.id === idTabulation ? 0 : -1}
@@ -569,7 +563,6 @@ export function VueScenario({
                         {p.duree} s
                       </span>
                       <RepereIntention p={p} />
-                      <RepereFiche p={p} />
                       {p.etat !== "brouillon" ? <span className={`sc-etat is-${p.etat}`}>{p.etat === "pret" ? "✓ Prêt" : "En itération"}</span> : null}
                     </span>
                   </PlanDeplacable>

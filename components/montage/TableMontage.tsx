@@ -51,12 +51,12 @@ export function TableMontage(props: {
 
   /** Link of the k-th montage clip with its predecessor: « suite » if the previous plan of the screenplay is still its neighbour in the
    * montage, « rompue » if it is a « suite » (plans.liaison) whose neighbour changed, null for a « coupe » or a first plan. */
-  const lienMontage = (k: number): "suite" | "rompue" | null => {
+  const lienMontage = (k: number): { etat: "suite" | "rompue"; de: PlanMontage } | null => {
     const c = clips[k];
     if (!c || c.plan.liaison !== "suite") return null;
     const i = plans.findIndex((p) => p.id === c.plan.id);
     if (i <= 0) return null;
-    return k > 0 && clips[k - 1]!.plan.id === plans[i - 1]!.id ? "suite" : "rompue";
+    return { etat: k > 0 && clips[k - 1]!.plan.id === plans[i - 1]!.id ? "suite" : "rompue", de: plans[i - 1]! };
   };
   const dureesScenario = useMemo(() => plans.map((p) => p.dureePrevue), [plans]);
   const startsScenario = useMemo(() => debuts(dureesScenario), [dureesScenario]);
@@ -330,8 +330,16 @@ export function TableMontage(props: {
                           <span className="mt-clip-t">{c.plan.titre}</span>
                           <span className="mt-clip-d">
                             {c.duree.toFixed(1)} s{c.prevu ? " prévu" : ""}
-                            {lienMontage(k) === "suite" ? <span className="mt-tag is-neutre" title="Lié au plan précédent : il reprend là où l'autre finit">suite</span> : null}
-                            {lienMontage(k) === "rompue" ? <span className="mt-tag is-eteint" title="Ce plan est une suite du plan qui le précède dans le scénario, mais ce n'est plus le voisin dans le montage">suite rompue</span> : null}
+                            {(() => {
+                              const l = lienMontage(k);
+                              if (!l) return null;
+                              const ref = `sc. ${pad2(l.de.position)}`;
+                              return l.etat === "suite" ? (
+                                <span className="mt-tag is-neutre" title={`Suite de « ${l.de.titre} » : il reprend là où l'autre finit`}>suite de {ref}</span>
+                              ) : (
+                                <span className="mt-tag is-eteint" title={`Suite de « ${l.de.titre} » dans le scénario, mais ce n'est plus son voisin dans le montage`}>suite de {ref} · rompue</span>
+                              );
+                            })()}
                             {props.copies.has(c.entree.id) ? <span className="mt-tag is-neutre">copie</span> : null}
                             {c.plan.perime ? <span className="mt-tag">périmé</span> : null}
                             {f === "echoue" ? <span className="mt-tag is-err">échec</span> : null}
@@ -377,7 +385,7 @@ export function TableMontage(props: {
                           <span className="mt-clip-t">{p.titre}</span>
                           <span className="mt-clip-d">
                             {p.dureePrevue.toFixed(1)} s
-                            {k > 0 && p.liaison === "suite" ? <span className="mt-tag is-neutre" title="Lié au plan précédent : il reprend là où l'autre finit">suite</span> : null}
+                            {k > 0 && p.liaison === "suite" ? <span className="mt-tag is-neutre" title={`Suite de « ${plans[k - 1]!.titre} » : il reprend là où l'autre finit`}>suite de {pad2(k)}</span> : null}
                             {n ? <span className="mt-tag is-neutre">au montage{n > 1 ? ` ×${n}` : ""}</span> : <span className="mt-tag is-eteint">hors montage</span>}
                           </span>
                         </span>
