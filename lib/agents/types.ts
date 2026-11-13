@@ -294,7 +294,7 @@ export type VueChangement = {
   /** In plain terms: what will be lost (null if nothing). */
   ecrase: string | null;
   /** Kept for application. */
-  coche: boolean;
+  parDefaut: boolean;
   /** A mechanical check fails (`bloque_controle` warning): not tickable until
    * it is fixed (`corrigerChangement`). */
   bloque: boolean;

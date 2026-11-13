@@ -62,7 +62,7 @@ test("enregistrerChangements : la proposition devient « prete », ses création
   assert.equal(prop.statut, "prete");
   const lignes = await db.select().from(schema.propositionChangements).where(eq(schema.propositionChangements.propositionId, id));
   assert.equal(lignes.length, 2);
-  assert.ok(lignes.every((l) => l.coche && !l.refuseRaison));
+  assert.ok(lignes.every((l) => l.parDefaut && !l.refuseRaison));
   assert.deepEqual(await codesAssets(), [], "rien n'est écrit tant qu'on n'applique pas");
 });
 

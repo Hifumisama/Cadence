@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ordonnerParDependances } from "./changes";
-import { cocheParDefaut } from "./checking";
+import { appliqueParDefaut } from "./checking";
 
 import { cleNouvelAsset, cleSousTachePlan, evaluerEcrasementFiche, planUuidDeCle, verifierFiche, type ApresFiche, type EtatPlanFiche } from "./sheets";
 import { verifierPortee } from "./scope";
@@ -89,14 +89,14 @@ test("écrasement : plan vide = création cochée ; plan rempli ou rendu = écra
   const a = complete();
   const vide = evaluerEcrasementFiche(a, etatVide());
   assert.equal(vide.ecrase, null);
-  assert.equal(cocheParDefaut({ operation: "modifier", avertissements: vide.avertissements, ecrase: vide.ecrase, refuseRaison: null }), true);
+  assert.equal(appliqueParDefaut({ operation: "modifier", avertissements: vide.avertissements, ecrase: vide.ecrase, refuseRaison: null }), true);
   // sections created empty ("Développer en fiche de plan"): nothing is lost
   assert.equal(evaluerEcrasementFiche(a, etatVide({ sections: { summary: "  ", detailed_description: "" } })).ecrase, null);
 
   const rempli = evaluerEcrasementFiche(a, etatVide({ sections: { summary: "ancien", detailed_description: "ancien" }, refs: [{ type: "picture", slot: 1, asset: "DEC_couloir" }] }));
   assert.match(rempli.ecrase ?? "", /2 sections du prompt.*1 référence/);
   assert.deepEqual((rempli.avant.sections as Record<string, string>).summary, "ancien");
-  assert.equal(cocheParDefaut({ operation: "modifier", avertissements: rempli.avertissements, ecrase: rempli.ecrase, refuseRaison: null }), false);
+  assert.equal(appliqueParDefaut({ operation: "modifier", avertissements: rempli.avertissements, ecrase: rempli.ecrase, refuseRaison: null }), false);
 
   const rendu = evaluerEcrasementFiche(a, etatVide({ aUnRendu: true }));
   assert.match(rendu.ecrase ?? "", /rendu vidéo/);

@@ -257,7 +257,7 @@ async function versVueProposition(brute: typeof propositions.$inferSelect): Prom
       rangsDeplaces: await rangsDeplacesDe(l.operation, l.cibleType, position, l.apres, plansDe, l.cibleRef, episodeDePlan),
       avertissements,
       ecrase: l.ecrase,
-      coche: l.coche,
+      parDefaut: l.parDefaut,
       bloque: estBloque(avertissements),
       refuseRaison: l.refuseRaison,
       appliqueAt: l.appliqueAt?.toISOString() ?? null,

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { valider } from "../llm/validation";
 import { chargerSkill } from "../llm/skills";
-import { cocheParDefaut } from "./checking";
+import { appliqueParDefaut } from "./checking";
 import { controleurPourSkill } from "../llm/checks";
 import { MAX_CORRECTIONS, depuisRelecture, partConservee, problemesDeRelecture, repliquesDe, type EntreeRelecture, type SortieRelecture } from "./review";
 import { validerOperations } from "./view-operations/operations";
@@ -133,7 +133,7 @@ test("conversion : poignées → uuid, descriptions, suppression d'un plan sans 
   assert.ok(modif.avertissements?.some((a) => a.type === "info" && /Relecture · cohérence physique/.test(a.texte)));
   assert.equal(coupe.cibleRef, "u5");
   assert.equal(coupe.operation, "supprimer");
-  assert.equal(coupe.cocheOffice, true);
+  assert.equal(coupe.sansRisque, true);
   assert.equal((duree.apres as { dureeGenerationSecondes: number }).dureeGenerationSecondes, 10);
   assert.ok(r.bruts.every((b) => !b.avertissements?.some((a) => a.type === "bloque_controle")));
   assert.match(r.constats[0]!, /doublon \(P04, P05\)/);
@@ -149,7 +149,7 @@ test("conversion : un plan qui a une fiche n'est pas coché d'office à la suppr
     plans: plansDonnes.map((p) => ({ ...p, sceneId: 1, aFiche: p.uuid === "u5", perime: false })),
   });
   const coupe = depuisRelecture(sortie([{ type: "couper_plan", plan: "P05", critere: "doublon", motif: "m" }]), vueFiche, { ...entree, dureeCibleSecondes: null }, { groupe: "ep-9" });
-  assert.equal(coupe.bruts[0]!.cocheOffice, undefined);
+  assert.equal(coupe.bruts[0]!.sansRisque, undefined);
   const mauvaise = depuisRelecture(
     sortie([{ type: "modifier_plan", plan: "P03", description: "Red Jack parle comme au plan précédent.", critere: "physique", motif: "m" }]),
     vue,
@@ -181,11 +181,11 @@ test("conversion : une liaison seule, un plan ajouté après le dernier, une poi
 
 test("cochage : une suppression « office » est cochée, jamais si elle écrase ou est bloquée", () => {
   const base = { operation: "supprimer" as const, avertissements: [], ecrase: null, refuseRaison: null };
-  assert.equal(cocheParDefaut(base), false, "la règle d'avant tient");
-  assert.equal(cocheParDefaut({ ...base, office: true }), true);
-  assert.equal(cocheParDefaut({ ...base, office: true, ecrase: "rendu réussi" }), false);
-  assert.equal(cocheParDefaut({ ...base, office: true, avertissements: [{ type: "bloque_controle", texte: "x" }] }), false);
-  assert.equal(cocheParDefaut({ ...base, office: true, refuseRaison: "hors portée" }), false);
+  assert.equal(appliqueParDefaut(base), false, "la règle d'avant tient");
+  assert.equal(appliqueParDefaut({ ...base, office: true }), true);
+  assert.equal(appliqueParDefaut({ ...base, office: true, ecrase: "rendu réussi" }), false);
+  assert.equal(appliqueParDefaut({ ...base, office: true, avertissements: [{ type: "bloque_controle", texte: "x" }] }), false);
+  assert.equal(appliqueParDefaut({ ...base, office: true, refuseRaison: "hors portée" }), false);
 });
 
 test("opérations d'épisode : la liaison d'un modifier_plan est validée et écrite", () => {

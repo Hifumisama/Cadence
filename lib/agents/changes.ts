@@ -24,7 +24,7 @@ export type ChangementBrut = {
   sousGroupe?: string | null;
   /** Ticked outright DESPITE the rule (deletion unticked by default): the converter knows the action is risk-free (a clip with no sheet nor
    * render that the screenplay review merges into its neighbour). Never removes a refusal, a block or an overwrite (checking.ts). */
-  cocheOffice?: boolean;
+  sansRisque?: boolean;
 };
 
 /** Une ligne de proposition_changements, jsonb en `unknown`. */
@@ -43,7 +43,7 @@ export type LigneChangement = {
   position: Position | null;
   avertissements: Avertissement[];
   ecrase: string | null;
-  coche: boolean;
+  parDefaut: boolean;
   refuseRaison: string | null;
   sousGroupe?: string | null;
 };

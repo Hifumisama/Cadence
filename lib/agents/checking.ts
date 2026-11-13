@@ -17,7 +17,7 @@ type PourCochage = {
   avertissements: Avertissement[];
   ecrase: string | null;
   refuseRaison: string | null;
-  /** The converter judged the action risk-free (see `ChangementBrut.cocheOffice`). */
+  /** The converter judged the action risk-free (see `ChangementBrut.sansRisque`). */
   office?: boolean;
 };
 
@@ -25,7 +25,7 @@ export function estBloque(avertissements: Avertissement[]): boolean {
   return avertissements.some((a) => a.type === "bloque_controle");
 }
 
-export function cocheParDefaut(c: PourCochage): boolean {
+export function appliqueParDefaut(c: PourCochage): boolean {
   if (c.refuseRaison) return false;
   if (estBloque(c.avertissements)) return false;
   if (c.ecrase || c.avertissements.some((a) => a.type === "ecrase_valide")) return false;
@@ -54,7 +54,7 @@ export function compter(changements: VueChangement[]): CompteursProposition {
   for (const c of changements) {
     if (c.refuseRaison) refuses++;
     else if (c.bloque) bloques++;
-    else if (c.coche) {
+    else if (c.parDefaut) {
       selectionnes++;
       if (c.ecrase) ecrasementsSelectionnes++;
     }
@@ -66,7 +66,7 @@ export function compter(changements: VueChangement[]): CompteursProposition {
 
 export function ecrasementsAConfirmer(changements: VueChangement[]): EcrasementAConfirmer[] {
   return changements
-    .filter((c) => c.coche && c.ecrase && !c.refuseRaison && !c.bloque)
+    .filter((c) => c.parDefaut && c.ecrase && !c.refuseRaison && !c.bloque)
     .map((c) => ({ changementId: c.id, libelle: c.libelle, ecrase: c.ecrase as string }));
 }
 
@@ -88,7 +88,7 @@ export function grouper(changements: VueChangement[]): VueGroupe[] {
       id,
       titre: TITRES_GROUPES[id] ?? id,
       changements: liste,
-      coches: liste.filter((c) => c.coche && !c.bloque && !c.refuseRaison).length,
+      coches: liste.filter((c) => c.parDefaut && !c.bloque && !c.refuseRaison).length,
       total: liste.length,
     };
   });

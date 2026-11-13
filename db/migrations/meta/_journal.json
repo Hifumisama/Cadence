@@ -610,6 +610,13 @@
       "when": 1796922000000,
       "tag": "0086_statuts_propositions",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1797008400000,
+      "tag": "0087_changement_par_defaut",
+      "breakpoints": true
     }
   ]
 }

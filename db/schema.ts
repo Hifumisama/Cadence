@@ -777,7 +777,7 @@ export const propositions = pgTable("propositions", {
 // (« episode-2 ») that its children cite in `apres`.
 // `avant`/`apres`: what is read / what will be written (jsonb). `position`: where to
 // insert (plan: { apresPlanUuid } | { debut: true } | { fin: true }). `ecrase`: in
-// plain terms, what will be lost (null if nothing). `coche`: kept for application;
+// plain terms, what will be lost (null if nothing). `par_defaut`: applied unless the caller picks other changes;
 // `refuseRaison`: refused outright (out of scope, not supported…).
 export const propositionChangements = pgTable("proposition_changements", {
   id: serial("id").primaryKey(),
@@ -794,7 +794,7 @@ export const propositionChangements = pgTable("proposition_changements", {
   position: jsonb("position"),
   avertissements: jsonb("avertissements").notNull().default(sql`'[]'::jsonb`),
   ecrase: text("ecrase"),
-  coche: boolean("coche").notNull().default(false),
+  parDefaut: boolean("par_defaut").notNull().default(false),
   refuseRaison: text("refuse_raison"),
   appliqueAt: timestamp("applique_at"),
   // Batch: the subtask (key of agent_runs.cle_sous_tache) that produced this change, so that

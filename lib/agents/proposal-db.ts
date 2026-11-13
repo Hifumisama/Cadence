@@ -4,7 +4,7 @@ import { agentConversations, propositionChangements, propositions } from "../../
 import { applicateurDe, refusSansApplicateur } from "./appliers";
 import type { CtxAppli, CtxPrevisu } from "./appliers/common";
 import { clesParent, ordonnerParDependances, type ChangementBrut, type LigneChangement } from "./changes";
-import { cocheParDefaut, estBloque } from "./checking";
+import { appliqueParDefaut, estBloque } from "./checking";
 import { verifierPortee, type ScopeDemandee } from "./scope";
 import type { Avertissement, CibleType, EcrasementAConfirmer, Operation, Position, ResultatApplication } from "./types";
 import type { Tx } from "../clips/clip-order";
@@ -91,7 +91,7 @@ async function enrichirChangements(
       position: (c.position ?? null) as Position | null,
       avertissements,
       ecrase: c.ecrase ?? null,
-      coche: cocheParDefaut({ operation: c.operation, avertissements, ecrase: c.ecrase ?? null, refuseRaison: c.refuseRaison ?? null, office: c.cocheOffice === true }),
+      parDefaut: appliqueParDefaut({ operation: c.operation, avertissements, ecrase: c.ecrase ?? null, refuseRaison: c.refuseRaison ?? null, office: c.sansRisque === true }),
       refuseRaison: c.refuseRaison ?? null,
     });
   }
@@ -163,7 +163,7 @@ function ligne(r: typeof propositionChangements.$inferSelect): LigneChangement {
     position: (r.position ?? null) as Position | null,
     avertissements: (r.avertissements ?? []) as Avertissement[],
     ecrase: r.ecrase,
-    coche: r.coche,
+    parDefaut: r.parDefaut,
     refuseRaison: r.refuseRaison,
     sousGroupe: r.sousGroupe,
   };
@@ -171,7 +171,7 @@ function ligne(r: typeof propositionChangements.$inferSelect): LigneChangement {
 
 /** Applies a proposal's selection in ONE transaction (all or nothing). Requires the
  * explicit confirmation of an overwrite; refuses out of scope; refuses a change whose
- * proposed parent is not kept. Applies the changes of `ids` when given, otherwise those ticked by default (`coche`,
+ * proposed parent is not kept. Applies the changes of `ids` when given, otherwise those ticked by default (`parDefaut`,
  * set when the changes were recorded); a refused or blocked change is never applied. */
 export async function appliquerProposition(
   propositionId: number,
@@ -188,7 +188,7 @@ export async function appliquerProposition(
   if (prop.statut !== "prete") return { ok: false, erreur: `Cette proposition n'est plus applicable (statut : ${prop.statut}).` };
 
   const toutes = (await db.select().from(propositionChangements).where(eq(propositionChangements.propositionId, propositionId)).orderBy(asc(propositionChangements.ordre))).map(ligne);
-  const retenus = ordonnerParDependances(toutes.filter((c) => (options.ids ? options.ids.includes(c.id) : c.coche) && !c.refuseRaison && !estBloque(c.avertissements)));
+  const retenus = ordonnerParDependances(toutes.filter((c) => (options.ids ? options.ids.includes(c.id) : c.parDefaut) && !c.refuseRaison && !estBloque(c.avertissements)));
   if (retenus.length === 0) return { ok: false, erreur: "Aucun changement n'est sélectionné." };
 
   const ecrasements: EcrasementAConfirmer[] = retenus.filter((c) => c.ecrase).map((c) => ({ changementId: c.id, libelle: c.libelle, ecrase: c.ecrase as string }));

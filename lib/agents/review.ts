@@ -217,7 +217,7 @@ export function depuisRelecture(sortie: SortieRelecture, vue: VueEpisode, entree
         groupe: options.groupe,
         sousGroupe: (plan ?? apres)?.sceneTitre ?? null,
         avertissements: [...(b.avertissements ?? []), ...justification, ...defauts],
-        ...(b.operation === "supprimer" && plan?.etat === "brouillon" ? { cocheOffice: true } : {}),
+        ...(b.operation === "supprimer" && plan?.etat === "brouillon" ? { sansRisque: true } : {}),
       });
     }
   });

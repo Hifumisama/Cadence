@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { construireSections, sortieVersBrief, statutDeSection } from "./brief";
-import { cocheParDefaut, raisonNonCochable } from "./checking";
+import { appliqueParDefaut, raisonNonCochable } from "./checking";
 import { depuisCorrectionPlan, depuisPlanAInserer, depuisPromptAsset, depuisSceneAInserer, depuisScenarioEpisode, type SortieScenarioEpisode } from "./conversion";
 import { placeDeScene } from "./appliers/structure";
 import { verifierPortee, type CibleChangement } from "./scope";
@@ -50,13 +50,13 @@ test("le brief est autorisé à toute portée ; un enfant d'une création de la 
 const base = { operation: "creer" as const, avertissements: [], ecrase: null, refuseRaison: null };
 
 test("cochage par défaut : créations cochées ; écrasements, suppressions, bloqués, refusés non", () => {
-  assert.equal(cocheParDefaut(base), true);
-  assert.equal(cocheParDefaut({ ...base, operation: "modifier" }), true, "modifier un non-validé est coché");
-  assert.equal(cocheParDefaut({ ...base, operation: "modifier", ecrase: "écrase du validé" }), false);
-  assert.equal(cocheParDefaut({ ...base, operation: "supprimer" }), false);
-  assert.equal(cocheParDefaut({ ...base, avertissements: [{ type: "bloque_controle", texte: "17 s" }] }), false);
-  assert.equal(cocheParDefaut({ ...base, refuseRaison: "hors portée" }), false);
-  assert.equal(cocheParDefaut({ ...base, avertissements: [{ type: "invention", texte: "ventilateur" }] }), true, "une invention n'empêche pas le cochage");
+  assert.equal(appliqueParDefaut(base), true);
+  assert.equal(appliqueParDefaut({ ...base, operation: "modifier" }), true, "modifier un non-validé est coché");
+  assert.equal(appliqueParDefaut({ ...base, operation: "modifier", ecrase: "écrase du validé" }), false);
+  assert.equal(appliqueParDefaut({ ...base, operation: "supprimer" }), false);
+  assert.equal(appliqueParDefaut({ ...base, avertissements: [{ type: "bloque_controle", texte: "17 s" }] }), false);
+  assert.equal(appliqueParDefaut({ ...base, refuseRaison: "hors portée" }), false);
+  assert.equal(appliqueParDefaut({ ...base, avertissements: [{ type: "invention", texte: "ventilateur" }] }), true, "une invention n'empêche pas le cochage");
 });
 
 test("raisonNonCochable : refus d'office et contrôle bloquant", () => {
