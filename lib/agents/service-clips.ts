@@ -3,6 +3,7 @@ import { db } from "../../db";
 import { plans, episodes, planPromptSections, planRefs, jobs, scenes, propositions, assets, propositionChangements } from "../../db/schema";
 import { eq, asc, and, inArray, sql, count, isNotNull } from "drizzle-orm";
 import { attentesFiches } from "../h3ir/engine-db";
+import { attenteDuPlan } from "../h3ir/engine";
 import { type EntreeH3ir, SKILL_H3IR } from "../h3ir/result";
 import { creerRun } from "./runs";
 import { cleSousTachePlan } from "./sheets";
@@ -110,7 +111,7 @@ export async function genererFiches(
   if (choisis.length !== new Set(voulus).size) return ERR("Un des plans choisis n'est pas dans cette portée.");
   const consigne = (options.consigne ?? "").trim() || CONSIGNE_FICHE;
   const attentes = await attentesFiches(conv.projectId, choisis.map((p) => p.uuid));
-  const attenteDe = (uuid: string): string | null => attentes.get(uuid) ?? "état des références inconnu";
+  const attenteDe = (uuid: string): string | null => attenteDuPlan(attentes, uuid);
   const entreeH3ir = (planUuid: string): EntreeH3ir => ({ planUuid, shots: options.reglagesH3ir?.shots ?? null, director: options.reglagesH3ir?.director ?? null, creativity: options.reglagesH3ir?.creativity ?? null });
   const nonPrets = choisis.filter((p) => attenteDe(p.uuid)).map((p) => p.uuid);
 
