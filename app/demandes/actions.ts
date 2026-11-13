@@ -1,10 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { annulerDemande, lancerDemandeAjoutPlan, lancerDemandeAjoutScene, lancerDemandeFichePlan, lancerDemandesFiches, lancerDemandeIteration, deplacerIterationEnAttente, lireDemandeVue, modifierConsigneIteration, type VueDemande } from "@/lib/tasks/requests-db";
+import { annulerDemande, lireDemandeVue, type VueDemande } from "@/lib/tasks/requests-pilot";
+import { lancerDemandeAjoutPlan, lancerDemandeAjoutScene } from "@/lib/tasks/requests-additions";
+import { lancerDemandeFichePlan, lancerDemandesFiches } from "@/lib/tasks/requests-sheets";
+import { lancerDemandeIteration, deplacerIterationEnAttente, modifierConsigneIteration } from "@/lib/tasks/requests-iteration";
 import type { ContexteAjoutPlan, ContexteAjoutScene, ContexteIteration } from "@/lib/tasks/requests";
 
-// The REQUESTS (lib/tasks/requests.ts) on the interface side: « Itérer » submits one, the worker chains it through to the render (lib/tasks/requests-db.ts), the page
+// The REQUESTS (lib/tasks/requests.ts) on the interface side: « Itérer » submits one, the worker chains it through to the render (lib/tasks/requests-*.ts), the page
 // only follows it. Leaving the page cancels nothing.
 
 /** « Itérer » a clip: submits the request (instruction → agent → rewrite if needed → render). Refused if the clip already has one in progress. */
@@ -62,7 +65,7 @@ export async function demanderFichePlan(projectId: number, planUuid: string): Pr
   return r;
 }
 
-/** « Écrire les fiches » (Screenplay page): one « Générer la fiche » request per chosen clip, submitted in screenplay order (lib/tasks/requests-db.ts,
+/** « Écrire les fiches » (Screenplay page): one « Générer la fiche » request per chosen clip, submitted in screenplay order (lib/tasks/requests-*.ts,
  * `lancerDemandesFiches`). A clip refused (request in progress) does not stop the others: its reasons are returned along with the number of clip sheets launched. */
 export async function demanderFichesPlans(projectId: number, planUuids: string[]): Promise<{ lancees: number; erreurs: string[] }> {
   const r = await lancerDemandesFiches(projectId, planUuids);

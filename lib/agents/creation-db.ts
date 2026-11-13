@@ -1,7 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "../../db";
 import { agentConversations, agentRuns, briefs, creationsProjet, demandes, plans, projects, propositionChangements } from "../../db/schema";
-import { lancerDemandesFiches } from "../tasks/requests-db";
+import { lancerDemandesFiches } from "../tasks/requests-sheets";
 import { estDeLaCreation, fenetreDeCreation } from "./creation-task";
 import { lireProposition } from "./queries-agents";
 import {
@@ -100,7 +100,7 @@ export async function reprendreCreation(projectId: number): Promise<Resultat> {
   return { ok: true };
 }
 
-/** "Écrire les fiches" (intents screen, after the creation): ONE `fiche-plan` REQUEST PER CLIP (lib/tasks/requests-db.ts: references, missing assets,
+/** "Écrire les fiches" (intents screen, after the creation): ONE `fiche-plan` REQUEST PER CLIP (lib/tasks/requests-*.ts: references, missing assets,
  * prompts, images, Open H3 IR compilation), posed in screenplay order, INDEPENDENT of the creation (2026-11-09, wave 4b). By default the clips
  * without a sheet; `tous`: also those that have one (recompiled, the old prompt stays in the history). A clip whose request is already running is skipped.
  * Refused while a creation runs: worker/images.ts then holds back the project's images, the sheets would wait. */

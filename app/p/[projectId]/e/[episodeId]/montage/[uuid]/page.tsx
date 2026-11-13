@@ -20,7 +20,7 @@ import { ControlesEntete, type AlerteControle } from "@/components/clip/ChecksHe
 import { PelliculePlans, type CadrePlan } from "@/components/clip/ClipsFilmstrip";
 import { PlateauEssais, type EssaiCarte } from "@/components/clip/AttemptsBoard";
 import { IntentionPlan } from "@/components/clip/ClipIntention";
-import { iterationDuPlan, iterationEnAttenteDuPlan } from "@/lib/tasks/requests-db";
+import { iterationDuPlan, iterationEnAttenteDuPlan } from "@/lib/tasks/requests-iteration";
 import { CartePrompt } from "@/components/clip/PromptCard";
 import { TiroirPlan } from "@/components/clip/ClipDrawer";
 import { srcRendu } from "@/components/clip/Thumbnail";

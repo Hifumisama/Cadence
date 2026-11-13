@@ -11,7 +11,7 @@ import { estEtapeFinale, type ContexteFichePlan, type EtapeDemande } from "../ta
 import { ecrireReferencesPlan } from "./references-write";
 import { decisionSortieReferencesPlan, precedentEnAttente, type EtatImageAsset } from "./preparation";
 
-/** The reads and writes of a clip's PREPARATION (pure rules: lib/h3ir/preparation.ts; driver: lib/tasks/requests-db.ts). */
+/** The reads and writes of a clip's PREPARATION (pure rules: lib/h3ir/preparation.ts; driver: lib/tasks/requests-*.ts). */
 
 const fichierPresent = (f: string | null): boolean => !!f && existsSync(join(MEDIA_ROOT, cheminAssetMedia(f)));
 

@@ -20,7 +20,7 @@ import { LIMITE_IMAGES_PLAN } from "./references-clip";
  * Fast path: references that all have their image → direct compilation, without a choice call.
  * No new clip state: « en attente d'images » is computed from the references without a file; a draft only goes « en attente » with the sheet.
  *
- * Here: the PURE rules (tested, preparation.test.ts). The reads and writes: lib/h3ir/preparation-db.ts; the driver: lib/tasks/requests-db.ts. */
+ * Here: the PURE rules (tested, preparation.test.ts). The reads and writes: lib/h3ir/preparation-db.ts; the driver: lib/tasks/requests-*.ts. */
 
 /** The proposal that creates the missing assets decided by « Itérer » (lib/agents/service-clips.ts, `creerAssetsManquants`). */
 export const SKILL_ASSETS_MANQUANTS = "assets-manquants";

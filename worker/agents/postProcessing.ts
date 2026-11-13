@@ -217,7 +217,7 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
       throw new Error(`Portée « ${prop.portee} » non prise en charge pour le skill scenario-episode.`);
     }
   } else if (run.skill === SKILL_H3IR) {
-    // The sheet of ONE clip compiled by Open H3 IR (worker/h3ir.ts): a sheet alone, with no asset to create; it is written without review (lib/tasks/requests-db.ts).
+    // The sheet of ONE clip compiled by Open H3 IR (worker/h3ir.ts): a sheet alone, with no asset to create; it is written without review (lib/tasks/requests-*.ts).
     if (prop.cibleId == null) throw new Error("Proposition de fiche sans plan.");
     const [plan] = await tx.select({ uuid: plans.uuid, titre: plans.titre }).from(plans).where(eq(plans.id, prop.cibleId));
     if (!plan) throw new Error("Le plan visé n'existe plus.");
@@ -525,7 +525,7 @@ async function postReferencesPlan(
 }
 
 /** A correction after viewing (`iteration-plan`, 2026-11-09): the agent only DECIDES (intent, duration, references, settings); the proposal carries
- * NO change, its decisions are read in the diagnosis (lib/agents/queries-agents.ts) and go to Open H3 IR recompilation (lib/tasks/requests-db.ts). Without an
+ * NO change, its decisions are read in the diagnosis (lib/agents/queries-agents.ts) and go to Open H3 IR recompilation (lib/tasks/requests-*.ts). Without an
  * applicable decision (incoherent duration, abandonment, cause outside the clip…), the summary starts with `PREFIXE_SANS_ECRITURE` and says why: nothing is
  * recompiled. The « contexte utilisé » gains the render measurement (real duration, number of thumbnails). */
 async function postIteration(

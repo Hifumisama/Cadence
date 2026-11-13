@@ -84,7 +84,7 @@ async function plansPourFiches(projectId: number, portee: Portee, cibleId: numbe
  *
  * Engine: Open H3 IR (virtual skill `plan-h3ir`, worker/h3ir.ts). It compiles from the references set on the clip: a clip that does not yet have its
  * references, or whose image is missing, is NOT compiled here (it must first be prepared: lib/h3ir/preparation.ts, which the "Générer la
- * fiche" requests lead to, lib/tasks/requests-db.ts). In a batch, these clips are left aside and named in the context; alone, they are refused with the reason. */
+ * fiche" requests lead to, lib/tasks/requests-*.ts). In a batch, these clips are left aside and named in the context; alone, they are refused with the reason. */
 export async function genererFiches(
   conversationUuid: string,
   options: {
@@ -243,7 +243,7 @@ export async function genererIteration(
  * references added / removed, creativity and the clip's staging style). Nothing is written here: the decisions go as an override of the brief
  * (lib/h3ir/brief-clip.ts) and are only written onto the clip with the compiled sheet, on application (postTraitement: `apres.description`,
  * `dureeGenerationSecondes`, the manifest's `refs`, `reglages`); if the compilation fails, nothing is written. The final references must all have
- * their image: the "Itérer" request (lib/tasks/requests-db.ts) first creates the missing assets decided and waits for their images (wave 4a); called too early,
+ * their image: the "Itérer" request (lib/tasks/requests-*.ts) first creates the missing assets decided and waits for their images (wave 4a); called too early,
  * the recompilation is refused without a task launched. */
 export async function genererReecriturePlan(
   conversationUuid: string,

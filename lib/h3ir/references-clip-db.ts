@@ -7,7 +7,7 @@ import { choisirReferences, type CandidatReference, type EntreeReferencesPlan, t
 
 /** The choice of a clip's references, read from the database (step 5 of Open H3 IR): loads the clip, its scene, its link, the previous clip's set, the registry
  * and the current `plan_refs`, then calls the pure rule (lib/h3ir/references-clip.ts). Read-only: nothing is written (the preparation of a clip,
- * lib/tasks/requests-db.ts, writes the choice or poses the skill in case of doubt). */
+ * lib/tasks/requests-*.ts, writes the choice or poses the skill in case of doubt). */
 
 type DonneesReferencesPlan = {
   plan: { id: number; uuid: string; projectId: number; titre: string; dureeSecondes: number; liaison: string };

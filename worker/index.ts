@@ -44,7 +44,7 @@ import { JETONS_COMPILATEUR_H3IR } from "../lib/llm/budget-context";
 import { attenteDepassee, effacerSonde, noterSonde } from "./availability";
 import { piloterCreations } from "../lib/agents/creation-db";
 import { projetEnCreation } from "./creation";
-import { piloterDemandes } from "../lib/tasks/requests-db";
+import { piloterDemandes } from "../lib/tasks/requests-pilot";
 import { choisirProchaineTache, type TacheEnAttente } from "./scheduler";
 import { INTERVALLE_PURGE_MS, purgerEchecs } from "./purge";
 import { reprendreExports, traiterProchainExport } from "./montage-export";

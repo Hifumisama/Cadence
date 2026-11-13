@@ -10,7 +10,7 @@
  * A SINGLE PHASE (2026-11-09, wave 4b): the creation goes from the brief to the screenplay review, then STOPS (status `termine`): we review
  * the clips' intents (a sheet written on a wrong intent costs a render and an iteration for nothing) while the reference images
  * are being made. Sheets are NO LONGER creation steps: "Écrire les fiches" posts one `fiche-plan` request per clip
- * (`lancerDemandesFiches`, lib/tasks/requests-db.ts), independent of the creation. Reason: while a creation is running, worker/images.ts
+ * (`lancerDemandesFiches`, lib/tasks/requests-*.ts), independent of the creation. Reason: while a creation is running, worker/images.ts
  * holds back the project's images; sheets kept as creation steps would wait for their own images indefinitely. */
 
 export const ETAPES_CREATION = [
@@ -156,7 +156,7 @@ export function plansAEcrire(plans: { uuid: string; aUneFiche: boolean; demandeE
   return plans.filter((p) => !p.demandeEnCours && (tous || !p.aUneFiche)).map((p) => p.uuid);
 }
 
-/** The state of a sheet request (`etatDemandesFiches`, lib/tasks/requests-db.ts), as the intents screen shows it. */
+/** The state of a sheet request (`etatDemandesFiches`, lib/tasks/requests-*.ts), as the intents screen shows it. */
 export type EtatDemandeFiche = { id: number; planUuid: string; statut: "en_cours" | "termine" | "echoue" | "annulee"; etape: string | null; erreur: string | null };
 
 /** A tracking line: the current step ("Choix des références", "Création d'assets (2)", "Images (1/3)", "Compilation Open H3 IR"),
