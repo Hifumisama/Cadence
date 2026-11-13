@@ -2,7 +2,6 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { annulerTache, marquerToutVu, marquerVu, retirerTaches, viderFile as viderFileServeur, viderListe as viderListeServeur } from "@/app/taches/actions";
-import { etatNotifications } from "@/lib/tasks/notifications-browser";
 import { estAnnulable, type ResumeTaches, type Tache } from "@/lib/tasks/tasks";
 import { SERVEURS_OK, type ServeursInjoignables } from "@/lib/renders/unreachable-servers-types";
 
@@ -110,9 +109,7 @@ export function TachesProvider({ children }: { children: ReactNode }) {
   const planifier = useCallback(() => {
     if (minuteur.current) clearTimeout(minuteur.current);
     minuteur.current = setTimeout(async () => {
-      // Hidden tab: the round is skipped, UNLESS native notifications are active (we
-      // must still see a task's end to signal it; the browser slows the timers of a background tab on its own).
-      if (document.visibilityState === "visible" || (rapideRef.current && etatNotifications() === "active")) await charger();
+      if (document.visibilityState === "visible") await charger();
       planifier();
     }, rapideRef.current ? INTERVALLE_ACTIF_MS : INTERVALLE_REPOS_MS);
   }, [charger]);

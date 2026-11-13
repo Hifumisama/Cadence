@@ -7,13 +7,75 @@ import { useEffect, useRef, useState, useTransition, type ReactNode } from "reac
 import { supprimerEssai } from "@/app/plans/actions";
 import { useBrouillon } from "@/components/clip/ClipDraft";
 import { Icone } from "@/components/ui/Icon";
-import { Braises } from "@/components/clip/Embers";
 import { ComparaisonRendus } from "@/components/clip/RendersComparison";
 import { frappeEnCours } from "@/components/clip/ClipsFilmstrip";
 import { Vignette } from "@/components/clip/Thumbnail";
 import { useTaches } from "@/components/tasks/TasksProvider";
 import { cleVideo } from "@/lib/tasks/tasks";
 import "../plan/atelier.css";
+
+type Braise = { x: number; y: number; vx: number; vy: number; r: number; vie: number; max: number };
+
+/** Embers rising behind the player: the fire-circle ambience, discreet. Stopped if the user asks for less
+ * motion, or when the tab is hidden. */
+function Braises() {
+  const ref = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const cv = ref.current;
+    if (!cv || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const cx = cv.getContext("2d");
+    if (!cx) return;
+    let w = 0;
+    let h = 0;
+    const mesurer = () => {
+      const r = cv.getBoundingClientRect();
+      w = cv.width = r.width;
+      h = cv.height = r.height;
+    };
+    mesurer();
+    const obs = new ResizeObserver(mesurer);
+    obs.observe(cv);
+
+    const naitre = (): Braise => ({ x: w * (0.25 + Math.random() * 0.5), y: h + 4, vx: (Math.random() - 0.5) * 0.3, vy: -(0.3 + Math.random() * 0.7), r: 0.6 + Math.random() * 1.6, vie: 0, max: 120 + Math.random() * 120 });
+    const braises: Braise[] = Array.from({ length: 26 }, () => {
+      const b = naitre();
+      b.y = Math.random() * h;
+      b.vie = Math.random() * b.max;
+      return b;
+    });
+
+    let raf = 0;
+    const tick = () => {
+      cx.clearRect(0, 0, w, h);
+      braises.forEach((b, i) => {
+        b.x += b.vx + Math.sin(b.vie / 18) * 0.15;
+        b.y += b.vy;
+        b.vie++;
+        const a = Math.max(0, 1 - b.vie / b.max);
+        cx.fillStyle = `rgba(255,${Math.round(120 + 90 * a)},70,${a * 0.75})`;
+        cx.beginPath();
+        cx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+        cx.fill();
+        if (b.vie > b.max || b.y < -4) braises[i] = naitre();
+      });
+      raf = requestAnimationFrame(tick);
+    };
+    const surVisibilite = () => {
+      cancelAnimationFrame(raf);
+      if (!document.hidden) raf = requestAnimationFrame(tick);
+    };
+    document.addEventListener("visibilitychange", surVisibilite);
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      obs.disconnect();
+      document.removeEventListener("visibilitychange", surVisibilite);
+    };
+  }, []);
+
+  return <canvas ref={ref} className="fp-braises" aria-hidden="true" />;
+}
 
 export type EssaiCarte = {
   id: number;

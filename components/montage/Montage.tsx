@@ -79,7 +79,7 @@ export function Montage(props: {
   const [aimant, setAimant] = useState(true);
   const [cinema, setCinema] = useState(false);
   const [inactif, setInactif] = useState(false);
-  const [manuel, setManuel] = useState(true);
+  const [manuel, setManuel] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [depot, setDepot] = useState<number | null>(null);
   const [fantome, setFantome] = useState<{ x: number; y: number; texte: string } | null>(null);

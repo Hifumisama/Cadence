@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { deplacerIteration } from "@/app/demandes/actions";
-import { BasculeNotifications } from "@/components/tasks/NotificationsToggle";
 import { useTaches } from "@/components/tasks/TasksProvider";
 import { estAnnulable, type GenreTache, type Tache } from "@/lib/tasks/tasks";
 import { urlMiniature } from "@/lib/thumbnails";
@@ -254,10 +253,6 @@ export function IndicateurTaches() {
                   </ul>
                 </details>
               ) : null}
-            </div>
-
-            <div className="tq-pied">
-              <BasculeNotifications />
             </div>
           </div>
         </>

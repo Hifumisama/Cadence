@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Marcellus, Jost, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { TachesProvider } from "@/components/tasks/TasksProvider";
-import { NotificationsTaches } from "@/components/tasks/TasksNotifications";
 
 const marcellus = Marcellus({
   subsets: ["latin"],
@@ -35,7 +34,6 @@ export default function RootLayout({
       <body>
         <TachesProvider>
           <div className="shell">{children}</div>
-          <NotificationsTaches />
         </TachesProvider>
       </body>
     </html>

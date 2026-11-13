@@ -1,10 +1,23 @@
-/** The shortcuts manual of the Montage page (the « ? » key opens or closes it). */
+"use client";
+
+import { useEffect, useRef } from "react";
+
+/** Shortcuts help of the Montage page: a discreet « ? » button and a modal (the « ? » key also toggles it). Closed by default. */
 export function Manuel({ ouvert, basculer }: { ouvert: boolean; basculer: (v: boolean) => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    if (ouvert && !d.open) d.showModal();
+    else if (!ouvert && d.open) d.close();
+  }, [ouvert]);
   return (
-    <details className="mt-manuel" open={ouvert} onToggle={(e) => basculer((e.currentTarget as HTMLDetailsElement).open)}>
-      <summary>
-        Manuel du Montage <span className="num mt-manuel-k">touche ?</span>
-      </summary>
+    <>
+      <button type="button" className="mt-aide" onClick={() => basculer(true)} title="Raccourcis clavier (touche ?)" aria-label="Raccourcis clavier">
+        ?
+      </button>
+      <dialog ref={ref} className="mt-manuel" onClose={() => basculer(false)} onClick={(e) => e.target === ref.current && basculer(false)}>
+        <h2 className="mt-manuel-titre">Raccourcis du Montage</h2>
       <div className="mt-manuel-bd">
         <div>
           <h3>Lecture</h3>
@@ -62,7 +75,7 @@ export function Manuel({ ouvert, basculer }: { ouvert: boolean; basculer: (v: bo
               <kbd>+</kbd> <kbd>-</kbd> zoom de la table
             </li>
             <li>
-              <kbd>?</kbd> afficher / masquer ce manuel
+              <kbd>?</kbd> afficher / masquer cette aide
             </li>
           </ul>
         </div>
@@ -73,6 +86,7 @@ export function Manuel({ ouvert, basculer }: { ouvert: boolean; basculer: (v: bo
           glissez-le jusqu’au bandeau « Hors montage » ; pour l’y remettre, glissez-le sur la table.
         </p>
       </div>
-    </details>
+      </dialog>
+    </>
   );
 }
