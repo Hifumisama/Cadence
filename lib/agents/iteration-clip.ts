@@ -307,7 +307,7 @@ export function historiqueIteration(
   for (const p of [...propositions].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())) {
     const d = diagnosticIteration(p.resultat, p.entree);
     if (!d) continue;
-    const appliquee = (p.statut === "appliquee" || p.statut === "partielle") && p.appliedAt != null;
+    const appliquee = p.statut === "appliquee" && p.appliedAt != null;
     lignes.push({
       le: p.createdAt.toISOString().slice(0, 16).replace("T", " "),
       ceQuiAvaitEteVu: p.consigne,

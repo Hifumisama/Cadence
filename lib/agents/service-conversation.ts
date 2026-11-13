@@ -122,7 +122,7 @@ export async function arreterTravaux(conversationId: number): Promise<void> {
     .where(and(eq(agentRuns.conversationId, conversationId), eq(agentRuns.statut, "en_cours")));
   await db
     .update(propositions)
-    .set({ statut: "rejetee" })
+    .set({ statut: "annulee" })
     .where(and(eq(propositions.conversationId, conversationId), inArray(propositions.statut, ["en_generation", "prete"])));
 }
 

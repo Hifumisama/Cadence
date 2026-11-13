@@ -182,7 +182,7 @@ export type DecisionIteration =
  * (we apply those that pass, we flag the others). The only stops: the agent failed, or nothing is applicable. */
 export function decisionIteration(p: PropositionIteration | null): DecisionIteration {
   if (!p || p.statut === "en_generation") return { action: "attendre" };
-  if (p.statut === "echouee" || p.statut === "rejetee") return { action: "echec", erreur: p.erreur ?? "L'agent n'a pas pu proposer de correction." };
+  if (p.statut === "echouee" || p.statut === "annulee") return { action: "echec", erreur: p.erreur ?? "L'agent n'a pas pu proposer de correction." };
   if (p.statut !== "prete") return { action: "attendre" };
   const tous = p.groupes.flatMap((g) => g.changements);
   // « Itérer » writes the sheet AND creates the assets that its rewrite declares missing (decision 2026-10-14, which revises « never created by default »):

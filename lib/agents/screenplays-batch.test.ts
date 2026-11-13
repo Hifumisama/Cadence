@@ -47,7 +47,7 @@ test("statut d'un lot : actif tant qu'une tâche l'est, prêt dès qu'un résult
   assert.equal(statutPropositionDuLot(comptes([run("ep:1", "termine"), run("ep:2", "echoue")])), "prete", "un échec isolé ne perd pas le reste");
   assert.equal(statutPropositionDuLot(comptes([run("ep:1", "termine"), run("ep:2", "annulee")])), "prete", "annuler garde ce qui est fini");
   assert.equal(statutPropositionDuLot(comptes([run("ep:1", "echoue"), run("ep:2", "echoue")])), "echouee");
-  assert.equal(statutPropositionDuLot(comptes([run("ep:1", "annulee"), run("ep:2", "annulee")])), "rejetee", "tout annulé : rien à relire");
+  assert.equal(statutPropositionDuLot(comptes([run("ep:1", "annulee"), run("ep:2", "annulee")])), "annulee", "tout annulé : rien à relire");
   assert.equal(statutPropositionDuLot(comptes([run("ep:1", "annulee"), run("ep:2", "echoue")])), "echouee");
 });
 

@@ -7,7 +7,7 @@ import { ouvrirConversation } from "../agents/service-conversation";
 import { genererProposition } from "../agents/service-dispatch";
 import { ERREUR_ANNULEE } from "./cancellation";
 import { lireProposition } from "../agents/queries-agents";
-import { cocherChangements, appliquerSelection } from "../agents/service-proposals";
+import { appliquerSelection } from "../agents/service-proposals";
 import { CONSIGNE_SCENE_LIBRE, ERR, LigneDemande, ecrire, lireEtapes } from "./requests-shared";
 
 /** « Ajouter un plan » (Screenplay page): ONE request (the agent writes the clip → it is added to the scene, without review: we re-read it in its sheet).
@@ -113,14 +113,8 @@ export async function avancerAjoutPlan(d: LigneDemande): Promise<boolean> {
       await ecrire(d, { statut: "termine", etapes: avancerEtapes(avancerEtapes(etapes, "agent", "fait"), "ajout", "fait") });
       return true;
     case "appliquer": {
-      // Only the clip is added: any other change slipped into the proposal (a scene, an asset) stays unticked.
-      const decoche = await cocherChangements(prop.uuid, { ids: decision.changementIds }, false);
-      const coche = decoche.ok ? await cocherChangements(prop.uuid, { ids: [decision.planChangementId] }, true) : decoche;
-      if (!coche.ok) {
-        await ecrire(d, { statut: "echoue", erreur: coche.erreur });
-        return true;
-      }
-      const a = await appliquerSelection(prop.uuid, { confirmeEcrasement: false });
+      // Only the clip is added: any other change slipped into the proposal (a scene, an asset) is left out.
+      const a = await appliquerSelection(prop.uuid, { ids: [decision.planChangementId], confirmeEcrasement: false });
       if (!a.ok) {
         await ecrire(d, { statut: "echoue", erreur: a.erreur });
         return true;
@@ -175,14 +169,8 @@ export async function avancerAjoutScene(d: LigneDemande): Promise<boolean> {
       await ecrire(d, { statut: "termine", etapes: avancerEtapes(avancerEtapes(etapes, "agent", "fait"), "ajout", "fait") });
       return true;
     case "appliquer": {
-      // Only the scene and its clips are added: any other change slipped into the proposal (an asset) stays unticked.
-      const decoche = await cocherChangements(prop.uuid, { ids: decision.tous }, false);
-      const coche = decoche.ok ? await cocherChangements(prop.uuid, { ids: decision.changementIds }, true) : decoche;
-      if (!coche.ok) {
-        await ecrire(d, { statut: "echoue", erreur: coche.erreur });
-        return true;
-      }
-      const a = await appliquerSelection(prop.uuid, { confirmeEcrasement: false });
+      // Only the scene and its clips are added: any other change slipped into the proposal (an asset) is left out.
+      const a = await appliquerSelection(prop.uuid, { ids: decision.changementIds, confirmeEcrasement: false });
       if (!a.ok) {
         await ecrire(d, { statut: "echoue", erreur: a.erreur });
         return true;

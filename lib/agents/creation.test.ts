@@ -160,8 +160,8 @@ test("décision : des changements bloqués par un contrôle sont relancés UNE f
   assert.deepEqual(decider(etape("inventaire", "en_cours", { essais: 1 }), bloque), { type: "appliquer" });
 });
 
-test("décision : proposition rejetée ou disparue = échec ; étape en échec = on attend la reprise", () => {
-  assert.equal(decider(etape("registre", "en_cours"), obs({ proposition: prop({ statut: "rejetee" }) })).type, "echouer");
+test("décision : proposition annulée ou disparue = échec ; étape en échec = on attend la reprise", () => {
+  assert.equal(decider(etape("registre", "en_cours"), obs({ proposition: prop({ statut: "annulee" }) })).type, "echouer");
   assert.equal(decider(etape("registre", "en_cours"), obs()).type, "echouer");
   assert.deepEqual(decider(etape("registre", "echoue"), obs()), { type: "attendre" });
 });

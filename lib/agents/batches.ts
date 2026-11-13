@@ -80,10 +80,10 @@ export async function finaliserLot(d: DbOuTx, propositionId: number, options: { 
     return "prete";
   }
 
-  if (voulu === "rejetee") {
-    await d.update(propositions).set({ statut: "rejetee", erreur: null }).where(eq(propositions.id, propositionId));
+  if (voulu === "annulee") {
+    await d.update(propositions).set({ statut: "annulee", erreur: null }).where(eq(propositions.id, propositionId));
     await revenirApresLot(d, prop.conversationId, propositionId);
-    return "rejetee";
+    return "annulee";
   }
 
   await d.update(propositions).set({ statut: "echouee", erreur: erreurDuLot(runs) }).where(eq(propositions.id, propositionId));
@@ -132,7 +132,7 @@ export async function annulerRunsDePropositions(d: DbOuTx, propositionIds: numbe
 
 /** "Vider la file": the PENDING subtasks of all batches are cancelled; those that are
  * running continue (unlike `annulerLot`). A batch with no running subtask has its
- * status decided right away (`prete` if it has a result, `rejetee` otherwise). Returns the number
+ * status decided right away (`prete` if it has a result, `annulee` otherwise). Returns the number
  * of subtasks cancelled. */
 export async function annulerEnAttenteDesLots(): Promise<number> {
   const lots = await db.select({ id: propositions.id }).from(propositions).where(eq(propositions.lot, true));
@@ -159,7 +159,7 @@ export type ResultatAnnulationLot = "annule" | "demande" | "rien";
 
 /** Cancels a batch: pending subtasks are cancelled right away, the running one is
  * interrupted (flag). What is already finished stays readable: the proposal becomes `prete`
- * if there is at least one result, `rejetee` otherwise. Idempotent. */
+ * if there is at least one result, `annulee` otherwise. Idempotent. */
 export async function annulerLot(propositionUuid: string): Promise<ResultatAnnulationLot> {
   if (!/^[0-9a-f-]{36}$/i.test(propositionUuid)) return "rien";
   const [prop] = await db.select().from(propositions).where(eq(propositions.uuid, propositionUuid));

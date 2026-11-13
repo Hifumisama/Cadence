@@ -23,7 +23,7 @@ export async function nouvelleProposition(conv: ConversationRow, p: { skill: str
   await annulerRunsDePropositions(db, enCours.map((x) => x.id));
   await db
     .update(propositions)
-    .set({ statut: "rejetee" })
+    .set({ statut: "annulee" })
     .where(and(eq(propositions.conversationId, conv.id), inArray(propositions.statut, ["en_generation", "prete"])));
   const [prop] = await db
     .insert(propositions)
@@ -61,20 +61,6 @@ export async function rafraichirStatut<T extends typeof propositions.$inferSelec
     return { ...p, statut: "echouee", erreur };
   }
   return p;
-}
-
-export async function cocherChangements(propositionUuid: string, selection: { groupe?: string; ids?: number[] }, coche: boolean): Promise<Resultat<{ modifies: number }>> {
-  const prop = await propositionParUuid(propositionUuid);
-  if (!prop) return ERR("Proposition introuvable.");
-  if (prop.statut !== "prete") return ERR("Cette proposition n'est plus modifiable.");
-  const lignes = await db.select().from(propositionChangements).where(eq(propositionChangements.propositionId, prop.id));
-  const cibles = lignes.filter((c) => {
-    if (selection.ids && !selection.ids.includes(c.id)) return false;
-    if (selection.groupe && groupeAffiche({ groupe: c.groupe, ecrase: c.ecrase, refuseRaison: c.refuseRaison }) !== selection.groupe) return false;
-    return !raisonNonCochable({ avertissements: (c.avertissements ?? []) as Avertissement[], refuseRaison: c.refuseRaison });
-  });
-  if (cibles.length) await db.update(propositionChangements).set({ coche }).where(inArray(propositionChangements.id, cibles.map((c) => c.id)));
-  return { ok: true, modifies: cibles.length };
 }
 
 export async function appliquerSelection(propositionUuid: string, options: Parameters<typeof appliquerProposition>[1] = {}): Promise<ResultatApplication> {

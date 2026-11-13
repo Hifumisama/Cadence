@@ -3,11 +3,11 @@
 /**
  * SERVER API OF THE AGENT SYSTEM — what the interface (step-by-step popup) calls.
  * Types: lib/agents/types.ts. Reads: lib/agents/queries-agents.ts. Design:
- * docs/CONCEPTION_AGENTS.md §14.
+ * the proposal lifecycle: en_generation → prete → appliquee (or echouee / annulee).
  *
  * Principles (decisions of 2026-10-02):
- * - Nothing is written to the business tables without `appliquerSelection`. Everything else
- *   writes conversations, briefs (draft) and proposals.
+ * - Nothing is written to the business tables without `appliquerSelection` (the code applies a proposal on its own,
+ *   there is no review screen any more). Everything else writes conversations, briefs (draft) and proposals.
  * - Two depths: `courte` (Consigne → Proposition → Appliqué) and `complete`
  *   (Conversation → Brief → Proposition → Appliqué).
  * - One conversation per (project, scope, target). `ouvrirConversation` resumes,
@@ -28,8 +28,7 @@
  *   // lireBrief(projectId); modifierChampBrief(projectId, "arc", "…") marks the section « fourni »
  *   const { propositionUuid } = await genererProposition(conversationUuid); // skeleton: immediate, no LLM
  *   // lireProposition(propositionUuid): groups, counters, overwrites…
- *   await cocherChangements(propositionUuid, { groupe: "episodes" }, false);
- *   await appliquerSelection(propositionUuid);               // transaction: all or nothing
+ *   await appliquerSelection(propositionUuid);               // transaction: all or nothing (`ids` limits it to some changes)
  *
  * Typical flow — short iteration (asset prompt):
  *   const { conversationUuid } = await ouvrirConversation(pid, "asset", { code: "CHAR_maya" }, "courte");
@@ -44,8 +43,8 @@
  * - a `bloque` change (mechanical check) is not applied until it is
  *   fixed (`corrigerChangement`);
  * - the selection is applied in ONE transaction (all or nothing), then the proposal becomes
- *   `appliquee` (all its changes applied) or `partielle` (some discarded, blocked or
- *   refused outright);
+ *   `appliquee` (changes blocked or refused outright are left out);
+ * - a new proposal in the same conversation marks the previous one `annulee`;
  * - a short scope without instruction, a brief already validated, a turn already running: clear error.
  */
 

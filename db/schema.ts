@@ -744,7 +744,7 @@ export const conceptions = pgTable("conceptions", {
 });
 
 // A batch of changes set aside, never applied without the user. `statut`:
-// en_generation | prete | appliquee | partielle | rejetee | echouee. The conversation
+// en_generation | prete | appliquee | annulee | echouee. The conversation
 // may disappear (overwritten) without taking the history with it: `set null`. `parentId` =
 // the refined proposal (the user's free feedback in `retour`).
 export const propositions = pgTable("propositions", {

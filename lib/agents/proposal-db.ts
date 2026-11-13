@@ -171,12 +171,14 @@ function ligne(r: typeof propositionChangements.$inferSelect): LigneChangement {
 
 /** Applies a proposal's selection in ONE transaction (all or nothing). Requires the
  * explicit confirmation of an overwrite; refuses out of scope; refuses a change whose
- * proposed parent is not kept. `appliquee` if all the changes were, `partielle`
- * if some were dropped, blocked or refused. */
+ * proposed parent is not kept. Applies the changes of `ids` when given, otherwise those ticked by default (`coche`,
+ * set when the changes were recorded); a refused or blocked change is never applied. */
 export async function appliquerProposition(
   propositionId: number,
   options: {
     confirmeEcrasement?: boolean;
+    /** Only these changes (ids of `proposition_changements`) instead of those ticked by default. */
+    ids?: number[];
     /** Runs in the SAME transaction, after the writes: if it fails, nothing is applied ("Itérer": application + creation of the attempt). */
     dansTransaction?: (tx: Tx) => Promise<void>;
   } = {},
@@ -186,7 +188,7 @@ export async function appliquerProposition(
   if (prop.statut !== "prete") return { ok: false, erreur: `Cette proposition n'est plus applicable (statut : ${prop.statut}).` };
 
   const toutes = (await db.select().from(propositionChangements).where(eq(propositionChangements.propositionId, propositionId)).orderBy(asc(propositionChangements.ordre))).map(ligne);
-  const retenus = ordonnerParDependances(toutes.filter((c) => c.coche && !c.refuseRaison && !estBloque(c.avertissements)));
+  const retenus = ordonnerParDependances(toutes.filter((c) => (options.ids ? options.ids.includes(c.id) : c.coche) && !c.refuseRaison && !estBloque(c.avertissements)));
   if (retenus.length === 0) return { ok: false, erreur: "Aucun changement n'est sélectionné." };
 
   const ecrasements: EcrasementAConfirmer[] = retenus.filter((c) => c.ecrase).map((c) => ({ changementId: c.id, libelle: c.libelle, ecrase: c.ecrase as string }));
@@ -218,8 +220,7 @@ export async function appliquerProposition(
         await applicateur.appliquer(tx, ctx, c);
         await tx.update(propositionChangements).set({ appliqueAt: new Date() }).where(eq(propositionChangements.id, c.id));
       }
-      const statut = retenus.length === toutes.length ? "appliquee" : "partielle";
-      await tx.update(propositions).set({ statut, appliedAt: new Date() }).where(eq(propositions.id, propositionId));
+      await tx.update(propositions).set({ statut: "appliquee", appliedAt: new Date() }).where(eq(propositions.id, propositionId));
       if (prop.conversationId != null) {
         await tx.update(agentConversations).set({ etape: "applique", updatedAt: new Date() }).where(and(eq(agentConversations.id, prop.conversationId), eq(agentConversations.propositionId, propositionId)));
       }
@@ -231,5 +232,5 @@ export async function appliquerProposition(
   }
   const appliques = retenus.length;
   const refuses = toutes.filter((c) => c.refuseRaison).length;
-  return { ok: true, statut: appliques === toutes.length ? "appliquee" : "partielle", appliques, ecartes: toutes.length - appliques - refuses, refuses };
+  return { ok: true, statut: "appliquee", appliques, ecartes: toutes.length - appliques - refuses, refuses };
 }

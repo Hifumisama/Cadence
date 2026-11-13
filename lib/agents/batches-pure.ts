@@ -5,7 +5,7 @@
  *
  * Decisions: the proposal stays `en_generation` as long as a subtask is still active; it
  * becomes `prete` as soon as all are closed and at least one succeeded (isolated failures are
- * shown in the review, re-runnable); `echouee` only if EVERYTHING failed; `rejetee` if everything
+ * shown in the review, re-runnable); `echouee` only if EVERYTHING failed; `annulee` if everything
  * was cancelled. Results already written are never lost. */
 
 const PREFIXE_CLE_EPISODE = "ep:";
@@ -93,10 +93,10 @@ export function comptesLot(runs: RunLot[]): ComptesLot {
 }
 
 /** The status a batch's proposal must have, based on its subtasks. */
-export function statutPropositionDuLot(c: ComptesLot): "en_generation" | "prete" | "echouee" | "rejetee" {
+export function statutPropositionDuLot(c: ComptesLot): "en_generation" | "prete" | "echouee" | "annulee" {
   if (c.actives > 0) return "en_generation";
   if (c.terminees > 0) return "prete";
-  if (c.total > 0 && c.annulees === c.total) return "rejetee";
+  if (c.total > 0 && c.annulees === c.total) return "annulee";
   return "echouee";
 }
 

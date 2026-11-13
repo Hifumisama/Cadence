@@ -23,7 +23,7 @@ export async function genererPromptsAssetsCrees(
   const source = await propositionParUuid(propositionUuid);
   if (!source) return ERR("Proposition introuvable.");
   if (!SKILLS_CREANT_DES_ASSETS.includes(source.skill)) return ERR("Cette proposition n'a pas créé d'assets à décrire (fiches de plan, inventaire, références d'un plan).");
-  if (source.statut !== "appliquee" && source.statut !== "partielle") return ERR("Applique d'abord la proposition : les assets n'existent pas encore.");
+  if (source.statut !== "appliquee") return ERR("Applique d'abord la proposition : les assets n'existent pas encore.");
   const aEcrire = await assetsCreesSansPrompt(source.id);
   if (aEcrire.length === 0) return ERR("Aucun asset créé par cette proposition n'attend son prompt.");
 

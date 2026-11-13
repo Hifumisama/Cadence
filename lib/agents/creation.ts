@@ -113,10 +113,9 @@ export function decider(etape: EtapeCreation, obs: ObservationEtape): Decision {
       if (p.lot && etape.essais < 1) return { type: "relancer-echecs" };
       return { type: "echouer", erreur: p.erreur ?? "La génération a échoué." };
     case "appliquee":
-    case "partielle":
       return { type: "fait", detail: null };
-    default: // rejetee, ou inconnu
-      return { type: "echouer", erreur: "La proposition de cette étape a été rejetée : l'installateur s'arrête (reprends-le pour la refaire)." };
+    default: // annulee, ou inconnu
+      return { type: "echouer", erreur: "La proposition de cette étape a été annulée : l'installateur s'arrête (reprends-le pour la refaire)." };
   }
 }
 

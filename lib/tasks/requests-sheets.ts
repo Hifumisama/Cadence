@@ -9,7 +9,7 @@ import { ouvrirConversation } from "../agents/service-conversation";
 import { genererFiches, genererReferencesPlan } from "../agents/service-clips";
 import { lireProposition } from "../agents/queries-agents";
 import { cleNouvelAsset } from "../agents/sheets";
-import { cocherChangements, appliquerSelection } from "../agents/service-proposals";
+import { appliquerSelection } from "../agents/service-proposals";
 import { libelleAssets, deciderReferences, deciderImages, libellePrompts, libelleImages } from "../h3ir/preparation";
 import { ERREUR_ANNULEE } from "./cancellation";
 import { ecrireReferencesDuSkill, attendUnPlanPrecedent, assetsCreesParLeLot, etatImagesAssets, lancerImagesAssets, codesRefsVisuelles } from "../h3ir/preparation-db";
@@ -118,15 +118,11 @@ async function codesCreesPar(projectId: number, propositionUuid: string): Promis
 }
 const PREFIXE_NOUVEL_ASSET = cleNouvelAsset("");
 
-/** Ticks everything that passes (neither blocked nor refused) in a proposal and applies it without review. */
+/** Applies, without review, everything that passes (neither blocked nor refused) in a proposal. */
 async function appliquerToutCeQuiPasse(propositionUuid: string, confirmeEcrasement: boolean): Promise<Resultat> {
   const lue = await lireProposition(propositionUuid);
   const ids = (lue?.groupes ?? []).flatMap((g) => g.changements).filter((c) => !c.bloque && !c.refuseRaison).map((c) => c.id);
-  if (ids.length) {
-    const coche = await cocherChangements(propositionUuid, { ids }, true);
-    if (!coche.ok) return coche;
-  }
-  const a = await appliquerSelection(propositionUuid, { confirmeEcrasement });
+  const a = await appliquerSelection(propositionUuid, { ids, confirmeEcrasement });
   return a.ok ? { ok: true } : ERR(a.erreur);
 }
 
@@ -149,8 +145,8 @@ async function avancerReferences(d: LigneDemande, ctx: ContexteFichePlan, etapes
     const [prop] = run.propositionId ? await db.select({ id: propositions.id, uuid: propositions.uuid, statut: propositions.statut, resume: propositions.resume }).from(propositions).where(eq(propositions.id, run.propositionId)) : [];
     if (!prop) return echouer(d, "La proposition du choix des références est introuvable.");
     if (prop.statut === "en_generation") return false;
-    if (prop.statut === "appliquee" || prop.statut === "partielle") return finir(await codesCreesPar(d.projectId, prop.uuid), prop.resume || null);
-    if (prop.statut !== "prete") return echouer(d, "Le choix des références a été abandonné (proposition rejetée).");
+    if (prop.statut === "appliquee") return finir(await codesCreesPar(d.projectId, prop.uuid), prop.resume || null);
+    if (prop.statut !== "prete") return echouer(d, "Le choix des références a été abandonné (proposition annulée).");
     // All creations refused or blocked by a check: the skill's references (without these assets) are written anyway.
     const passables = ((await lireProposition(prop.uuid))?.groupes ?? []).flatMap((g) => g.changements).filter((c) => !c.bloque && !c.refuseRaison);
     if (passables.length === 0) {
@@ -218,7 +214,7 @@ export async function avancerPromptsImages(
       if (lue.statut === "prete") {
         const a = await appliquerToutCeQuiPasse(prep.promptsPropositionUuid, true);
         if (!a.ok) return echouer(d, `Les prompts d'assets n'ont pas pu être écrits : ${a.erreur}`);
-      } else if (lue.statut !== "appliquee" && lue.statut !== "partielle") {
+      } else if (lue.statut !== "appliquee") {
         return echouer(d, `Les prompts d'assets n'ont pas pu être écrits : ${lue.erreur ?? "le lot a échoué"}.`);
       }
       await ecrirePrep({ etapes: avancerEtapes(etapes, "prompts", "fait") });
@@ -329,13 +325,9 @@ async function avancerTacheFiche(d: LigneDemande, ctx: ContexteFichePlan, etapes
     case "fait":
       return suite();
     case "appliquer": {
-      // The sheet and the assets it cites are kept; any other change slipped into the proposal stays unticked.
-      const tous = (lue?.groupes ?? []).flatMap((g) => g.changements.map((c) => c.id));
-      const decoche = await cocherChangements(prop.uuid, { ids: tous }, false);
-      const coche = decoche.ok ? await cocherChangements(prop.uuid, { ids: decision.changementIds }, true) : decoche;
-      if (!coche.ok) return echouer(d, `${prefixe}${coche.erreur}`);
+      // The sheet and the assets it cites are kept; any other change slipped into the proposal is left out.
       // Open H3 IR replaces the existing sheet without asking again: the user's click is confirmation, and the old prompt is kept in the history.
-      const a = await appliquerSelection(prop.uuid, { confirmeEcrasement: true });
+      const a = await appliquerSelection(prop.uuid, { ids: decision.changementIds, confirmeEcrasement: true });
       if (!a.ok) return echouer(d, `${prefixe}${a.erreur}`);
       return suite();
     }

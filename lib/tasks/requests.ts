@@ -148,9 +148,9 @@ type PropositionAjout = {
 
 export function decisionAjoutPlan(prop: PropositionAjout | null): DecisionAjout {
   if (!prop || prop.statut === "en_generation") return { action: "attendre" };
-  if (prop.statut === "appliquee" || prop.statut === "partielle") return { action: "fait" };
+  if (prop.statut === "appliquee") return { action: "fait" };
   if (prop.statut === "echouee") return { action: "echec", erreur: prop.erreur ?? "L'agent n'a pas réussi à écrire ce plan." };
-  if (prop.statut === "rejetee") return { action: "echec", erreur: "La proposition a été rejetée." };
+  if (prop.statut === "annulee") return { action: "echec", erreur: "La proposition a été annulée." };
   const tous = prop.groupes.flatMap((g) => g.changements);
   const plan = tous.find((c) => c.cibleType === "plan" && c.operation === "creer");
   if (!plan) return { action: "echec", erreur: "L'agent n'a pas proposé de plan à ajouter." };
@@ -191,9 +191,9 @@ export type DecisionAjoutScene = { action: "attendre" } | { action: "fait" } | {
 
 export function decisionAjoutScene(prop: PropositionAjout | null): DecisionAjoutScene {
   if (!prop || prop.statut === "en_generation") return { action: "attendre" };
-  if (prop.statut === "appliquee" || prop.statut === "partielle") return { action: "fait" };
+  if (prop.statut === "appliquee") return { action: "fait" };
   if (prop.statut === "echouee") return { action: "echec", erreur: prop.erreur ?? "L'agent n'a pas réussi à écrire cette scène." };
-  if (prop.statut === "rejetee") return { action: "echec", erreur: "La proposition a été rejetée." };
+  if (prop.statut === "annulee") return { action: "echec", erreur: "La proposition a été annulée." };
   const tous = prop.groupes.flatMap((g) => g.changements);
   const scene = tous.find((c) => c.cibleType === "scene" && c.operation === "creer");
   if (!scene) return { action: "echec", erreur: "L'agent n'a pas proposé de scène à ajouter." };
@@ -271,9 +271,9 @@ export type DecisionFichePlan = { action: "attendre" } | { action: "fait" } | { 
 
 export function decisionFichePlan(prop: PropositionAjout | null): DecisionFichePlan {
   if (!prop || prop.statut === "en_generation") return { action: "attendre" };
-  if (prop.statut === "appliquee" || prop.statut === "partielle") return { action: "fait" };
+  if (prop.statut === "appliquee") return { action: "fait" };
   if (prop.statut === "echouee") return { action: "echec", erreur: prop.erreur ?? "L'agent n'a pas réussi à écrire cette fiche." };
-  if (prop.statut === "rejetee") return { action: "echec", erreur: "La proposition a été rejetée." };
+  if (prop.statut === "annulee") return { action: "echec", erreur: "La proposition a été annulée." };
   const tous = prop.groupes.flatMap((g) => g.changements);
   const fiche = tous.find((c) => c.cibleType === "fiche");
   if (!fiche) return { action: "echec", erreur: "L'agent n'a pas proposé de fiche." };

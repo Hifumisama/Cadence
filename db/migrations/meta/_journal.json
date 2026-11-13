@@ -603,6 +603,13 @@
       "when": 1796835600000,
       "tag": "0085_retrait_voix",
       "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1796922000000,
+      "tag": "0086_statuts_propositions",
+      "breakpoints": true
     }
   ]
 }

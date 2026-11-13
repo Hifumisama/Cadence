@@ -87,21 +87,20 @@ test("appliquerProposition : une proposition déjà appliquée n'est plus applic
   if (!encore.ok) assert.match(encore.erreur, /n'est plus applicable/);
 });
 
-test("appliquerProposition : un changement décoché est écarté, la proposition devient « partielle »", { skip }, async () => {
+test("appliquerProposition : seuls les changements demandés (`ids`) sont appliqués, les autres sont écartés", { skip }, async () => {
   const id = await nouvelleProposition([creationAsset("fabio"), creationAsset("gina")]);
-  const [aEcarter] = await db.select().from(schema.propositionChangements).where(eq(schema.propositionChangements.propositionId, id)).orderBy(schema.propositionChangements.ordre);
-  await db.update(schema.propositionChangements).set({ coche: false }).where(eq(schema.propositionChangements.id, aEcarter!.id));
-  const r = await appliquerProposition(id);
+  const [aEcarter, aGarder] = await db.select().from(schema.propositionChangements).where(eq(schema.propositionChangements.propositionId, id)).orderBy(schema.propositionChangements.ordre);
+  assert.ok(aEcarter && aGarder);
+  const r = await appliquerProposition(id, { ids: [aGarder.id] });
   assert.equal(r.ok, true);
-  if (r.ok) assert.deepEqual([r.statut, r.appliques, r.ecartes], ["partielle", 1, 1]);
+  if (r.ok) assert.deepEqual([r.statut, r.appliques, r.ecartes], ["appliquee", 1, 1]);
   const codes = await codesAssets();
   assert.ok(!codes.includes("CHAR_fabio") && codes.includes("CHAR_gina"));
 });
 
-test("appliquerProposition : rien de coché → refus, rien d'écrit", { skip }, async () => {
+test("appliquerProposition : aucun changement retenu → refus, rien d'écrit", { skip }, async () => {
   const id = await nouvelleProposition([creationAsset("hugo")]);
-  await db.update(schema.propositionChangements).set({ coche: false }).where(eq(schema.propositionChangements.propositionId, id));
-  const r = await appliquerProposition(id);
+  const r = await appliquerProposition(id, { ids: [] });
   assert.equal(r.ok, false);
   assert.ok(!(await codesAssets()).includes("CHAR_hugo"));
   assert.equal((await statutDe(id)).statut, "prete");
@@ -109,8 +108,8 @@ test("appliquerProposition : rien de coché → refus, rien d'écrit", { skip },
 
 test("appliquerProposition : un changement refusé d'office n'est jamais appliqué, même coché", { skip }, async () => {
   const id = await nouvelleProposition([creationAsset("iris"), creationAsset("jade", { refuseRaison: "hors portée" })]);
-  await db.update(schema.propositionChangements).set({ coche: true }).where(eq(schema.propositionChangements.propositionId, id));
-  const r = await appliquerProposition(id);
+  const tous = await db.select({ id: schema.propositionChangements.id }).from(schema.propositionChangements).where(eq(schema.propositionChangements.propositionId, id));
+  const r = await appliquerProposition(id, { ids: tous.map((t) => t.id) });
   assert.equal(r.ok, true);
   if (r.ok) assert.equal(r.refuses, 1);
   const codes = await codesAssets();
@@ -130,13 +129,14 @@ test("appliquerProposition : l'écrasement d'un élément validé demande une co
       ecrase: "la description validée",
     },
   ]);
-  await db.update(schema.propositionChangements).set({ coche: true }).where(eq(schema.propositionChangements.propositionId, id));
-  const sans = await appliquerProposition(id);
+  const ligneEcrasante = await db.select({ id: schema.propositionChangements.id }).from(schema.propositionChangements).where(eq(schema.propositionChangements.propositionId, id));
+  const ids = ligneEcrasante.map((l) => l.id);
+  const sans = await appliquerProposition(id, { ids });
   assert.equal(sans.ok, false);
   if (!sans.ok) assert.ok(sans.confirmationRequise && sans.confirmationRequise.length === 1);
   const [avant] = await db.select().from(schema.assets).where(eq(schema.assets.id, asset!.id));
   assert.equal(avant!.description, "Ancienne description");
-  const avec = await appliquerProposition(id, { confirmeEcrasement: true });
+  const avec = await appliquerProposition(id, { ids, confirmeEcrasement: true });
   assert.equal(avec.ok, true);
   const [apres] = await db.select().from(schema.assets).where(eq(schema.assets.id, asset!.id));
   assert.equal(apres!.description, "Nouvelle description");
@@ -150,4 +150,13 @@ test("appliquerProposition : une erreur dans un changement annule tout (une seul
   assert.equal(r.ok, false);
   assert.ok(!(await codesAssets()).includes("CHAR_lena"), "le premier changement n'est pas resté écrit");
   assert.equal((await statutDe(id)).statut, "prete");
+});
+
+test("nouvelle proposition : la précédente, encore en attente, est « annulee » (et non plus « rejetee »)", { skip }, async () => {
+  const { nouvelleProposition: creer } = await import("./service-proposals");
+  const [conv] = await db.select().from(schema.agentConversations).where(eq(schema.agentConversations.id, conversationId));
+  const ancienne = await nouvelleProposition([creationAsset("nina")]);
+  const neuve = await creer(conv!, { skill: "inventaire-assets", consigne: "autre essai", contexte: [] });
+  assert.equal((await statutDe(ancienne)).statut, "annulee");
+  assert.equal((await statutDe(neuve)).statut, "en_generation");
 });

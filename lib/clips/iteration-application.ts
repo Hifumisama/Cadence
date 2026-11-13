@@ -1,7 +1,7 @@
 import { and, eq, inArray, max } from "drizzle-orm";
 import { db } from "../../db";
 import { jobs, plans } from "../../db/schema";
-import { appliquerSelection, cocherChangements, propositionParUuid } from "../agents/service-proposals";
+import { appliquerSelection, propositionParUuid } from "../agents/service-proposals";
 import { genererPromptsAssetsCrees } from "../agents/service-assets";
 import { decisionIteration } from "./clip-sheet";
 import { SKILL_H3IR } from "../h3ir/result";
@@ -45,10 +45,9 @@ export async function appliquerIterationEtGenererCore(
   if (enFile.length > 0) return { ok: false, erreur: "Un essai est déjà en file ou en cours sur ce plan : rien n'a été appliqué." };
 
   const notesEssai = [...(essai.notes ?? []), ...decision.notes.filter((n) => !(essai.notes ?? []).includes(n))];
-  const c = await cocherChangements(propositionUuid, { ids: decision.ids }, true);
-  if (!c.ok) return { ok: false, erreur: c.erreur };
   try {
     const r = await appliquerSelection(propositionUuid, {
+      ids: decision.ids,
       // Lancer « Itérer » consent à écraser le prompt actuel : il reste dans l'essai précédent.
       confirmeEcrasement: true,
       dansTransaction: async (tx) => {

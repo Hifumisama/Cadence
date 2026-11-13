@@ -23,7 +23,7 @@ export type Profondeur = (typeof PROFONDEURS)[number];
 const ETAPES = ["consigne", "conversation", "brief", "proposition", "applique"] as const;
 export type Etape = (typeof ETAPES)[number];
 
-const STATUTS_PROPOSITION = ["en_generation", "prete", "appliquee", "partielle", "rejetee", "echouee"] as const;
+const STATUTS_PROPOSITION = ["en_generation", "prete", "appliquee", "annulee", "echouee"] as const;
 export type StatutProposition = (typeof STATUTS_PROPOSITION)[number];
 
 const OPERATIONS = ["creer", "modifier", "supprimer"] as const;
@@ -469,5 +469,5 @@ export type PlanPourFiche = {
 export type Resultat<T extends object = object> = ({ ok: true } & T) | { ok: false; erreur: string };
 
 export type ResultatApplication =
-  | { ok: true; statut: "appliquee" | "partielle"; appliques: number; ecartes: number; refuses: number }
+  | { ok: true; statut: "appliquee"; appliques: number; ecartes: number; refuses: number }
   | { ok: false; erreur: string; confirmationRequise?: EcrasementAConfirmer[] };
