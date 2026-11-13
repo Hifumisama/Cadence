@@ -41,7 +41,7 @@ export function raisonNonCochable(c: Pick<PourCochage, "avertissements" | "refus
 }
 
 /** The displayed group: overwrites are grouped at the top, whatever their type. */
-export function groupeAffiche(c: Pick<VueChangement, "groupe" | "ecrase" | "refuseRaison">): string {
+function groupeAffiche(c: Pick<VueChangement, "groupe" | "ecrase" | "refuseRaison">): string {
   return c.ecrase && !c.refuseRaison ? "ecrasement" : c.groupe;
 }
 

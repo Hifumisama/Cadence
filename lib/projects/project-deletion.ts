@@ -1,4 +1,4 @@
-import { and, count, eq, inArray, ne } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import { db } from "@/db";
@@ -12,7 +12,7 @@ import {
   plans,
   projects,
 } from "@/db/schema";
-import { MEDIA_ROOT, cheminAssetMedia, cheminPosterMedia } from "@/lib/media";
+import { MEDIA_ROOT, cheminPosterMedia } from "@/lib/media";
 
 /** What the deletion of a project carries away — shown in the confirmation. */
 export type InventaireSuppression = {
@@ -34,12 +34,12 @@ type Identifiants = {
 };
 
 /** Folders (relative to MEDIA_ROOT) that belong only to the project: one per entity, stored under
- * the internal id (see lib/media.ts). Pure — tested without database. `assets/<fichier>` is separate: the folder
- * is shared by all projects. */
+ * the internal id (see lib/media.ts), the assets' images included (`assets/<projectId>/`). Pure — tested without database. */
 export function dossiersDuProjet(projectId: number, ids: Identifiants): string[] {
   return [
     cheminPosterMedia("projects", projectId, "").replace(/\/$/, ""),
     ...ids.episodes.map((id) => cheminPosterMedia("episodes", id, "").replace(/\/$/, "")),
+    `assets/${projectId}`,
     ...ids.plans.map((id) => `plans/${id}`),
     ...ids.assets.map((id) => `generations/${id}`),
   ];
@@ -96,21 +96,6 @@ export async function inventaireProjet(projectId: number): Promise<InventaireSup
  * transaction: a database that fails must not leave a project without its media. */
 export async function supprimerProjetComplet(projectId: number): Promise<void> {
   const ids = await identifiants(projectId);
-  const fichiersAssets = ids.assets.length
-    ? (await db.select({ fichier: assets.fichier }).from(assets).where(inArray(assets.id, ids.assets)))
-        .map((a) => a.fichier)
-        .filter((f): f is string => !!f)
-    : [];
-  // assets/ is a shared folder: a file name also used by another project is kept.
-  const partages = fichiersAssets.length
-    ? new Set(
-        (await db
-          .select({ fichier: assets.fichier })
-          .from(assets)
-          .where(and(inArray(assets.fichier, fichiersAssets), ne(assets.projectId, projectId)))).map((a) => a.fichier),
-      )
-    : new Set<string | null>();
-
   await db.transaction(async (tx) => {
     await tx.delete(agentTraces).where(eq(agentTraces.projectId, projectId));
     await tx.delete(agentRuns).where(eq(agentRuns.projectId, projectId));
@@ -119,7 +104,6 @@ export async function supprimerProjetComplet(projectId: number): Promise<void> {
 
   const aSupprimer = [
     ...dossiersDuProjet(projectId, ids),
-    ...fichiersAssets.filter((f) => !partages.has(f)).map((f) => cheminAssetMedia(f)),
   ];
   await Promise.all(aSupprimer.map((rel) => rm(join(MEDIA_ROOT, rel), { recursive: true, force: true }).catch(() => undefined)));
 }

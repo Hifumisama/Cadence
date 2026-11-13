@@ -16,7 +16,7 @@ export async function adopterCandidat(generationId: number, mediaRoot: string): 
   const [asset] = await db.select().from(assets).where(eq(assets.id, gen.assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
 
-  const nom = `${asset.code}${extname(gen.fichier).toLowerCase() || ".png"}`;
+  const nom = `${asset.projectId}/${asset.code}${extname(gen.fichier).toLowerCase() || ".png"}`; // one folder per project
   const cible = join(mediaRoot, cheminAssetMedia(nom));
   try {
     await mkdir(dirname(cible), { recursive: true });

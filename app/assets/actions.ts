@@ -9,13 +9,13 @@ import { dirname, join } from "node:path";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET, cheminAssetMedia } from "@/lib/media";
 import { PREFIXE_PAR_TYPE, TYPES_ASSET, construireCode, estMethodeAsset, nomFichierAsset, type TypeAsset } from "@/lib/assets/assetCode";
 
-async function enregistrerFichierAsset(code: string, fichier: File): Promise<string> {
+async function enregistrerFichierAsset(projectId: number, code: string, fichier: File): Promise<string> {
   if (fichier.size > TAILLE_MAX_UPLOAD_ASSET) {
     throw new Error(
       `Fichier trop volumineux (${(fichier.size / 1024 / 1024).toFixed(1)} Mo, max ${TAILLE_MAX_UPLOAD_ASSET / 1024 / 1024} Mo).`,
     );
   }
-  const nomFichier = nomFichierAsset(code, fichier.name);
+  const nomFichier = nomFichierAsset(projectId, code, fichier.name);
   const cheminComplet = join(MEDIA_ROOT, cheminAssetMedia(nomFichier));
   await mkdir(dirname(cheminComplet), { recursive: true });
   const octets = Buffer.from(await fichier.arrayBuffer());
@@ -84,9 +84,9 @@ export async function uploaderFichierAsset(
   const fichier = formData.get("fichier");
   if (!(fichier instanceof File) || fichier.size === 0) return;
 
-  const [asset] = await db.select({ code: assets.code }).from(assets).where(eq(assets.id, assetId));
+  const [asset] = await db.select({ code: assets.code, projectId: assets.projectId }).from(assets).where(eq(assets.id, assetId));
   if (!asset) throw new Error("Asset introuvable.");
-  const nomFichier = await enregistrerFichierAsset(asset.code, fichier);
+  const nomFichier = await enregistrerFichierAsset(asset.projectId, asset.code, fichier);
 
   // An imported file is work already done elsewhere: validated by default (only an adopted generation goes back to « en cours »).
   await db.update(assets).set({ fichier: nomFichier, fichierAt: new Date(), valide: true }).where(eq(assets.id, assetId));

@@ -178,7 +178,7 @@ export async function dupliquerAsset(assetId: number): Promise<{ ok: true; code:
 
   let fichier: string | null = null;
   if (asset.fichier) {
-    fichier = `${code}${extname(asset.fichier)}`;
+    fichier = `${asset.projectId}/${code}${extname(asset.fichier)}`;
     const cible = join(MEDIA_ROOT, cheminAssetMedia(fichier));
     try {
       await mkdir(dirname(cible), { recursive: true });

@@ -53,12 +53,13 @@ export function estMethodeAsset(v: string): v is MethodeAsset {
 /** Extensions accepted for an uploaded asset file (the form restricts to image/audio/video, but the upload action is a public endpoint). */
 const EXTENSIONS_ASSET = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif", ".mp3", ".wav", ".flac", ".ogg", ".m4a", ".mp4", ".webm", ".mov"]);
 
-/** The file name of an asset on disk: `<code><extension>`. The code must be a plain identifier (it names a file, never a path) and the extension
- * must be a known media one. Throws a user-readable message otherwise. Pure. */
-export function nomFichierAsset(code: string, nomOrigine: string): string {
+/** The file name of an asset on disk: `<projectId>/<code><extension>` (one folder per project: two projects may use the same code). The code must be
+ * a plain identifier (it names a file, never a path) and the extension must be a known media one. Throws a user-readable message otherwise. Pure. */
+export function nomFichierAsset(projectId: number, code: string, nomOrigine: string): string {
+  if (!Number.isInteger(projectId) || projectId < 1) throw new Error("Projet invalide.");
   if (!/^[A-Za-z0-9_]+$/.test(code)) throw new Error("Code d'asset invalide.");
   const point = nomOrigine.lastIndexOf(".");
   const ext = point >= 0 ? nomOrigine.slice(point).toLowerCase() : "";
   if (!EXTENSIONS_ASSET.has(ext)) throw new Error("Format de fichier non pris en charge (image, audio ou vidéo).");
-  return `${code}${ext}`;
+  return `${projectId}/${code}${ext}`;
 }

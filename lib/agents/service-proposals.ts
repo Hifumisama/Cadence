@@ -1,15 +1,13 @@
 import { db } from "../../db";
-import { propositions, agentConversations, agentRuns, propositionChangements } from "../../db/schema";
+import { propositions, agentConversations, agentRuns } from "../../db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { annulerRunsDePropositions } from "./batches";
-import type { Resultat, Avertissement, ResultatApplication } from "./types";
-import { groupeAffiche, raisonNonCochable } from "./checking";
+import type { ResultatApplication } from "./types";
 import { appliquerProposition } from "./proposal-db";
 import { SKILL_REFERENCES_PLAN } from "./references-clip";
 import { ecrireReferencesDuSkill } from "../h3ir/preparation-db";
 import { ecrireReferencesApresApplication } from "./inventory-db";
 import { ConversationRow } from "./service-conversation";
-import { ERR } from "./service-shared";
 
 // --- proposal ------------------------------------------------------------
 
