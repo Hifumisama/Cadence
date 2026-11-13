@@ -235,9 +235,9 @@ export function AvanceeScene({
                   {fichesAEcrire ? "Relire les intents et écrire les fiches" : "Intents et fiches des plans"}
                 </button>
               ) : null}
-              {termine ? (
-                <button type="button" className="btn" onClick={() => setAffichage(vueClap ? "etapes" : "clap")}>
-                  {vueClap ? "Revoir les étapes" : "Retour au clap"}
+              {termine && vueClap ? (
+                <button type="button" className="btn" onClick={() => setAffichage("etapes")}>
+                  Revoir les étapes
                 </button>
               ) : null}
               {termine && !vueClap ? <Link href={`/p/${projectId}`} className="btn btn-gold">Voir le projet</Link> : null}

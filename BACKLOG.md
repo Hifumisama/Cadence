@@ -13,6 +13,14 @@ Nettoyage fait (sauvegardes du NAS supprimées, script retiré du dépôt). Rest
 ## À faire, décidé
 - **Validation côté serveur (zod)** des server actions : en cours (branche menage/zod).
 
+## Retours du test en profondeur (2026-11-13)
+Lot rapide fait : onglets Assets/Tournage inversés, bouton « Retour au clap » retiré, état « Intention seule / Fiche rédigée » dans le tournage, prévisualisation en lot depuis le tournage, liste « Hors montage » plafonnée (~4 rangées), plans liés (« suite » / « suite rompue ») dans le montage.
+À faire, dans l'ordre convenu :
+- **Vérifications** (faible) : le slider de ton est-il lu par le système ? Coût en requêtes d'Open H3 IR par rendu ? Où durée et rythme sont-ils consommés ?
+- **Création** (moyen) : fin de parcours = écran « premier jet complet » (nombre de scènes, noms, bouton) puis redirection vers Scénario, sans validation du scénario ; durées initiales variables, on garde l'estimation des plans ; temps estimé du squelette (demande des mesures du journal worker) ; mode de réflexion plus longue en option ; guillemets des dialogues (selon ce qu'attend H3).
+- **Qualité** (haut, avec preuves et jugement de l'utilisateur) : densité d'information par durée de plan (exemples d'inventions à fournir) ; **template de prompt explicite** pour les références de décor (plusieurs vues) et pour l'affiche ; prompts d'assets (guide Qwen Image Edit) ; quantité de dialogue par clip (plafond mesuré, GPU).
+- **Bugs à reproduire** : états non rechargés (montage), dialogues mal pris en compte, navigation/redirections (accès aux autres pages pendant une création inachevée).
+
 ## À décider avec l'utilisateur
 - **Limite de 3 personnages qui parlent par plan** dans les skills `scenario-episode` / `scenario-scene` : garder, relever ou retirer, maintenant que les voix n'existent plus.
 - **Relecture du scénario** : chantier à part entière (étape de l'installateur, 3 propositions appliquées sur 9). À cadrer ensemble avant toute décision.

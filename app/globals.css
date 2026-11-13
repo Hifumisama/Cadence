@@ -5305,7 +5305,8 @@ button {
 .mt-bin h2 { margin: 0; font-family: var(--font-brand), Georgia, serif; font-weight: 400; font-size: 20px; }
 .mt-bin h2 .num { font-size: 14px; color: var(--ink-4); }
 .mt-bin p { margin: 0; font-size: 13px; color: var(--ink-4); max-width: 70ch; }
-.mt-bin-list { display: flex; flex-wrap: wrap; gap: 8px; }
+/* About 4 rows visible (item ≈ 46px + 8px gap), the rest scrolls: the list must not push the page down. */
+.mt-bin-list { display: flex; flex-wrap: wrap; gap: 8px; max-height: 208px; overflow-y: auto; align-content: flex-start; }
 .mt-bin-item { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 3px; background: var(--surface); min-width: 0; cursor: grab; touch-action: none; user-select: none; }
 .mt-bin-item:hover { border-color: var(--line-strong); }
 .mt-bin-item i { width: 10px; height: 28px; border-radius: 2px; background: hsl(var(--h) 28% 30%); flex: none; }

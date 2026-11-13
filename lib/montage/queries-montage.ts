@@ -64,6 +64,7 @@ export async function getMontage(episodeId: number): Promise<{ plans: PlanMontag
       sceneId: p.sceneId,
       position: i + 1,
       dureePrevue,
+      liaison: p.liaison === "coupe" ? "coupe" : "suite",
       perime: p2 && estPerime(p2) ? resumerPerime(p2) : null,
       erreur: dernier?.statut === "echoue" && dernier.erreur ? `Rendu n°${dernier.numeroRendu} : ${dernier.erreur}` : null,
       rendus,

@@ -19,6 +19,7 @@ import { LIBELLE_ETAT, LIBELLE_INTENTION_CHANGEE, cleScene, minutage, romain, ty
 import { MIME_PLAN, MIME_SCENE, PlanDeplacable, demarrerApercu, lire, marquerDepose, useEnGlissement, type ChargePlan } from "./DragDrop";
 import { AjouterPlan, type CibleAjoutPlan } from "./AddClip";
 import { EtatFiches } from "./SheetsState";
+import { ToutesPrevisualisationsButton } from "@/components/clip/AllPreviewsButton";
 import { EcrireFiches } from "./WriteSheets";
 import { ModifierSceneButton } from "./EditSceneButton";
 import { AjouterScene, type CibleAjoutScene } from "./AddScene";
@@ -39,6 +40,15 @@ const libellePlan = (p: PlanVue) => `Plan ${p.position}, ${p.titre}, ${LIBELLE_E
 
 /** The « texte modifié » marker: the clip's text has changed since its sheet or its last render (never regenerated on its own). */
 const RepereIntention = ({ p }: { p: PlanVue }) => (p.intentionChangee ? <span className="sc-intention" title={LIBELLE_INTENTION_CHANGEE[p.intentionChangee]}>Texte modifié</span> : null);
+
+/** Where a clip stands before any render: « Intention seule » (sheet not developed yet) or « Fiche rédigée » (developed, not rendered).
+ * Once a render exists, the derived state (iteration / ready) takes over. */
+const RepereFiche = ({ p }: { p: PlanVue }) =>
+  p.etat === "brouillon" ? (
+    <span className="sc-etat" title={p.statut === "brouillon" ? "La fiche du plan n'est pas encore écrite" : "La fiche est écrite, aucun rendu lancé"}>
+      {p.statut === "brouillon" ? "Intention seule" : "Fiche rédigée"}
+    </span>
+  ) : null;
 
 /** The message at the bottom of the screen. With `cle` and `planId`, a « Voir » link leads to this clip (move to another scene). */
 type Signal = { texte: string; cle?: string; planId?: number };
@@ -338,6 +348,7 @@ export function VueScenario({
     <div className="sc">
       <div className="queue sc-outils">
         <EtatFiches nbPlans={fiches.nbPlans} nbDeveloppes={fiches.nbDeveloppes} onEcrire={() => setFichesOuvert(true)} />
+        {fiches.nbDeveloppes > 0 ? <ToutesPrevisualisationsButton episodeId={episodeId} /> : null}
         <span className="sc-total num">
           {pluriel(scenesReelles.length, "scène")} · {pluriel(nbPlans, "plan")} · {minutage(dureeTotale)}
         </span>
@@ -517,6 +528,7 @@ export function VueScenario({
                   <span className="sc-cadre-temps num">
                     {minutage(p.debut)} · {p.duree} s
                   </span>
+                  <RepereFiche p={p} />
                   <RepereIntention p={p} />
                 </PlanDeplacable>
                   </div>
@@ -557,6 +569,7 @@ export function VueScenario({
                         {p.duree} s
                       </span>
                       <RepereIntention p={p} />
+                      <RepereFiche p={p} />
                       {p.etat !== "brouillon" ? <span className={`sc-etat is-${p.etat}`}>{p.etat === "pret" ? "✓ Prêt" : "En itération"}</span> : null}
                     </span>
                   </PlanDeplacable>

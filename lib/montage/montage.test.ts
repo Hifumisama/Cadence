@@ -30,7 +30,7 @@ import {
 
 const rendu = (id: number, duree = 10): RenduMontage => ({ id, numeroRendu: id, genre: "aperçu", chemin: `plans/1/r${id}.mp4`, src: `/api/media/plans/1/r${id}.mp4`, dureeSecondes: duree, creeLe: "2026-11-01T10:00:00Z" });
 const plan = (id: number, o: Partial<PlanMontage> = {}): PlanMontage => ({
-  id, uuid: `u${id}`, titre: `Plan ${id}`, statut: "termine", sceneId: null, position: id, dureePrevue: 6, perime: null, erreur: null, rendus: [], renduParDefautId: null, ...o,
+  id, uuid: `u${id}`, titre: `Plan ${id}`, statut: "termine", sceneId: null, position: id, dureePrevue: 6, liaison: "suite", perime: null, erreur: null, rendus: [], renduParDefautId: null, ...o,
 });
 const entree = (id: number, planId: number, o: Partial<EntreeMontage> = {}): EntreeMontage => ({ id, planId, renduRetenuId: null, debut: 0, fin: null, ...o });
 

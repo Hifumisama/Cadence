@@ -39,6 +39,8 @@ export type PlanMontage = {
   position: number;
   /** Planned duration, the one the clip occupies as long as it has no render. */
   dureePrevue: number;
+  /** Link with the previous clip of the screenplay (`plans.liaison`): « suite » picks up where it ends, « coupe » is a clean break. */
+  liaison: "suite" | "coupe";
   /** « CHAR_maya, prompt modifié » if the last render is stale, otherwise null. */
   perime: string | null;
   /** Error of the last attempt, if it failed. */

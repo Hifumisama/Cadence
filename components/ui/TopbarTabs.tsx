@@ -23,9 +23,10 @@ export function TopbarTabs({ projectId, episodeBase }: { projectId: number; epis
   const onglets = [
     { seg: "brief", label: "Brief", href: briefHref },
     { seg: "scenario", label: "Scénario", href: `${episodeBase}/scenario` },
+    // Since 2026-11-13: Assets comes before Tournage (assets are prepared before shooting).
+    { seg: "assets", label: "Assets", href: assetsHref },
     // Since 2026-11-10: Scénario = the text to read (script format), Tournage = the working filmstrip (sheets, renders) which was the former Scénario page.
     { seg: "tournage", label: "Tournage", href: `${episodeBase}/tournage` },
-    { seg: "assets", label: "Assets", href: assetsHref },
     { seg: "montage", label: "Montage", href: `${episodeBase}/montage` },
   ];
 
