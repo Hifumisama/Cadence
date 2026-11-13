@@ -6,9 +6,13 @@ Ce qu'on décide ensemble. Mis à jour à chaque point d'étape. Risque : **faib
 - **Machine à états de revue** : fait (31b0cee, migrations 0085 et 0086). Reste à vérifier à la main : un projet créé par l'installateur et un « Itérer » sur un clip.
 - Ensuite, **supprimer la colonne `coche`** (devenue « appliqué par défaut », recalculable). Faible.
 
+## À faire en production (la base de prod n'a pas encore reçu ces changements)
+- Déployer, arrêter web et worker, puis `npm run db:migrate` (migrations 0085 voix, 0086 statuts).
+- Migration des fichiers d'assets : `npx tsx scripts/migrer-assets-par-projet.ts` d'abord à blanc, puis `--appliquer` (avec MEDIA_ROOT et DATABASE_URL de la prod). Les résultats peuvent différer du local. Supprimer le script ensuite.
+- Local : fait le 2026-11-13 (260 images rangées, 16 assets repassés « sans image » dont 11 victimes de la collision à regénérer ; sauvegarde dans data/_sauvegarde_assets_2026-11-13, à supprimer quand tout est vérifié).
+
 ## À faire, décidé
-- **Collision des fichiers d'assets entre projets** (8 codes concernés). Un dossier `assets/<projet>/`, script à usage unique : déplacement, récupération des images écrasées depuis `data/generations`, passage à blanc d'abord. Moyen. Ne pas lancer pendant une création de projet.
-- **Validation côté serveur (zod)** des server actions. Faible. Après la migration des fichiers.
+- **Validation côté serveur (zod)** des server actions. Faible.
 - **Remplacer le reset CSS copié de Tailwind** (~390 lignes de `globals.css`). Faible, mais à valider à l'œil.
 
 ## À décider avec l'utilisateur
@@ -19,9 +23,9 @@ Ce qu'on décide ensemble. Mis à jour à chaque point d'étape. Risque : **faib
 ## Idées retenues (utiles, pas lancées)
 - **Fidélité par référence** (`plan_refs.retention`) choisie dans les cases de références du clip : `fully_preserved`, `partially_preserved`, `attribute_transfer`, `weak_reference`. Intérêt : décrire une variante au lieu de créer un asset (`partially_preserved`), « équiper » un personnage (`attribute_transfer`), limiter le nombre d'assets. Moyen (jugement visuel).
 
-## Études (lecture seule, peuvent se faire en parallèle)
-- **Skills ou outils** : ce qui devrait être un skill de l'application, un outil, ou du code.
-- **Recréation des docs** (à repartir de zéro, courte).
+## Plus tard
+- **Rework des prompts (skills)** : étude faite (1 échec sur 1187 runs ; le tool calling n'apporterait rien). Pistes : retirer `references-plan`, fusionner `accroche-scenariste` dans `conversation-agent`, `scenario-scene` avec `scenario-episode` (banc de comparaison d'abord), alléger les SKILL.md (162 Ko).
+- **Recréation des docs** : brouillon de 6 pages courtes préparé (6 pages dans docs/, squelettes sourcés). À trancher avant : règle « une seule tâche GPU à la fois » contredite dans le code, lequel de VID_REF2VA ou de la chaîne en trois étapes est actif, « plan » ou « clip » dans les vues.
 - **Tests e2e** (chantier différé).
 
 ## Futurs lointains : ne pas lancer sans demande
