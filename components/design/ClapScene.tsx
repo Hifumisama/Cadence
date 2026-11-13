@@ -158,7 +158,7 @@ export function ClapScene({
               <Cellule cle="Format" valeur="Film" />
               <Cellule cle="Genre" valeur={conception.genres.join(" + ")} />
               <Cellule cle="Durée" valeur={minutesSecondes(conception.dureeSecondes)} defaut={defauts.duree} />
-              <Cellule cle="Rythme" valeur={`${conception.rythme} · ≈ ${plans.moyen} plans`} defaut={defauts.duree} />
+              <Cellule cle="Plans estimés" valeur={`≈ ${plans.min} à ${plans.max} plans`} defaut={defauts.duree} />
               <Cellule cle="Dialogues" valeur={conception.langue} defaut={defauts.langue} />
               {miseEnScene ? <Cellule cle="Mise en scène" valeur={miseEnScene} /> : null}
               <Cellule cle="L’arc" valeur={note("arc")} large />

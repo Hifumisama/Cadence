@@ -24,9 +24,9 @@ import {
 const tout = () => true;
 const aucun = () => false;
 
-test("état de départ : film, français, 2 min, rythme mesuré, rien choisi", () => {
+test("état de départ : film, français, 2 min, rythme variable, rien choisi", () => {
   const e = etatInitial();
-  assert.deepEqual([e.langue, e.duree, e.rythme, e.genres.length, e.style], ["Français", 120, "mesure", 0, null]);
+  assert.deepEqual([e.langue, e.duree, e.rythme, e.genres.length, e.style], ["Français", 120, "variable", 0, null]);
 });
 
 test("genres : deux au maximum (le plus ancien part)", () => {
@@ -84,13 +84,13 @@ test("charge utile : acceptée par la validation du serveur", () => {
 });
 
 test("sauvegarde en session : aller-retour, et toute valeur inattendue retombe sur le départ", () => {
-  const e: EtatAssistant = { ...basculerGenre(etatInitial(), "Horreur"), dureeChoisie: true, duree: 300, rythme: "rapide", style: { source: "libre", nom: "Mien", promptImage: "p", clause: "c", image: "libres/x.webp" } };
+  const e: EtatAssistant = { ...basculerGenre(etatInitial(), "Horreur"), dureeChoisie: true, duree: 300, style: { source: "libre", nom: "Mien", promptImage: "p", clause: "c", image: "libres/x.webp" } };
   assert.deepEqual(lireEtatSauvegarde(JSON.stringify(e)), e);
   assert.equal(lireEtatSauvegarde(null), null);
   assert.equal(lireEtatSauvegarde("pas du json"), null);
   assert.equal(lireEtatSauvegarde("[1]"), null);
   const abime = lireEtatSauvegarde(JSON.stringify({ genres: ["Inconnu", "Drame", "Action", "Western"], duree: 5, rythme: "x", langue: "Klingon", style: { source: "?" } }))!;
-  assert.deepEqual([abime.duree, abime.rythme, abime.langue, abime.style], [120, "mesure", "Français", null]);
+  assert.deepEqual([abime.duree, abime.rythme, abime.langue, abime.style], [120, "variable", "Français", null]);
   assert.deepEqual(abime.genres, ["Drame", "Action"], "genres inconnus retirés, deux au maximum");
 });
 

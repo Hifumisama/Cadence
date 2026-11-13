@@ -9,7 +9,7 @@ import {
   RYTHME_PAR_DEFAUT,
   SANS_DIALOGUE,
 } from "./design";
-import { RYTHMES_BRIEF, type RythmeBrief } from "../agents/types";
+import type { RythmeBrief } from "../agents/types";
 import type { ProfilPersoId } from "../h3ir/character-profiles";
 import { miseEnSceneRecommandee } from "../styles/recommended-staging";
 import { CREATIVITE_PAR_DEFAUT, STYLE_AUCUN, creativiteOuNull, resumeMiseEnScene, styleCameraOuNull, type Creativite } from "../h3ir/settings";
@@ -186,7 +186,8 @@ export function lireEtatSauvegarde(brut: string | null): EtatAssistant | null {
   return suivreRecommandation({
     genres,
     duree: entier(o.duree, DUREE_MIN_SECONDES, DUREE_MAX_SECONDES, depart.duree),
-    rythme: (RYTHMES_BRIEF as readonly unknown[]).includes(o.rythme) ? (o.rythme as RythmeBrief) : depart.rythme,
+    // The rhythm is no longer a choice: a saved session from before keeps the starting value.
+    rythme: depart.rythme,
     dureeChoisie: o.dureeChoisie === true,
     langue,
     langueChoisie: o.langueChoisie === true,

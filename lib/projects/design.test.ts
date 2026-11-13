@@ -47,7 +47,7 @@ function valide(extra: Record<string, unknown> = {}): Conception {
 test("validerConception : valeurs par défaut posées pour les champs facultatifs absents", () => {
   const c = valide();
   assert.equal(c.dureeSecondes, 120);
-  assert.equal(c.rythme, "mesure");
+  assert.equal(c.rythme, "variable");
   assert.equal(c.langue, "Français");
   assert.deepEqual(valeursParDefaut(c), { duree: true, langue: true });
   assert.deepEqual(valeursParDefaut(valide({ dureeChoisie: true, langueChoisie: true })), { duree: false, langue: false });

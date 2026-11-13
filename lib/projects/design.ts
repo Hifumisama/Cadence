@@ -60,7 +60,8 @@ export function positionDepuisDuree(secondes: number): number {
   return POSITION_DUREE_MAX;
 }
 export const DUREE_PAR_DEFAUT_SECONDES = 120;
-export const RYTHME_PAR_DEFAUT: RythmeBrief = "mesure";
+/** The rhythm is no longer a choice: measured on 25 projects, the requested rhythm did not change the clips' length. Every new project is « variable » (what each moment holds decides). */
+export const RYTHME_PAR_DEFAUT: RythmeBrief = "variable";
 export const TON_PAR_DEFAUT = 50;
 export const GENRES_MAX = 2;
 

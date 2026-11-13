@@ -52,7 +52,7 @@ export function SceneAccueil() {
 export function SceneGenreTon({ etat, maj }: PropsScene) {
   return (
     <>
-      <EnteteScene acte="Acte 02" titre={<>Quel <em>univers</em>, quelle <em>couleur</em> ?</>} sous="Un ou deux genres pour poser l’univers. Le ton se dessinera dans l’histoire, le style et la mise en scène." />
+      <EnteteScene acte="Acte 02" titre={<>Un film de quel <em>genre</em> ?</>} />
       <div className="cn-nuage" role="group" aria-label="Genres">
         {GENRES.map((g) => (
           <button
@@ -82,12 +82,6 @@ export function SceneGenreTon({ etat, maj }: PropsScene) {
 
 const PRESETS = [60, 120, 180, 300, 600, 1800, 3600, 5400] as const;
 const MAX_CASES = 120;
-const RYTHMES = [
-  { id: "lent", nom: "Lent" },
-  { id: "mesure", nom: "Mesuré" },
-  { id: "rapide", nom: "Rapide" },
-  { id: "variable", nom: "Variable" },
-] as const;
 
 export function SceneDuree({ etat, maj }: PropsScene) {
   const plans = plansEstimes(etat.duree, etat.rythme);
@@ -101,7 +95,7 @@ export function SceneDuree({ etat, maj }: PropsScene) {
   const poser = (duree: number) => maj((e) => ({ ...e, duree, dureeChoisie: true }));
   return (
     <>
-      <EnteteScene acte="Acte 03" titre={<>Combien de <em>temps</em> ?</>} sous="La durée du film et le rythme fixent le nombre de plans que le scénario devra écrire." />
+      <EnteteScene acte="Acte 03" titre={<>Combien de <em>temps</em> ?</>} sous="La durée visée donne le nombre de plans que le scénario écrira, à peu près." />
       <p className="cn-grande-duree">{minutesSecondes(etat.duree)}</p>
       {etat.duree > DUREE_EXPERIMENTALE_SECONDES ? (
         <p className="cn-note-duree">Au-delà de 10 min, c’est <b>expérimental</b> : le scénario compte des centaines de plans, et le modèle local risque d’y perdre le fil.</p>
@@ -137,14 +131,7 @@ export function SceneDuree({ etat, maj }: PropsScene) {
       </div>
       <div className="cn-bande-axe" aria-hidden="true"><span>0 s</span><span>{parCase === 1 ? "1 case = 1 plan, largeur = durée" : `1 case ≈ ${parCase} plans`}</span></div>
       <p className="cn-bande-legende">≈ <b>{plans.min} à {plans.max} plans</b> · compter <b>{plans.moyen}</b> en moyenne</p>
-      <div className="cn-rythmes" role="group" aria-label="Rythme">
-        {RYTHMES.map((r) => (
-          <button key={r.id} type="button" className="cn-rythme" aria-pressed={etat.rythme === r.id} onClick={() => maj((e) => ({ ...e, rythme: r.id, dureeChoisie: true }))}>
-            <b>{r.nom}</b>
-            <span>{r.id === "variable" ? "5–15 s, selon la scène" : `${PLAGES_RYTHME[r.id].min}–${PLAGES_RYTHME[r.id].max} s par plan`}</span>
-          </button>
-        ))}
-      </div>
+      <p className="cn-note">Chaque plan dure de {plage.min} à {plage.max} s selon ce que la scène demande. La durée est un point de départ : le scénario peut la dépasser ou rester en deçà, et tu ajustes ensuite plan par plan.</p>
     </>
   );
 }
