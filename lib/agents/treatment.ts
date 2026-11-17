@@ -27,7 +27,11 @@ export type TraitementScene = {
   dureeCibleSecondes: number;
   /** What the author said about this scene (their words, as close as possible); empty if nothing. */
   momentsDeLAuteur: string;
+  /** The brief's moments this scene shows, in order (2026-11-17); empty for an older treatment or a brief without moments. */
+  moments: string[];
 };
+
+const listeTextes = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim() !== "").map((x) => x.trim()) : []);
 
 const texte = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
 
@@ -37,7 +41,7 @@ export function traitementDeScene(v: unknown): TraitementScene | null {
   const o = v as Record<string, unknown>;
   const duree = Number(o.dureeCibleSecondes);
   if (!texte(o.intention) || !Number.isFinite(duree) || duree <= 0) return null;
-  return { intention: texte(o.intention), etatEntree: texte(o.etatEntree), etatSortie: texte(o.etatSortie), dureeCibleSecondes: Math.round(duree), momentsDeLAuteur: texte(o.momentsDeLAuteur) };
+  return { intention: texte(o.intention), etatEntree: texte(o.etatEntree), etatSortie: texte(o.etatSortie), dureeCibleSecondes: Math.round(duree), momentsDeLAuteur: texte(o.momentsDeLAuteur), moments: listeTextes(o.moments) };
 }
 
 /** From weights (1 to 5, not seconds) to the scenes' target durations: the sum falls EXACTLY on the episode's duration, no scene
@@ -89,13 +93,19 @@ export function ajusterDureesScene(durees: number[], cibleSecondes: number): num
   return res;
 }
 
-/** What the returned treatment must respect; each defect is an error sent back to the model (a single re-prompt, see lib/llm/checks.ts). Pure. */
+/** What the returned treatment must respect; each defect is an error sent back to the model (a single re-prompt, see lib/llm/checks.ts).
+ * `momentsDuBrief`: how many moments the brief gives; the scenes must carry at least as many (each moment goes in a scene). Pure. */
 export function controlerTraitement(
-  sortie: { scenes?: { titre?: string; intention?: string; etatEntree?: string; etatSortie?: string }[] },
+  sortie: { scenes?: { titre?: string; intention?: string; etatEntree?: string; etatSortie?: string; moments?: unknown }[] },
   vise: { min: number; max: number },
+  momentsDuBrief = 0,
 ): string[] {
   const l = sortie.scenes ?? [];
   const erreurs: string[] = [];
+  const repartis = l.reduce((n, sc) => n + listeTextes(sc.moments).length, 0);
+  if (momentsDuBrief > 0 && repartis < momentsDuBrief) {
+    erreurs.push(`Tu as réparti ${repartis} moment${repartis > 1 ? "s" : ""} sur les ${momentsDuBrief} du brief (\`briefExtrait.moments\`) : chaque moment va dans le \`moments\` d'une scène, dans l'ordre, sans en sauter.`);
+  }
   if (l.length < vise.min || l.length > vise.max) {
     erreurs.push(`Tu as écrit ${l.length} scène${l.length > 1 ? "s" : ""} : il en faut entre ${vise.min} et ${vise.max}. ${l.length > vise.max ? "Fusionne les scènes qui partagent un lieu et un enjeu." : "Découpe à chaque changement de lieu, de moment ou d'enjeu."}`);
   }

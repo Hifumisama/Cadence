@@ -19,6 +19,7 @@ export type NoteAffichee = {
 const LIBELLES: Record<string, string> = {
   arc: "L’idée et l’arc",
   fin: "La fin",
+  moments: "Les moments du film",
   personnages: "Le héros et les personnages",
   univers: "L’univers",
   lieux: "Les lieux",
@@ -68,7 +69,7 @@ export function resumerSection(cle: string, valeur: unknown): string {
 }
 
 export function notesPourAffichage(fiche: Fiche): NoteAffichee[] {
-  const requis = new Set(["arc", "fin", "personnages"]);
+  const requis = new Set(["arc", "fin", "personnages", "moments"]);
   const sujets = REQUIS.filter((r) => requis.has(r.cle)).map((r) => r.cle as string);
   const notes: NoteAffichee[] = sujets.map((cle) => {
     const statut = fiche.statuts[cle] ?? "absent";

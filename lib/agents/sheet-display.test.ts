@@ -3,12 +3,13 @@ import assert from "node:assert/strict";
 import { notesPourAffichage, resumerSection } from "./sheet-display";
 import { FICHE_VIDE, type Fiche } from "./sheet";
 
-test("fiche vide : trois sujets requis, tous absents, rien d'autre", () => {
+test("fiche vide : quatre sujets requis, tous absents, rien d'autre", () => {
   const n = notesPourAffichage(FICHE_VIDE);
   assert.deepEqual(n.map((x) => [x.cle, x.statut, x.texte, x.requis]), [
     ["arc", "absent", "", true],
     ["fin", "absent", "", true],
     ["personnages", "absent", "", true],
+    ["moments", "absent", "", true],
   ]);
 });
 
@@ -18,7 +19,7 @@ test("ce que la conception a posé n'est pas une note de l'entretien", () => {
     statuts: { genreTon: "fourni", style: "fourni", rythme: "fourni", dureeEpisodeSecondes: "fourni", langueDialogues: "fourni", arc: "fourni" },
   };
   const n = notesPourAffichage(f);
-  assert.deepEqual(n.map((x) => x.cle), ["arc", "fin", "personnages"]);
+  assert.deepEqual(n.map((x) => x.cle), ["arc", "fin", "personnages", "moments"]);
   assert.equal(n[0]!.texte, "Une cartographe retrouve une carte.");
   assert.equal(n[0]!.statut, "fourni");
 });
@@ -42,10 +43,10 @@ test("personnages, lieux et autres sections en lignes lisibles ; les notes compl
     statuts: { personnages: "fourni", lieux: "deduit" },
   };
   const n = notesPourAffichage(f);
-  assert.deepEqual(n.map((x) => x.cle), ["arc", "fin", "personnages", "lieux", "univers"]);
+  assert.deepEqual(n.map((x) => x.cle), ["arc", "fin", "personnages", "moments", "lieux", "univers"]);
   assert.equal(n[2]!.texte, "Maya : héroïne, la trentaine, manteau trop grand\nLe marchand : mentor");
-  assert.deepEqual([n[3]!.statut, n[3]!.requis, n[3]!.texte], ["deduit", false, "Le port : brumeux"]);
-  assert.equal(n[4]!.statut, "deduit", "sans statut connu : supposée");
+  assert.deepEqual([n[4]!.statut, n[4]!.requis, n[4]!.texte], ["deduit", false, "Le port : brumeux"]);
+  assert.equal(n[5]!.statut, "deduit", "sans statut connu : supposée");
 });
 
 test("resumerSection : valeurs vides et formes inattendues", () => {

@@ -77,3 +77,11 @@ test("names of characters from a skill input", () => {
   assert.deepEqual(nomsPersonnagesDeLEntree({}), []);
   assert.deepEqual(nomsPersonnagesDeLEntree(null), []);
 });
+
+test("planVide : un personnage est présent par son prénom, par le premier mot de son nom ou par un pronom (banc du 2026-11-17)", () => {
+  const noms = ["Tifa Lockhart", "Soldat de Shinra"];
+  assert.equal(planVide("Tifa glisse en diagonale et attrape son poignet.", noms), false);
+  assert.equal(planVide("Les deux soldats chargent, boucliers levés.", noms), false);
+  assert.equal(planVide("Elle tourne sur elle-même, la tache noire monte sur sa robe.", ["La Danseuse"]), false);
+  assert.equal(planVide("La fumée verte retombe sur la scène vide.", ["La Danseuse"]), true);
+});

@@ -120,7 +120,7 @@ export const scenes = pgTable("scenes", {
   creativite: varchar("creativite", { length: 12 }),
   styleCamera: varchar("style_camera", { length: 20 }),
   // The treatment of the scene (lib/agents/treatment.ts): what it tells, where it starts, where it ends, its target duration.
-  traitement: jsonb("traitement").$type<{ intention: string; etatEntree: string; etatSortie: string; dureeCibleSecondes: number; momentsDeLAuteur: string }>(),
+  traitement: jsonb("traitement").$type<{ intention: string; etatEntree: string; etatSortie: string; dureeCibleSecondes: number; momentsDeLAuteur: string; moments?: string[] }>(),
 });
 
 // The clip is the pivot table of the system. Identification (revised 2026-09-29,

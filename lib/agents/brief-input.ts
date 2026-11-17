@@ -2,7 +2,7 @@
  * the agent reads it to dig into what is missing; the user's brief comes out of it, without a writing call. Pure (used by the
  * service and by the worker). */
 
-import { REQUIS, fichePourAgent, libelleDetail, premierMessageGrosBloc, suppositions, type Fiche } from "./sheet";
+import { REQUIS, fichePourAgent, libelleDetail, momentsDeFiche, momentsRequis, momentsTranches, premierMessageGrosBloc, suppositions, type Fiche } from "./sheet";
 import { SECTIONS_BRIEF } from "./types";
 
 export type MessageLlm = { role: "user" | "assistant"; content: string };
@@ -30,7 +30,8 @@ export function entreeTour(messages: MessageLlm[], fiche: Fiche, rappel: RappelF
   const dernier = tous[tous.length - 1];
   if (!dernier || dernier.role !== "user") return tous;
   let contenu = `${dernier.content}\n\n${MARQUE_FICHE} (tenue par l'application d'après la conversation : ce que tu sais déjà)]\n${brouillonEnTexte(fichePourAgent(fiche))}`;
-  const tranches = REQUIS.filter((r) => fiche.statuts[r.cle] === "fourni" || fiche.statuts[r.cle] === "delegue").map((r) => r.libelle.replace(/ \(.*\)$/, ""));
+  // The moments are settled only when there are enough of them: a validated but too short sequence is still to dig into.
+  const tranches = REQUIS.filter((r) => (r.cle === "moments" ? momentsTranches(fiche) : fiche.statuts[r.cle] === "fourni" || fiche.statuts[r.cle] === "delegue")).map((r) => r.libelle.replace(/ \(.*\)$/, ""));
   const dejaDit = tranches.length ? ` Déjà tranché par l'utilisateur, à ne JAMAIS redemander : ${tranches.join(" ; ")}.` : "";
   const propose = suppositions(fiche)
     .filter((k) => ["style", "rythme", "genreTon", "dureeEpisodeSecondes", "langueDialogues"].includes(k))
@@ -46,6 +47,15 @@ export function entreeTour(messages: MessageLlm[], fiche: Fiche, rappel: RappelF
       ? " Son premier message est un gros bloc : réagis à un détail, résume en UNE phrase ce qui est acquis, puis pose UNE seule question ciblée."
       : "";
   const details = rappel.details ?? [];
+  // The film's moments (2026-11-17): once the heart is known, the screenwriter proposes the missing sequence itself and has it validated.
+  const coeurConnu = fiche.statuts.arc === "fourni" || fiche.statuts.arc === "delegue";
+  const momentsManquent = rappel.manques.some((m) => m.startsWith(REQUIS.find((r) => r.cle === "moments")!.libelle));
+  const vises = momentsRequis(fiche.contenu.dureeEpisodeSecondes);
+  const notes = momentsDeFiche(fiche.contenu).length;
+  const consigneMoments =
+    momentsManquent && coeurConnu
+      ? ` Les moments du film manquent (${notes} noté${notes > 1 ? "s" : ""}${vises ? ` ; il en faut au moins ${vises} pour la durée, un moment distinct toutes les dix secondes environ` : ""}) : la durée est un plancher, il faut assez de matière pour la remplir. Si le reste de son message le permet, propose toi-même la suite complète, en liste numérotée, une ligne par moment (qui fait quoi, où, avec une action visible ; jamais une pose : une transformation arrive PENDANT que le personnage agit), en gardant à leur place ceux qu'il a déjà dits, puis demande-lui de la valider ou de la changer, et creuse ensuite les parties minces. Jamais « statique », « immobile » ou « figé » comme qualité d'un personnage.`
+      : "";
   if (rappel.complete) {
     const supposees = suppositions(fiche).map((k) => libelleSupposition(fiche, k));
     contenu += `
@@ -54,7 +64,7 @@ export function entreeTour(messages: MessageLlm[], fiche: Fiche, rappel: RappelF
   } else if (rappel.manques.length > 0) {
     contenu += `
 
-[État de l'entretien : l'utilisateur n'a pas encore dit : ${rappel.manques.join(" ; ")}. Ce n'est pas un programme : réagis d'abord à ce qu'il vient de dire, puis choisis dans cette liste, dans l'ordre que tu veux, l'angle qui se raccroche le mieux à son message (ou propose-lui toi-même si c'est ce qu'il demande ou s'il te laisse décider : alors ne repose pas la question). Une seule question de fond par message ; les points pratiques se regroupent.${premierBloc}${dejaDit}${dejaPropose} Avant de questionner, relis la conversation : ce qu'il a déjà dit (même au passage, même dans un message plus haut) ou ce que tu as déjà demandé ne se redemande pas.${formatDit} ${interdit}]`;
+[État de l'entretien : l'utilisateur n'a pas encore dit : ${rappel.manques.join(" ; ")}. Ce n'est pas un programme : réagis d'abord à ce qu'il vient de dire, puis choisis dans cette liste, dans l'ordre que tu veux, l'angle qui se raccroche le mieux à son message (ou propose-lui toi-même si c'est ce qu'il demande ou s'il te laisse décider : alors ne repose pas la question). Une seule question de fond par message ; les points pratiques se regroupent.${consigneMoments}${premierBloc}${dejaDit}${dejaPropose} Avant de questionner, relis la conversation : ce qu'il a déjà dit (même au passage, même dans un message plus haut) ou ce que tu as déjà demandé ne se redemande pas.${formatDit} ${interdit}]`;
   } else if (details.length > 0) {
     contenu += `
 

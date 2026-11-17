@@ -64,7 +64,8 @@ test("depuisRegistreAsset : un asset absent donne UNE création portant descript
   assert.equal(c!.cibleType, "asset");
   assert.equal(c!.cibleRef, null);
   assert.equal(c!.groupe, "assets");
-  assert.deepEqual(c!.apres, { type: "personnage", suffixe: "maya", description: "danseuse", promptGeneration: sortie.promptGeneration, methodeGeneration: "generation" });
+  assert.deepEqual(c!.apres, { type: "personnage", suffixe: "maya", description: "danseuse", promptGeneration: avecGabarit(sortie.promptGeneration, "personnage", "generation"), methodeGeneration: "generation" });
+  assert.match(String((c!.apres as { promptGeneration: string }).promptGeneration), /4 views/);
   assert.equal(c!.avertissements?.length, 1);
 });
 

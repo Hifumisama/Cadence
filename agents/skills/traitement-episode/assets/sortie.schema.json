@@ -12,7 +12,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["titre", "fonction", "ambiance", "intention", "etatEntree", "etatSortie", "poids", "momentsDeLAuteur"],
+        "required": ["titre", "fonction", "ambiance", "intention", "etatEntree", "etatSortie", "poids", "momentsDeLAuteur", "moments"],
         "properties": {
           "titre": { "type": "string", "description": "(French) Distinct from every other scene's title." },
           "fonction": { "type": "string", "description": "(French) What the scene accomplishes in the episode." },
@@ -21,7 +21,8 @@
           "etatEntree": { "type": "string", "description": "(French) Where the scene starts: where the characters who matter are and what they face, relative to fixed landmarks of the place. The previous scene's etatSortie when the story goes on without a break." },
           "etatSortie": { "type": "string", "description": "(French) Where the scene ends, in the same terms. Only what the scene's story justifies." },
           "poids": { "type": "integer", "minimum": 1, "maximum": 5, "description": "Screen time relative to the other scenes (1 transition, 5 key scene). Never seconds." },
-          "momentsDeLAuteur": { "type": "string", "description": "(French) What the author said about THIS scene (gestures, framing, sounds, lines, ending), close to their words. Empty string if nothing." }
+          "momentsDeLAuteur": { "type": "string", "description": "(French) What the author said about THIS scene (gestures, framing, sounds, lines, ending), close to their words. Empty string if nothing." },
+          "moments": { "type": "array", "items": { "type": "string" }, "description": "(French) The moments of `briefExtrait.moments` this scene shows, copied as written, in order. Across all scenes, every moment of the brief appears once, in the brief's order. Empty array if the brief has no moments." }
         }
       }
     },

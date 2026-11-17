@@ -23,6 +23,7 @@ export const FICHE_VIDE: Fiche = { contenu: {}, statuts: {} };
 export const SECTIONS_PATCHABLES = [
   "titre",
   "arc",
+  "moments",
   "genreTon",
   "style",
   "langueDialogues",
@@ -53,7 +54,22 @@ export const REQUIS = [
   { cle: "rythme", libelle: "le rythme (lent, mesuré, vif…)" },
   { cle: "dureeEpisodeSecondes", libelle: "la durée visée" },
   { cle: "personnages", libelle: "le héros : son âge et son apparence" },
+  { cle: "moments", libelle: "les moments du film" },
 ] as const;
+
+/** Distinct moments the film needs for its duration (project 259, 2026-11-17: three beats for 120 s gave a film half still). The
+ * duration is a FLOOR: one moment with a visible action per ~10 seconds. 0 when the duration is unknown. */
+export const SECONDES_PAR_MOMENT = 10;
+export const momentsRequis = (dureeSecondes: unknown): number =>
+  typeof dureeSecondes === "number" && Number.isFinite(dureeSecondes) && dureeSecondes > 0 ? Math.ceil(dureeSecondes / SECONDES_PAR_MOMENT) : 0;
+
+/** Safety net: from this number of user messages on, the moments no longer hold the interview (a notes model that never manages to
+ * record them must not block it forever). Far above the usual length: a delegation or an "ok" on the proposed sequence settles them well before. */
+export const PLAFOND_MESSAGES_MOMENTS = 20;
+
+/** The moments noted in the sheet (non-empty strings). */
+export const momentsDeFiche = (contenu: Record<string, unknown>): string[] =>
+  Array.isArray(contenu.moments) ? contenu.moments.filter((m): m is string => typeof m === "string" && m.trim() !== "").map((m) => m.trim()) : [];
 
 /** Sections the patch can cite without modifying them ("I confirmed what is already noted"): all of them, plus `fin`. */
 const SECTIONS_CITABLES: readonly string[] = [...SECTIONS_PATCHABLES, "fin"];
@@ -237,6 +253,7 @@ export function detailsAPreciser(fiche: Fiche): DetailAPreciser[] {
 const THEMES_SECTION: Record<string, string[]> = {
   titre: ["titre", "appel", "nom"],
   arc: ["histoire", "heros", "heroine", "coeur", "bascul", "veut", "intrigue", "recit"],
+  moments: ["moment", "deroul", "sequence", "suite", "etape", "voit", "passe", "liste"],
   fin: ["fin", "finit", "termin", "conclu", "sortant", "denouement"],
   genreTon: ["ton", "genre", "ambiance", "humour", "drame", "comedie"],
   style: ["style", "visuel", "look", "rendu", "dessin", "anim", "realis", "aquarelle", "image"],
@@ -342,8 +359,11 @@ export function appliquerNotes(fiche: Fiche, sortie: unknown, messagesUtilisateu
   const statuts = { ...fiche.statuts };
   for (const cle of touchees) {
     const prouve = verifiees.get(cle);
+    // New moments added without proof (a sequence proposed by the agent, not yet approved) are not the user's: the section goes back to
+    // "déduit" until they validate it. A reworded list of the same length keeps its status.
+    const momentsAjoutes = cle === "moments" && momentsDeFiche(contenu).length > momentsDeFiche(fiche.contenu).length;
     if (prouve) statuts[cle] = prouve;
-    else statuts[cle] = statuts[cle] === "fourni" || statuts[cle] === "delegue" ? statuts[cle]! : "deduit"; // enriching a said section does not make it assumed
+    else statuts[cle] = !momentsAjoutes && (statuts[cle] === "fourni" || statuts[cle] === "delegue") ? statuts[cle]! : "deduit"; // enriching a said section does not make it assumed
   }
   for (const [cle, prouve] of verifiees) {
     if (cle.startsWith("detail:")) continue;
@@ -401,10 +421,34 @@ function estampillerDetails(contenu: Record<string, unknown>, details: Record<st
 
 const present = (fiche: Fiche, cle: string): boolean => (cle === "fin" ? true : !valeurVide(fiche.contenu[cle]));
 
-/** The ESSENTIALS the user has not yet settled (labels of `REQUIS`), in order. */
+const tranche = (fiche: Fiche, cle: string): boolean => fiche.statuts[cle] === "fourni" || fiche.statuts[cle] === "delegue";
+
+/** The label of the moments when they are missing: how many are noted out of how many the duration calls for, and whether the user
+ * has validated them. */
+function libelleMoments(fiche: Fiche): string {
+  const base = REQUIS.find((r) => r.cle === "moments")!.libelle;
+  const requis = momentsRequis(fiche.contenu.dureeEpisodeSecondes);
+  if (requis === 0) return base;
+  const n = momentsDeFiche(fiche.contenu).length;
+  return n > 0 && !tranche(fiche, "moments") ? `${base} (${n} notés sur ${requis}, pas encore validés par l'utilisateur)` : `${base} (${n} sur ${requis})`;
+}
+
+/** The moments are settled: the user said them or validated the proposed sequence (or delegated it), AND there are enough of them for
+ * the duration (`momentsRequis`; with no known duration, at least one). */
+export const momentsTranches = (fiche: Fiche): boolean =>
+  tranche(fiche, "moments") && momentsDeFiche(fiche.contenu).length >= Math.max(1, momentsRequis(fiche.contenu.dureeEpisodeSecondes));
+
+/** The ESSENTIALS the user has not yet settled (keys and labels), in `REQUIS` order. */
+export function essentielsManquants(fiche: Fiche): { cle: string; libelle: string }[] {
+  return REQUIS.filter((r) => (r.cle === "moments" ? !momentsTranches(fiche) : !(present(fiche, r.cle) && tranche(fiche, r.cle)))).map((r) => ({
+    cle: r.cle,
+    libelle: r.cle === "moments" ? libelleMoments(fiche) : r.libelle,
+  }));
+}
+
+/** The ESSENTIALS the user has not yet settled (labels), in order. */
 export function manquesEssentiels(fiche: Fiche): string[] {
-  const tranche = (cle: string) => fiche.statuts[cle] === "fourni" || fiche.statuts[cle] === "delegue";
-  return REQUIS.filter((r) => !(present(fiche, r.cle) && tranche(r.cle))).map((r) => r.libelle);
+  return essentielsManquants(fiche).map((r) => r.libelle);
 }
 
 /** What the user has not yet settled (labels), in order: the essentials, then the details to specify. This is what the agent
@@ -413,13 +457,15 @@ export function manquesFiche(fiche: Fiche): string[] {
   return [...manquesEssentiels(fiche), ...detailsAPreciser(fiche).map((d) => d.libelle)];
 }
 
-/** The sheet is complete (decided in code): enough messages (two, three after a big first block), all the essentials settled, and the
+/** The sheet is complete (decided in code): enough messages (two, three after a big first block), all the essentials settled (the moments:
+ * enough for the duration and validated, except past `PLAFOND_MESSAGES_MOMENTS`), and the
  * details settled (said precisely or delegated); beyond `PLAFOND_MESSAGES_DETAILS` messages, the details no longer hold.
  * `messagesUtilisateur`: the messages (the first tells whether it is a big block), or just their count (ordinary minimum). */
 export function ficheComplete(fiche: Fiche, messagesUtilisateur: number | readonly string[]): boolean {
   const nb = typeof messagesUtilisateur === "number" ? messagesUtilisateur : messagesUtilisateur.length;
   const min = typeof messagesUtilisateur === "number" ? MIN_MESSAGES_FICHE : minMessagesFiche(messagesUtilisateur);
-  if (nb < min || manquesEssentiels(fiche).length > 0) return false;
+  const bloquants = essentielsManquants(fiche).filter((r) => r.cle !== "moments" || nb < PLAFOND_MESSAGES_MOMENTS);
+  if (nb < min || bloquants.length > 0) return false;
   return nb >= PLAFOND_MESSAGES_DETAILS || detailsAPreciser(fiche).length === 0;
 }
 
@@ -449,7 +495,9 @@ export function entreeNotes(messages: { role: string; content: string }[], fiche
   return {
     fiche: { contenu: fiche.contenu, statuts: fiche.statuts },
     /** What the user has not yet settled: if their message leaves ALL the rest to the agent, each point is a delegation. */
-    aTrancher: REQUIS.filter((r) => manquesEssentiels(fiche).includes(r.libelle)).map((r) => r.cle),
+    aTrancher: essentielsManquants(fiche).map((r) => r.cle),
+    /** How many moments the duration calls for (0: duration unknown). On a delegation of the moments, the model writes at least that many. */
+    momentsRequis: momentsRequis(fiche.contenu.dureeEpisodeSecondes),
     /** The details to specify (costumes, sets, effects, continuity): their keys are those of the output's `details`. */
     detailsATrancher: detailsAPreciser(fiche).map((d) => ({ cle: d.cle, libelle: d.libelle })),
     /** The title is missing and the story has a core: the model MUST propose one (it used to forget when nothing obliged it to). */
@@ -513,4 +561,31 @@ export function titreAAdopter(fiche: Fiche, ancienne: Fiche, nomProjet: string):
   const avant = typeof ancienne.contenu.titre === "string" ? ancienne.contenu.titre.trim() : "";
   const provisoire = TITRES_PROVISOIRES.has(nomProjet.trim().toLowerCase()) || (avant !== "" && nomProjet.trim() === avant);
   return provisoire ? titre.slice(0, 200) : null;
+}
+
+// --- Stillness written as a quality (project 259, 2026-11-17) --------------------------------------------------------------------
+// The notes had written « apparence funèbre et statique », then « la danseuse est désormais statique »: the screenplay obeyed, and half the
+// film stood still. A character's look, gestures and the film's moments never say stillness: they say what is SEEN (an action, a bearing).
+
+/** Stillness words (normalised: accents and case aside). */
+const IMMOBILITE = / (statique|statiques|immobile|immobiles|immobilite|fige|figee|figes|figees) /;
+
+export const ditImmobilite = (texte: string): boolean => IMMOBILITE.test(` ${normaliser(texte)} `);
+
+/** The places of a `notes-entretien` output that write stillness as a quality of a character (`apparence`, `gestuelle`) or as a moment of the
+ * film: one French message per place, for the resend (lib/llm/checks.ts). Pure. */
+export function immobiliteDansNotes(sortie: unknown): string[] {
+  const m = objet(objet(sortie).modifications);
+  const conseil =
+    "écris ce qu'on VOIT, comme une action ou un maintien (« gestes lents, saccadés, comme une marionnette », « elle continue de danser pendant que la tache monte »), jamais « statique », « immobile » ou « figé » comme qualité du personnage ou comme moment.";
+  const erreurs: string[] = [];
+  for (const p of listeObjets(m.personnages)) {
+    for (const champ of ["apparence", "gestuelle"] as const) {
+      if (ditImmobilite(chaine(p[champ]))) erreurs.push(`personnages « ${chaine(p.nom) || "?"} », ${champ} : « ${chaine(p[champ])} » dit l'immobilité ; ${conseil}`);
+    }
+  }
+  for (const [i, x] of (Array.isArray(m.moments) ? m.moments : []).entries()) {
+    if (typeof x === "string" && ditImmobilite(x)) erreurs.push(`moments, n° ${i + 1} : « ${x.trim()} » est une pose, pas un moment ; ${conseil}`);
+  }
+  return erreurs;
 }

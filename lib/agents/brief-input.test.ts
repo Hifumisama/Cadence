@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { MARQUE_FICHE, entreeTour, messageBriefPret, messagesPourLlm } from "./brief-input";
-import type { Fiche } from "./sheet";
+import { manquesEssentiels, type Fiche } from "./sheet";
 
 const conv = [
   { role: "user" as const, content: "Un trentenaire découvre ses pouvoirs." },
@@ -82,6 +82,22 @@ test("tour : un gros premier message se déplie en plusieurs échanges", () => {
   const bloc = [{ role: "assistant" as const, content: "Raconte-moi." }, { role: "user" as const, content: "Une très longue histoire. ".repeat(40) }];
   assert.match(entreeTour(bloc, fiche, { manques: ["la fin"], complete: false }).at(-1)!.content, /premier message est un gros bloc/);
   assert.ok(!/gros bloc/.test(entreeTour(conv, fiche, { manques: ["la fin"], complete: false })[2]!.content));
+});
+
+test("tour : les moments manquent, le cœur est connu : le scénariste propose la suite lui-même et la fait valider", () => {
+  const f: Fiche = { contenu: { arc: "Une danseuse bascule dans un enfer vert.", dureeEpisodeSecondes: 120, moments: ["a", "b", "c"] }, statuts: { arc: "fourni", dureeEpisodeSecondes: "fourni", moments: "fourni" } };
+  const manques = manquesEssentiels(f).filter((m) => m.startsWith("les moments"));
+  assert.deepEqual(manques, ["les moments du film (3 sur 12)"]);
+  const e = entreeTour(conv, f, { manques, complete: false })[2]!.content;
+  assert.match(e, /pas encore dit : les moments du film \(3 sur 12\)/);
+  assert.match(e, /Les moments du film manquent \(3 notés ; il en faut au moins 12/);
+  assert.match(e, /propose toi-même la suite complète, en liste numérotée/);
+  assert.match(e, /demande-lui de la valider ou de la changer/);
+  const tranche = /Déjà tranché par l'utilisateur, à ne JAMAIS redemander : ([^.]*)\./.exec(e)?.[1] ?? "";
+  assert.ok(tranche.includes("le cœur de l'histoire") && !tranche.includes("moments"), "une suite trop courte n'est pas « déjà tranchée »");
+  // Heart still unknown: the moments stay in the reminder, without the instruction to propose the sequence.
+  const sansCoeur = entreeTour(conv, { contenu: {}, statuts: {} }, { manques: ["le cœur de l'histoire", "les moments du film"], complete: false })[2]!.content;
+  assert.ok(!/propose toi-même la suite/.test(sansCoeur));
 });
 
 test("tour : si le dernier message n'est pas de l'utilisateur, rien n'est ajouté", () => {

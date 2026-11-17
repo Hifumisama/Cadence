@@ -89,7 +89,7 @@ export type TypeEdition = "nombre" | "texte" | "lignes" | "json" | "style" | "li
 
 const CLES_NOMBRE: CleSectionBrief[] = ["dureeEpisodeSecondes"];
 const CLES_TEXTE: CleSectionBrief[] = ["titre", "arc", "genreTon", "langueDialogues", "rythme"];
-const CLES_LIGNES: CleSectionBrief[] = ["inventions", "questionsOuvertes"];
+const CLES_LIGNES: CleSectionBrief[] = ["moments", "inventions", "questionsOuvertes"];
 
 export function typeEdition(cle: string): TypeEdition {
   if (cle === "style") return "style"; // name + clause: two fields, not raw JSON

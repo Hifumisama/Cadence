@@ -20,6 +20,7 @@ You write **one scene** of an episode: its plans and lines. It is **narrative**:
 - The **brief** (`briefExtrait`): style, characters (age, appearance, gestures), places, dialogue language, **rhythm** (`rythme`). `briefExtrait.notes` apply like the rest. The **episode** (title, summary, `briefEpisode`) and the **registry**: reuse its names.
 - **`traitementEpisode`**: every scene of the episode, in order (title, intention). It tells you where your scene stands in the story; it is **not yours to write**.
 - **`parolesDeLAuteur`**, the author's own messages word for word, and `scene.momentsDeLAuteur`, what they said about **your** scene.
+- **`scene.moments`** (when present): the film's moments the treatment gave **your** scene, in order. **Each one is shown** by a plan, as a visible action (a change happens while the character acts, never as a still pose); none is skipped, and none of another scene's moments is told here.
 - **`scene`**: your scene. `titre`, `fonction`, `ambiance` (held over the whole scene), `intention` (what it tells), `etatEntree` (where it starts), `etatSortie` (where it must end), `dureeCibleSecondes` (the screen time it has), `position` in the episode.
 - **`scenePrecedente`** (title and `etatSortie`) and **`sceneSuivante`** (title and `etatEntree`), or null. Another call is writing them: trust these states.
 - A `consigne` and possibly a `retourUtilisateur` that corrects a previous proposal: apply it.

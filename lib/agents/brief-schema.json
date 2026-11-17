@@ -36,6 +36,13 @@
       "type": "string",
       "description": "(French) Two to four sentences: what the story tells and its tipping point."
     },
+    "moments": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "(French) The film's moments, in order, one short sentence each: who does what, where, with a visible action (« La danseuse tourne sur la scène du théâtre, les rubans fouettant l'air »). Never a still pose: a change happens WHILE someone acts. About one moment per 10 seconds of the duration."
+    },
     "genreTon": {
       "type": "string",
       "description": "(French) Genre and tone, in one or two sentences."

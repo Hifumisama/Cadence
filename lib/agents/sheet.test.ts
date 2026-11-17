@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { messageBriefPret } from "./brief-input";
 import { chargerSkill } from "../llm/skills";
 import { compilerSchema } from "../llm/validation";
+import { controleurPourSkill } from "../llm/checks";
 import { SCHEMA_BRIEF } from "./brief";
 import { accrocheEntretien, PISTES, tirerPistes } from "./hook";
 import {
@@ -11,6 +12,7 @@ import {
   MIN_MESSAGES_FICHE,
   MIN_MESSAGES_GROS_BLOC,
   PLAFOND_MESSAGES_DETAILS,
+  PLAFOND_MESSAGES_MOMENTS,
   REQUIS,
   SECTIONS_PATCHABLES,
   SEUIL_GROS_BLOC,
@@ -18,6 +20,9 @@ import {
   briefVersFiche,
   delegationGlobale,
   detailsAPreciser,
+  ditImmobilite,
+  immobiliteDansNotes,
+  momentsRequis,
   entreeNotes,
   ficheComplete,
   ficheVersBrief,
@@ -118,10 +123,13 @@ test("une délégation citée (« je te laisse choisir ») tranche la question s
 
 const tenueTheo = { coupe: "parka longue, jean droit", couleurs: "gris anthracite, écharpe rouge", matieres: "nylon mat, laine", evolution: "identique du début à la fin" };
 
+/** `n` moments with a visible action. */
+const momentsDe = (n: number): string[] => Array.from({ length: n }, (_, i) => `Théo traverse la rue n° ${i + 1} en courant.`);
+
 function ficheDite(): Fiche {
   return {
-    contenu: { arc: "A", genreTon: "T", style, rythme: "soutenu", dureeEpisodeSecondes: 180, personnages: [{ ...heros, tenue: tenueTheo }] },
-    statuts: { arc: "fourni", fin: "fourni", genreTon: "fourni", style: "fourni", rythme: "fourni", dureeEpisodeSecondes: "fourni", personnages: "fourni" },
+    contenu: { arc: "A", moments: momentsDe(18), genreTon: "T", style, rythme: "soutenu", dureeEpisodeSecondes: 180, personnages: [{ ...heros, tenue: tenueTheo }] },
+    statuts: { arc: "fourni", fin: "fourni", moments: "fourni", genreTon: "fourni", style: "fourni", rythme: "fourni", dureeEpisodeSecondes: "fourni", personnages: "fourni" },
     details: { "tenue:theo": "fourni", raccords: "fourni" },
   };
 }
@@ -271,6 +279,81 @@ test("détails : lus depuis la base, gardés à la relecture du brouillon, et ja
   const { contenu, statuts } = ficheVersBrief(ficheDite(), "T");
   assert.ok(!("details" in contenu) && !("details" in statuts));
   assert.ok(compilerSchema(SCHEMA_BRIEF)({ ...contenu }), "un brief avec tenue reste valide");
+});
+
+// --- The screenwriter who digs (2026-11-17): enough moments for the duration ------------------------------------------------------
+
+test("momentsRequis : un moment distinct toutes les dix secondes, arrondi au-dessus", () => {
+  assert.equal(momentsRequis(120), 12);
+  assert.equal(momentsRequis(125), 13);
+  assert.equal(momentsRequis(180), 18);
+  assert.equal(momentsRequis(undefined), 0);
+  assert.equal(momentsRequis(0), 0);
+});
+
+/** Project 259: 120 s, everything settled, and only the beats the user gave. */
+function fiche120(moments: string[], statut: "fourni" | "delegue" | "deduit" = "fourni"): Fiche {
+  const f = ficheDite();
+  return { ...f, contenu: { ...f.contenu, dureeEpisodeSecondes: 120, moments }, statuts: { ...f.statuts, moments: statut } };
+}
+
+test("moments : trois pour 120 s ne suffisent pas ; douze validés, si", () => {
+  const trois = fiche120(["La danseuse danse sur la scène.", "Elle bascule dans un enfer de flammes vertes.", "Elle disparaît dans les flammes."]);
+  assert.equal(ficheComplete(trois, 5), false, "la durée est un plancher");
+  assert.deepEqual(manquesEssentiels(trois), ["les moments du film (3 sur 12)"]);
+  assert.equal(ficheComplete(fiche120(momentsDe(12)), 5), true);
+  const proposes = fiche120(momentsDe(12), "deduit");
+  assert.equal(ficheComplete(proposes, 5), false, "proposés mais pas validés par l'utilisateur");
+  assert.match(manquesEssentiels(proposes)[0]!, /12 notés sur 12, pas encore validés/);
+  assert.equal(ficheComplete(fiche120(momentsDe(12), "delegue"), 5), true, "« je te laisse faire » : la suite proposée tranche");
+  assert.equal(ficheComplete(trois, PLAFOND_MESSAGES_DETAILS), false, "le plafond des détails ne libère pas les moments");
+  assert.equal(ficheComplete(trois, PLAFOND_MESSAGES_MOMENTS), true, "filet de sécurité : l'entretien ne reste jamais bloqué");
+  assert.deepEqual(entreeNotes([], trois).aTrancher, ["moments"]);
+  assert.equal(entreeNotes([], trois).momentsRequis, 12);
+});
+
+test("appliquerNotes : les moments dits ou validés sont notés ; une suite ajoutée sans preuve redevient supposée", () => {
+  const conversation = [
+    { role: "user", content: "Une danseuse qui bascule dans un enfer de flammes vertes." },
+    { role: "assistant", content: "Voici la suite des moments que je vois : 1. … 12. … Ça te va ?" },
+    { role: "user", content: "Ça me va, garde cette suite." },
+  ];
+  const utilisateur = conversation.filter((m) => m.role === "user").map((m) => m.content);
+  const valide = appliquerNotes(fiche120([], "deduit"), { modifications: { moments: momentsDe(12) }, sources: [{ section: "moments", origine: "dit", citation: "Ça me va, garde cette suite" }] }, utilisateur, conversation);
+  assert.deepEqual(valide.contenu.moments, momentsDe(12));
+  assert.equal(valide.statuts.moments, "fourni");
+  assert.equal(ficheComplete(valide, utilisateur), true);
+  // Three moments said, then the model adds nine of its own without proof: they are not the user's.
+  const dits = fiche120(momentsDe(3));
+  const ajoutes = appliquerNotes(dits, { modifications: { moments: momentsDe(12) }, sources: [] }, utilisateur);
+  assert.equal(ajoutes.statuts.moments, "deduit");
+  const reformules = appliquerNotes(dits, { modifications: { moments: momentsDe(3).map((m) => `${m} !`) }, sources: [] }, utilisateur);
+  assert.equal(reformules.statuts.moments, "fourni", "reformuler la même suite ne lui ôte pas son statut");
+  // A delegation answering the question on the moments.
+  const deleg = [conversation[0]!, { role: "assistant", content: "Qu'est-ce qu'on voit, moment après moment ?" }, { role: "user", content: "Je te laisse faire." }];
+  const d = appliquerNotes(fiche120([], "deduit"), { modifications: { moments: momentsDe(12) }, sources: [{ section: "moments", origine: "delegue", citation: "Je te laisse faire" }] }, deleg.filter((m) => m.role === "user").map((m) => m.content), deleg);
+  assert.equal(d.statuts.moments, "delegue");
+  assert.equal(ficheComplete(d, 5), true);
+  // The brief carries them.
+  assert.deepEqual(ficheVersBrief(valide, "T").contenu.moments, momentsDe(12));
+  assert.ok(compilerSchema(SCHEMA_BRIEF)({ ...ficheVersBrief(valide, "T").contenu }), "un brief avec moments reste valide");
+});
+
+test("immobilité : jamais « statique », « immobile » ou « figé » comme qualité d'un personnage ou comme moment", () => {
+  assert.equal(ditImmobilite("apparence funèbre et statique"), true);
+  assert.equal(ditImmobilite("Elle reste FIGÉE au centre"), true);
+  assert.equal(ditImmobilite("gestes lents, saccadés, comme une marionnette"), false);
+  const erreurs = immobiliteDansNotes({
+    modifications: {
+      personnages: [{ ...heros, nom: "La danseuse", apparence: "apparence funèbre et statique", gestuelle: "gestes lents, saccadés" }],
+      moments: ["La danseuse tourne sur la scène.", "La danseuse est désormais immobile."],
+    },
+  });
+  assert.equal(erreurs.length, 2);
+  assert.match(erreurs[0]!, /La danseuse.*apparence/);
+  assert.match(erreurs[1]!, /moments, n° 2/);
+  assert.deepEqual(immobiliteDansNotes({ modifications: {} }), []);
+  assert.equal(controleurPourSkill("notes-entretien", {})!({ modifications: { moments: ["Elle reste figée."] } }).length, 1, "renvoi au modèle");
 });
 
 test("suppositions : ce que l'agent a posé sans que l'utilisateur le dise", () => {

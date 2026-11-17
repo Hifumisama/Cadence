@@ -107,7 +107,7 @@ test("resoudreStyle : bibliothèque (prompt long = descripteur), libre, et refus
   assert.ok(libre.ok && libre.style.promptImage === "Long" && libre.style.clause === "Court");
 });
 
-test("ficheDepuisConception : tout est fourni, il ne reste à trancher que l'arc, la fin et le héros", () => {
+test("ficheDepuisConception : tout est fourni, il ne reste à trancher que l'arc, la fin, le héros et les moments", () => {
   const c = valide({ dureeSecondes: 180, rythme: "rapide", langue: SANS_DIALOGUE });
   const r = resoudreStyle(c, BIBLIO);
   assert.ok(r.ok);
@@ -118,9 +118,10 @@ test("ficheDepuisConception : tout est fourni, il ne reste à trancher que l'arc
   assert.equal(fiche.contenu.dureeEpisodeSecondes, 180);
   assert.equal(fiche.contenu.rythme, "rapide");
   assert.ok(Object.values(fiche.statuts).every((s) => s === "fourni"));
-  assert.deepEqual(entreeNotes([], fiche).aTrancher, ["arc", "fin", "personnages"]);
-  assert.equal(manquesFiche(fiche).length, 3);
-  assert.equal(ficheComplete(fiche, 5), false, "la fiche n'est pas complète sans l'arc, la fin et le héros");
+  assert.deepEqual(entreeNotes([], fiche).aTrancher, ["arc", "fin", "personnages", "moments"]);
+  assert.equal(entreeNotes([], fiche).momentsRequis, 18, "180 s : dix-huit moments");
+  assert.equal(manquesFiche(fiche).length, 4);
+  assert.equal(ficheComplete(fiche, 5), false, "la fiche n'est pas complète sans l'arc, la fin, le héros et les moments");
 });
 
 test("informationsFormat : un projet est un film", () => {

@@ -94,7 +94,8 @@ export function depuisRegistreAsset(sortie: SortiePromptAsset, a: AssetDuRegistr
         type: a.type,
         suffixe: a.suffixe,
         description: a.description.trim(),
-        promptGeneration: sortie.promptGeneration,
+        // A new asset is always generated from text: it gets its sheet template like an existing one (project 261: a hero without 4 views).
+        promptGeneration: avecGabarit(sortie.promptGeneration, a.type, "generation"),
         methodeGeneration: "generation",
       },
       avertissements: avertissementsRemarques(sortie.remarques ?? []),
@@ -280,6 +281,7 @@ export type SortieTraitement = {
     etatSortie: string;
     poids: number;
     momentsDeLAuteur?: string;
+    moments?: string[];
   }[];
   inventions: string[];
   notes: string;
@@ -320,6 +322,7 @@ export function depuisTraitement(
           etatSortie: sc.etatSortie,
           dureeCibleSecondes: durees[i]!,
           momentsDeLAuteur: sc.momentsDeLAuteur ?? "",
+          ...(sc.moments?.length ? { moments: sc.moments } : {}),
         },
       },
       avertissements: i === 0 ? [...(sortie.inventions ?? []).map((t) => ({ type: "invention" as const, texte: t })), ...(sortie.notes?.trim() ? [{ type: "info" as const, texte: sortie.notes.trim() }] : [])] : [],

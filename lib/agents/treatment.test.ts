@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { ajusterDureesScene, nombreDeScenesVise, repartirDureesScenes, traitementDeScene } from "./treatment";
+import { ajusterDureesScene, controlerTraitement, nombreDeScenesVise, repartirDureesScenes, traitementDeScene } from "./treatment";
 
 const somme = (l: number[]) => l.reduce((a, b) => a + b, 0);
 
@@ -62,5 +62,40 @@ test("traitement lu : forme exigée, texte nettoyé, durée entière", () => {
     etatSortie: "Sur la route",
     dureeCibleSecondes: 60,
     momentsDeLAuteur: "",
+    moments: [],
   });
+});
+
+test("traitement : les moments du brief se répartissent sur les scènes, et la scène les reçoit", async () => {
+  const lu = traitementDeScene({ intention: "x", dureeCibleSecondes: 30, moments: [" La danseuse tourne. ", "", 3, "La tache monte sur sa robe pendant qu'elle danse."] });
+  assert.deepEqual(lu?.moments, ["La danseuse tourne.", "La tache monte sur sa robe pendant qu'elle danse."]);
+  const vise = { min: 1, max: 4 };
+  const scene = { titre: "A", intention: "i", etatEntree: "e", etatSortie: "s" };
+  const un = controlerTraitement({ scenes: [{ ...scene, moments: ["m1", "m2"] }] }, vise, 3);
+  assert.equal(un.length, 1);
+  assert.match(un[0]!, /2 moments sur les 3/);
+  assert.deepEqual(controlerTraitement({ scenes: [{ ...scene, moments: ["m1", "m2"] }, { ...scene, titre: "B", moments: ["m3"] }] }, vise, 3), []);
+  assert.deepEqual(controlerTraitement({ scenes: [scene] }, vise), [], "un brief sans moments : rien à répartir");
+  const { depuisTraitement } = await import("./conversion");
+  const ch = depuisTraitement({ scenes: [{ ...scene, fonction: "f", poids: 1, moments: ["m1"] }], inventions: [], notes: "" }, { id: 1, scenes: [] }, { dureeEpisodeSecondes: 30 });
+  assert.deepEqual((ch[0]!.apres as { traitement: { moments?: string[] } }).traitement.moments, ["m1"], "les moments de la scène sont stockés avec son traitement");
+});
+
+test("entrées en aval : le brief extrait porte les moments (traitement), la scène reçoit les siens (scenario-scene)", async () => {
+  const { extraitsBrief, sceneDeScenarioScene } = await import("./context");
+  const { briefVide } = await import("./brief");
+  const brief = { ...briefVide("T"), moments: ["La danseuse tourne.", "La tache monte pendant qu'elle danse."] };
+  const { extrait, contexte } = extraitsBrief(brief);
+  assert.deepEqual((extrait as { moments?: string[] }).moments, brief.moments);
+  assert.ok(contexte.some((c) => c.libelle === "Brief · 2 moments du film"));
+  assert.ok(!("moments" in (extraitsBrief(briefVide("T")).extrait as object)), "un ancien brief sans moments : rien");
+  // The treatment's check reads the brief's moments from its input.
+  const { controleurPourSkill } = await import("../llm/checks");
+  const ctrl = controleurPourSkill("traitement-episode", { nombreDeScenes: { min: 1, max: 3 }, briefExtrait: extrait })!;
+  assert.equal(ctrl({ scenes: [{ titre: "A", intention: "i", etatEntree: "e", etatSortie: "s", moments: ["La danseuse tourne."] }] }).length, 1, "un moment oublié : renvoi");
+  const t = traitementDeScene({ intention: "Elle danse.", dureeCibleSecondes: 20, moments: brief.moments })!;
+  const scene = sceneDeScenarioScene({ titre: "La danse", fonction: null, ambiance: " nuit " }, t, 0, 3);
+  assert.deepEqual(scene.moments, brief.moments);
+  assert.equal(scene.position, "1 sur 3");
+  assert.ok(!("moments" in sceneDeScenarioScene({ titre: "x", fonction: "", ambiance: null }, { ...t, moments: [] }, 1, 3)));
 });

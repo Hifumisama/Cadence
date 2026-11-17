@@ -1,6 +1,7 @@
 import { controlerDureeScenario, controlerLiaisonPremierPlan, controlerStructureScenario } from "../agents/screenplay-checks";
 import { controlerTraitement } from "../agents/treatment";
 import { constatsImmobilite, nomsPersonnagesDeLEntree } from "../agents/stillness";
+import { immobiliteDansNotes } from "../agents/sheet";
 import { contexteDepuisEntree, controlerSortieIterationPlan, type SortieIterationPlan } from "../agents/iteration-clip";
 import { problemesDeRelecture, type EntreeRelecture, type SortieRelecture } from "../agents/review";
 import {
@@ -59,10 +60,15 @@ export function controleurPourSkill(skill: string, entree: unknown): Controleur 
       ];
     };
   }
+  if (skill === "notes-entretien") {
+    // Stillness written as a character's quality or as a moment (project 259): the screenplay obeys it and the film stands still.
+    return (json) => immobiliteDansNotes(json);
+  }
   if (skill === "traitement-episode") {
-    const vise = ((entree ?? {}) as { nombreDeScenes?: { min: number; max: number } }).nombreDeScenes;
-    if (!vise) return undefined;
-    return (json) => controlerTraitement(json as Parameters<typeof controlerTraitement>[0], vise);
+    const e = (entree ?? {}) as { nombreDeScenes?: { min: number; max: number }; briefExtrait?: { moments?: unknown } | null };
+    if (!e.nombreDeScenes) return undefined;
+    const moments = Array.isArray(e.briefExtrait?.moments) ? e.briefExtrait.moments.length : 0;
+    return (json) => controlerTraitement(json as Parameters<typeof controlerTraitement>[0], e.nombreDeScenes!, moments);
   }
   if (skill === "scenario-scene") {
     // Durations are brought back to the target by the code (ajusterDureesScene): only the structure of the descriptions is checked, as for an episode,

@@ -76,18 +76,20 @@ const sansAccents = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toL
 /** "La Danseuse" → "danseuse": the article is dropped, so "la danseuse" and "La Danseuse" both match. */
 const nomCherche = (nom: string) => sansAccents(nom).replace(/^(?:la|le|les|l['’])\s*/, "").trim();
 const ABSENCE = mot("disparu(?:e|s|es)?|absente?s?|vide|n['’]est\\s+plus\\s+là|sans\\s+personne");
-const PRESENCE_GENERIQUE = mot("(?:il|elle|ils|elles)\\s+(?!y\\s)|(?:son|le)\\s+corps|(?:ses|les)\\s+(?:bras|mains|jambes|pieds|doigts|yeux)|(?:sa|la)\\s+(?:main|tête)|son\\s+(?:visage|regard)");
+const PRESENCE_GENERIQUE = mot("(?:il|elle|ils|elles)(?=\\s+(?!y\\s))|(?:son|le)\\s+corps|(?:ses|les)\\s+(?:bras|mains|jambes|pieds|doigts|yeux)|(?:sa|la)\\s+(?:main|tête)|son\\s+(?:visage|regard)");
 
 /** True when no character acts in the plan (only light, set, ashes, flames…). With `nomsPersonnages`, a character is present when a sentence
  * names them (a sentence that names them only to say they are gone does not count); without names, a subject pronoun or a body part. */
 export function planVide(description: string, nomsPersonnages: string[] = []): boolean {
   const phrases = phrasesDuRecit(description);
   if (phrases.length === 0) return false;
-  const noms = nomsPersonnages.map(nomCherche).filter((n) => n.length >= 2);
+  // A character is named by their whole name or its first word (« Tifa » for « Tifa Lockhart », « soldat(s) » for « Soldat de Shinra »):
+  // texts rarely repeat the full name (bench 2026-11-17: a whole fight read as empty). A subject pronoun or a body part counts too.
+  const noms = [...new Set(nomsPersonnages.map(nomCherche).flatMap((n) => [n, n.split(/\s+/)[0] ?? ""]))].filter((n) => n.length >= 3);
   const present = (phrase: string) => {
-    if (noms.length === 0) return PRESENCE_GENERIQUE.test(phrase);
+    if (ABSENCE.test(phrase)) return false;
     const p = sansAccents(phrase);
-    return noms.some((n) => mot(n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).test(p)) && !ABSENCE.test(phrase);
+    return PRESENCE_GENERIQUE.test(phrase) || noms.some((n) => mot(`${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}s?`).test(p));
   };
   return !phrases.some(present);
 }

@@ -37,7 +37,10 @@ Nettoyage fait (sauvegardes du NAS supprimées, script retiré du dépôt). Rest
     - **Le skill `notes-entretien`** : règles 13 et 14.
     - **Limite :** les cheveux, la voix et la gestuelle n'ont pas de statut par champ et ne sont donc pas encore signalés.
   - **Reste :**
-    - phase 5 : scénariste, scénario et durée plancher, via le banc avec réflexion ;
+    - phase 5 : scénariste, scénario et durée plancher, via le banc avec réflexion. En cours, non commitée :
+      - **5.1, banc mouvement** (`essais/mouvement/`), 4 versions de la bascule du 259 jugées à l'aveugle. Classement de l'utilisateur : règles + réflexion > calibré > actuel > règles sans réflexion. « Même C bouge peu » : la fiche disait « statique ». Rendu de C dans la scène « Banc · bascule · C » du 259, à juger (T10).
+      - **Détecteur corrigé :** les pronoms ne comptaient jamais, et il fallait le nom complet (« Tifa » pour « Tifa Lockhart »).
+      - **5.3, scénariste qui creuse :** section `moments` (1 pour 10 s, validés ou délégués par l'utilisateur, plafond de 20 messages), proposée par le scénariste, transmise au traitement puis aux scènes ; plus de « statique » comme qualité d'un personnage. À tester en rejouant l'entretien (T9).
     - phase 6 : rejouer le projet complet.
   - **Vu à l'essai GPU de l'affiche :** titre mal orthographié par Qwen (« Pieé ») et décor absent, puisque seule l'image du héros est donnée en source. Pistes : passer le décor principal en 2ᵉ source, et poser le titre par l'app au lieu de le faire écrire par le modèle.
   - `npm run lint` est cassé depuis longtemps : `next lint` n'existe plus et il n'y a pas de configuration ESLint.

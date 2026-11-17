@@ -17,7 +17,7 @@ import { editionImposee } from "../assets/asset-state";
 import { poigneePlan, type EntreeInventaire } from "./inventory";
 import { liaisonOuDefaut, type Liaison } from "../clips/clip-link";
 import { sansEtatDeFin } from "../clips/intent";
-import { nombreDeScenesVise, traitementDeScene } from "./treatment";
+import { nombreDeScenesVise, traitementDeScene, type TraitementScene } from "./treatment";
 import { constatsImmobilite, nomsPersonnagesDeLEntree } from "./stillness";
 import { choisirReferencesPlan, type ChoixReferencesPlan } from "../h3ir/references-clip-db";
 import { construireEntreeReferencesPlan, SKILL_REFERENCES_PLAN } from "./references-clip";
@@ -45,6 +45,8 @@ export function extraitsBrief(brief: BriefContenu | null): { extrait: object | n
   if (!brief) return { extrait: null, contexte: [] };
   const extrait = {
     arc: brief.arc,
+    // The film's moments in order (interview, 2026-11-17): what we SEE, one moment per ~10 s. The treatment distributes them over the scenes.
+    ...(brief.moments?.length ? { moments: brief.moments } : {}),
     genreTon: brief.genreTon,
     style: brief.style,
     langueDialogues: brief.langueDialogues,
@@ -62,6 +64,7 @@ export function extraitsBrief(brief: BriefContenu | null): { extrait: object | n
   const contexte: ContexteUtilise[] = [
     { type: "brief", libelle: "Brief · style et clause de style", ref: "style" },
     { type: "brief", libelle: "Brief · arc et ton", ref: "arc" },
+    ...(brief.moments?.length ? [{ type: "brief" as const, libelle: `Brief · ${brief.moments.length} moment${brief.moments.length > 1 ? "s" : ""} du film`, ref: "moments" }] : []),
     { type: "brief", libelle: `Brief · ${brief.personnages.length} personnage${brief.personnages.length > 1 ? "s" : ""}, ${brief.lieux.length} lieu${brief.lieux.length > 1 ? "x" : ""}`, ref: "personnages" },
     ...(brief.elements?.length ? [{ type: "brief" as const, libelle: `Brief · ${brief.elements.length} effet${brief.elements.length > 1 ? "s" : ""} ou objet${brief.elements.length > 1 ? "s" : ""}`, ref: "elements" }] : []),
     ...(brief.notes?.trim() ? [{ type: "brief" as const, libelle: "Brief · notes du projet", ref: "notes" }] : []),
@@ -408,6 +411,23 @@ export async function entreeTraitement(
   };
 }
 
+/** The `scene` of the `scenario-scene` input: the scene and its treatment (`i`: its rank from 0, `n`: the episode's scene count). Pure, tested. */
+export function sceneDeScenarioScene(sc: { titre: string; fonction: string | null; ambiance: string | null }, t: TraitementScene, i: number, n: number) {
+  return {
+    titre: sc.titre,
+    fonction: sc.fonction ?? "",
+    ambiance: (sc.ambiance ?? "").trim(),
+    intention: t.intention,
+    etatEntree: t.etatEntree,
+    etatSortie: t.etatSortie,
+    dureeCibleSecondes: t.dureeCibleSecondes,
+    ...(t.momentsDeLAuteur ? { momentsDeLAuteur: t.momentsDeLAuteur } : {}),
+    // The brief's moments the treatment gave this scene: each one is shown.
+    ...(t.moments.length ? { moments: t.moments } : {}),
+    position: `${i + 1} sur ${n}`,
+  };
+}
+
 /** The `scenario-scene` input (step E): ONE scene of an episode, written from its treatment. The start of the input (episode, brief, registry, the author's words,
  * the episode's treatment) is the same for all scenes: it goes into the cache. The scene and its neighbours (PLANNED entry and exit states: the scenes
  * are written in parallel, none reads the other's text) come after. Null if the scene is not in the project or has no treatment. */
@@ -455,17 +475,7 @@ export async function entreeScenarioScene(
       registre: c.registre,
       ...(paroles.length ? { parolesDeLAuteur: paroles } : {}),
       traitementEpisode: toutes.map((x) => ({ titre: x.titre, intention: traitementDeScene(x.traitement)?.intention ?? "" })),
-      scene: {
-        titre: sc.titre,
-        fonction: sc.fonction ?? "",
-        ambiance: (sc.ambiance ?? "").trim(),
-        intention: t.intention,
-        etatEntree: t.etatEntree,
-        etatSortie: t.etatSortie,
-        dureeCibleSecondes: t.dureeCibleSecondes,
-        ...(t.momentsDeLAuteur ? { momentsDeLAuteur: t.momentsDeLAuteur } : {}),
-        position: `${i + 1} sur ${toutes.length}`,
-      },
+      scene: sceneDeScenarioScene(sc, t, i, toutes.length),
       scenePrecedente: avant ? { titre: avant.titre, etatSortie: avant.traitement?.etatSortie ?? "" } : null,
       sceneSuivante: apres ? { titre: apres.titre, etatEntree: apres.traitement?.etatEntree ?? "" } : null,
       consigne,

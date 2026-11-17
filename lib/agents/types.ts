@@ -160,6 +160,9 @@ export type BriefContenu = {
   titre: string;
   source: "pitch" | "texte" | "reconstitue";
   arc: string;
+  /** The film's moments, in order: who does what, where, with a visible action; about one per 10 s of the duration (interview, 2026-11-17).
+   * Optional: absent from older briefs. */
+  moments?: string[];
   genreTon?: string;
   /** `promptImage` (English, long: generates the images) and `image` (2:3, presentation) are set by the CODE when the project is created
    * (design, lib/projects/design.ts), never by an agent; `clause` (short) goes to the video. */
@@ -187,6 +190,7 @@ export type BriefContenu = {
 export const SECTIONS_BRIEF = [
   { cle: "titre", libelle: "Titre", groupe: "Univers" },
   { cle: "arc", libelle: "Arc", groupe: "Univers" },
+  { cle: "moments", libelle: "Moments du film", groupe: "Univers" },
   { cle: "genreTon", libelle: "Genre et ton", groupe: "Univers" },
   { cle: "langueDialogues", libelle: "Langue des dialogues", groupe: "Univers" },
   { cle: "dureeEpisodeSecondes", libelle: "Durée d'un épisode (s)", groupe: "Univers" },
