@@ -29,6 +29,8 @@ export async function entreeEssaiAsset(
     images: { rang: number; role: "base" | "jointe"; libelle: string }[];
     /** A sound: the duration the user set (the prompt must fit it). */
     dureeSecondes?: number;
+    /** The base is the parent's image (a character or set state): the parent stays in the input, the prompt is a transformation of it. */
+    depuisParent?: boolean;
   },
 ): Promise<EntreeSkill | null> {
   const methode = methodeDEssai(p.images.length > 0);
@@ -56,7 +58,7 @@ export async function entreeEssaiAsset(
     entree: {
       ...base.entree,
       asset: { ...e.asset, methodeGeneration: methode, promptActuel: p.promptBase },
-      parent: null,
+      parent: p.depuisParent ? e.parent : null,
       methodeImposee: methode,
       ...(p.images.length > 0 ? { imagesDeLEssai: p.images } : {}),
     },

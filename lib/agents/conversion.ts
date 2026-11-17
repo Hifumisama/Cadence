@@ -1,5 +1,6 @@
 import { avecTitreDansImage, titreDansPrompt } from "../posters/posters";
 import { avecGabarit } from "../assets/sheet-templates";
+import { editionImposee } from "../assets/asset-state";
 import { PREFIXE_PAR_TYPE, TYPES_ASSET, slugifyCode } from "../assets/assetCode";
 import type { ChangementBrut } from "./changes";
 import { estLiaison } from "../clips/clip-link";
@@ -25,6 +26,8 @@ export type AssetCourant = {
   code: string;
   type: string;
   methodeGeneration: string | null;
+  /** The asset it is a state of: a character or set state is always an edit of it (lib/assets/asset-state.ts). */
+  deriveDeId?: number | null;
 };
 
 const TYPES_REMARQUE_SOUCIS = new Set(["voix-ou-musique", "description-vague", "incoherence-famille", "dependance-parent", "absence-ou-point-de-vue"]);
@@ -36,12 +39,16 @@ function avertissementsRemarques(remarques: { type: string; message: string }[])
 /** An asset to modify: its prompt (and, if the agent recommends it differently, its method).
  * The canonical description is never rewritten by this skill. */
 export function depuisPromptAsset(sortie: SortiePromptAsset, asset: AssetCourant): ChangementBrut[] {
+  // A character or set state starts from its parent's image, whatever the skill recommends.
+  const imposee = editionImposee(asset);
+  const methode = imposee ? "edition" : sortie.methode;
   // The sheet template (4 views, 3 views in a fixed layout) is added by the code, never left to the model.
-  const apres: Record<string, unknown> = { promptGeneration: avecGabarit(sortie.promptGeneration, asset.type, sortie.methode) };
-  if (sortie.methode !== (asset.methodeGeneration ?? "generation")) apres.methodeGeneration = sortie.methode;
+  const apres: Record<string, unknown> = { promptGeneration: avecGabarit(sortie.promptGeneration, asset.type, methode) };
+  if (methode !== (asset.methodeGeneration ?? "generation")) apres.methodeGeneration = methode;
   const avertissements = avertissementsRemarques(sortie.remarques ?? []);
   if (apres.methodeGeneration) {
-    avertissements.unshift({ type: "info", texte: `Méthode recommandée : ${sortie.methode}. ${sortie.raisonMethode}` });
+    const raison = imposee && sortie.methode !== "edition" ? "Un état part toujours de l'image de son parent : même visage, même lieu." : sortie.raisonMethode;
+    avertissements.unshift({ type: "info", texte: `Méthode ${imposee ? "imposée" : "recommandée"} : ${methode}. ${raison}` });
   }
   return [
     {

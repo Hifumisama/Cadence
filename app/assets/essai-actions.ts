@@ -10,6 +10,7 @@ import { dirname, extname, join } from "node:path";
 import { creerRun } from "@/lib/agents/runs";
 import { BUT_ESSAI, entreeEssaiAsset } from "@/lib/agents/asset-attempt";
 import { libelleAsset } from "@/lib/assets/assetCode";
+import { editionImposee } from "@/lib/assets/asset-state";
 import {
   STATUT_TRADUCTION,
   formatParDefaut,
@@ -29,7 +30,7 @@ import { idSchema, texteSchema, uuidSchema, verifier } from "@/lib/validation/ar
 
 const essaiSchema = z.object({
   consigne: texteSchema(4000),
-  base: z.union([z.literal("actuelle"), z.object({ essai: uuidSchema }), z.null()]),
+  base: z.union([z.literal("actuelle"), z.literal("parent"), z.object({ essai: uuidSchema }), z.null()]),
   jointes: z
     .array(z.union([z.object({ origine: z.literal("asset"), assetId: idSchema }), z.object({ origine: z.literal("import"), fichier: z.string().max(255) })]))
     .max(10)
@@ -41,8 +42,9 @@ const essaiSchema = z.object({
 
 type Resultat = { ok: true } | { ok: false; erreur: string };
 
-/** Where an attempt starts from: the asset's current image, a previous attempt (by its uuid), or nothing (Krea 2 creates the image). */
-export type BaseEssai = "actuelle" | { essai: string } | null;
+/** Where an attempt starts from: the asset's current image, its parent's image (a character or set state), a previous attempt (by its uuid),
+ * or nothing (Krea 2 creates the image). */
+export type BaseEssai = "actuelle" | "parent" | { essai: string } | null;
 
 /** An image attached to the attempt: that of another asset in the registry, or a dropped image (see `deposerSourceImport`). */
 export type ImageJointe = { origine: "asset"; assetId: number } | { origine: "import"; fichier: string };
@@ -58,17 +60,27 @@ export async function lancerEssai(
   const [asset] = await db.select().from(assets).where(eq(assets.id, assetId));
   if (!asset) return { ok: false, erreur: "Cet asset n'existe pas." };
 
+  // A character or set state never starts from scratch: without a base, it starts from its parent's image (lib/assets/asset-state.ts).
+  const parent = editionImposee(asset) ? ((await db.select().from(assets).where(eq(assets.id, asset.deriveDeId!)))[0] ?? null) : null;
+  const baseVoulue: BaseEssai = p.base == null && parent ? "parent" : p.base;
+
   // The base image, and the prompt that produced it.
   let baseFichierRelatif: string | null = null;
   let promptBase = asset.promptGeneration ?? "";
-  if (p.base === "actuelle") {
+  if (baseVoulue === "parent") {
+    if (!parent) return { ok: false, erreur: "Cet asset n'est l'état d'aucun autre." };
+    if (!parent.fichier || !estImage(parent.fichier)) {
+      return { ok: false, erreur: `Cet état part de l'image de « ${libelleAsset(parent)} » : génère-la et adopte-la d'abord.` };
+    }
+    baseFichierRelatif = cheminAssetMedia(parent.fichier);
+  } else if (baseVoulue === "actuelle") {
     if (!asset.fichier || !estImage(asset.fichier)) return { ok: false, erreur: "Cet asset n'a pas d'image à retoucher." };
     baseFichierRelatif = cheminAssetMedia(asset.fichier);
-  } else if (p.base) {
+  } else if (baseVoulue) {
     const [essai] = await db
       .select()
       .from(assetGenerations)
-      .where(and(eq(assetGenerations.uuid, p.base.essai), eq(assetGenerations.assetId, assetId)));
+      .where(and(eq(assetGenerations.uuid, baseVoulue.essai), eq(assetGenerations.assetId, assetId)));
     if (!essai || essai.statut !== "termine" || !essai.fichier) return { ok: false, erreur: "Cet essai n'a pas d'image à retoucher." };
     baseFichierRelatif = cheminGenerationMedia(assetId, essai.fichier);
     promptBase = essai.prompt;
@@ -97,7 +109,8 @@ export async function lancerEssai(
   const aDesImages = aUneBase || sourcesJointes.length > 0;
   const consigne = p.consigne.trim();
   // A poster is drawn from the project's title and summary: its directive may stay empty, even with images (the canvas counts as base).
-  const raison = raisonConsigneInvalide(consigne, aDesImages && !canevas, asset.description);
+  // A state from its parent's image too: its description says what the parent becomes.
+  const raison = raisonConsigneInvalide(consigne, aDesImages && !canevas && baseVoulue !== "parent", asset.description);
   if (raison) return { ok: false, erreur: raison };
   if ((await nbImagesEnAttente()) >= PLAFOND_FILE_IMAGES) {
     return { ok: false, erreur: `La file est pleine (${PLAFOND_FILE_IMAGES} images en attente) : laisse le worker en vider quelques-unes.` };
@@ -119,10 +132,12 @@ export async function lancerEssai(
 
   const images = [
     ...(canevas ? [{ rang: 1, role: "base" as const, libelle: "an empty vertical 2:3 canvas (the poster to paint)" }] : []),
-    ...(baseFichierRelatif ? [{ rang: 1, role: "base" as const, libelle: `l'image actuelle de « ${libelleAsset(asset)} »` }] : []),
+    ...(baseFichierRelatif
+      ? [{ rang: 1, role: "base" as const, libelle: baseVoulue === "parent" && parent ? `l'image de « ${libelleAsset(parent)} », dont cet asset est un état` : `l'image actuelle de « ${libelleAsset(asset)} »` }]
+      : []),
     ...sourcesJointes.map((s, i) => ({ rang: (aUneBase ? 2 : 1) + i, role: "jointe" as const, libelle: s.libelle })),
   ];
-  const entree = await entreeEssaiAsset(db, asset.projectId, assetId, { consigne, aUneBase, promptBase, images });
+  const entree = await entreeEssaiAsset(db, asset.projectId, assetId, { consigne, aUneBase, promptBase, images, depuisParent: baseVoulue === "parent" });
   if (!entree) return { ok: false, erreur: "Cet asset n'existe pas dans ce projet." };
   const [projet] = await db
     .select({ clauseStyle: projects.clauseStyle, stylePromptImage: projects.stylePromptImage })

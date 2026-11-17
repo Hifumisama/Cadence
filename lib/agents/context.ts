@@ -13,6 +13,7 @@ import { cheminAssetMedia, MEDIA_ROOT } from "../media";
 import { AIDE_CREATIVITE, CREATIVITES, DETAIL_STYLE_CAMERA, LIBELLE_CREATIVITE, LIBELLE_NIVEAU, MISES_EN_SCENE, RESUME_STYLE_CAMERA, STYLE_AUCUN, resoudreReglages } from "../h3ir/settings";
 import { SKILL_H3IR } from "../h3ir/result";
 import { detailsDuBrief, libelleDetailsDuBrief } from "./registry";
+import { editionImposee } from "../assets/asset-state";
 import { poigneePlan, type EntreeInventaire } from "./inventory";
 import { liaisonOuDefaut, type Liaison } from "../clips/clip-link";
 import { sansEtatDeFin } from "../clips/intent";
@@ -111,12 +112,14 @@ export async function entreePromptAsset(db: Db, projectId: number, assetId: numb
     ...(projet?.clauseStyle ? [{ type: "projet" as const, libelle: "Clause de style du projet (information)" }] : []),
     ...contexte,
   ];
+  // A character or set state is an edit of its parent's image (forced by the code, lib/assets/asset-state.ts): the skill writes an edit.
+  const methode = parent && editionImposee(asset) ? "edition" : asset.methodeGeneration;
   return {
     skill: "prompt-asset",
-    variante: variantePromptAsset({ methodeGeneration: asset.methodeGeneration }),
+    variante: variantePromptAsset({ methodeGeneration: methode }),
     contexte: ctx,
     entree: {
-      asset: { code: asset.code, type: asset.type, descriptionCanonique: asset.description ?? "", methodeGeneration: asset.methodeGeneration, promptActuel: asset.promptGeneration ?? "" },
+      asset: { code: asset.code, type: asset.type, descriptionCanonique: asset.description ?? "", methodeGeneration: methode, promptActuel: asset.promptGeneration ?? "" },
       parent: parent ? { code: parent.code, description: parent.description ?? "", promptGeneration: parent.promptGeneration ?? "" } : null,
       plansQuiLeCitent: citations.map((c) => ({ titre: c.titre, role: c.role ?? "", description: c.description ?? "" })),
       clauseStyleDuProjet: projet?.clauseStyle ?? "",

@@ -40,3 +40,17 @@ test("preparerLot : la file pleine tronque le lot, avec la raison", () => {
   assert.equal(r.aLancer.length, 2);
   assert.match(r.ecartes[0]!.raison, /file est pleine/);
 });
+
+test("preparerLot : l'état d'un personnage ou d'un décor part de son parent même sans méthode écrite (projet 259)", () => {
+  // CHAR_la_danseuse_cendree had no method (null) and went out in text: it now waits for, then edits, its parent's image.
+  const sansImage = [a(1, "CHAR_danseuse"), a(2, "CHAR_danseuse_cendree", { methodeGeneration: null, deriveDeId: 1 })];
+  const r1 = preparerLot(sansImage, sansImage, new Set(), 10);
+  assert.deepEqual(r1.aLancer.map((l) => l.code), ["CHAR_danseuse"]);
+  assert.match(r1.ecartes[0]!.raison, /attend l'image de son master \(CHAR_danseuse\)/);
+  const avecImage = [a(1, "CHAR_danseuse", { fichier: "CHAR_danseuse.png" }), a(2, "CHAR_danseuse_cendree", { methodeGeneration: "generation", deriveDeId: 1 })];
+  const r2 = preparerLot([avecImage[1]!], avecImage, new Set(), 10);
+  assert.deepEqual(r2.aLancer, [{ assetId: 2, code: "CHAR_danseuse_cendree", mode: "images", sourceAssetId: 1 }]);
+  // A derived effect keeps its own method.
+  const vfx = [a(3, "VFX_flammes", { type: "vfx", fichier: "VFX_flammes.png" }), a(4, "VFX_flammes_fortes", { type: "vfx", deriveDeId: 3 })];
+  assert.equal(preparerLot([vfx[1]!], vfx, new Set(), 10).aLancer[0]!.mode, "texte");
+});

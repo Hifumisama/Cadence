@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { estCritique, seuilCritique, statutAsset } from "./asset-state";
+import { editionImposee, estCritique, seuilCritique, statutAsset } from "./asset-state";
 
 test("statut : sans fichier à produire, avec fichier en cours, validé quand c'est dit", () => {
   assert.equal(statutAsset({ fichier: null, valide: false }), "a_produire");
@@ -31,4 +31,12 @@ test("libellé : le label prime, sinon le code rendu lisible", async () => {
   assert.equal(libelleAsset({ code: "CHAR_maya", label: "Maya la danseuse" }), "Maya la danseuse");
   assert.equal(libelleAsset({ code: "CHAR_maya", label: "  " }), "Maya");
   assert.equal(libelleAsset({ code: "DEC_auberge_salle" }), "Auberge salle");
+});
+
+test("editionImposee : seul l'état d'un personnage ou d'un décor", () => {
+  assert.equal(editionImposee({ type: "personnage", deriveDeId: 1 }), true);
+  assert.equal(editionImposee({ type: "decor", deriveDeId: 1 }), true);
+  assert.equal(editionImposee({ type: "personnage", deriveDeId: null }), false);
+  assert.equal(editionImposee({ type: "vfx", deriveDeId: 1 }), false);
+  assert.equal(editionImposee({ type: "objet", deriveDeId: 1 }), false);
 });

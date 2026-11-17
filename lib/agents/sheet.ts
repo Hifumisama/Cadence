@@ -37,6 +37,9 @@ export const SECTIONS_PATCHABLES = [
   "questionsOuvertes",
 ] as const;
 
+/** Sections a `dit` quote proves only if it names them (see `appliquerNotes`): what gets drawn and is never an essential. */
+const SECTIONS_NOMMEES: readonly string[] = ["lieux", "elements"];
+
 /** Purely informative sections: a "delegation" on them settles nothing (and so never closes the interview). */
 const SECTIONS_INFORMATIVES: readonly string[] = ["inventions", "questionsOuvertes"];
 
@@ -134,6 +137,13 @@ const listeObjets = (v: unknown): Record<string, unknown>[] => (Array.isArray(v)
 
 const cleDetail = (famille: Famille, nom: string): string => `${famille}:${normaliser(nom)}`;
 
+/** A name as it is said in a sentence: normalised, without its leading article ("La Danseuse" → "danseuse"), so that
+ * "la tenue de danseuse" names it. The WHOLE name is required: "danse" does not name "La Scène de Danse". */
+const nomCite = (nom: string): string => normaliser(nom).replace(/^(le|la|les|l|un|une|des|du|de|d) /, "");
+
+/** Garments: a quote that names one talks about an outfit ("une robe rouge"). */
+const VETEMENTS = ["robe", "veste", "manteau", "cape", "tunique", "pantalon", "jupe", "chemise", "armure", "pull", "parka", "uniforme", "kimono", "chapeau", "botte", "chaussure", "gant", "echarpe", "voile", "tutu", "justaucorps", "corset"];
+
 /** A detail key returned by the model, normalised ("tenue:Aang" → "tenue:aang"); null if it does not have the expected shape. */
 function lireCleDetail(brut: unknown): string | null {
   if (typeof brut !== "string") return null;
@@ -158,6 +168,9 @@ export function formuleVague(texte: string): boolean {
   return VAGUE.test(t) && !COULEUR.test(t) && !MATIERE.test(t);
 }
 
+/** The brief section a detail key belongs to (`raccords` belongs to the characters). */
+const sectionDuDetail = (cle: string): string => (cle.startsWith("lieu:") ? "lieux" : cle.startsWith("element:") ? "elements" : "personnages");
+
 /** All the details the sheet calls for (settled or not), in interview order: costumes, sets, effects and props, continuity. */
 function detailsCandidats(contenu: Record<string, unknown>): DetailCandidat[] {
   const d: DetailCandidat[] = [];
@@ -168,7 +181,7 @@ function detailsCandidats(contenu: Record<string, unknown>): DetailCandidat[] {
     d.push({
       cle: cleDetail("tenue", nom),
       libelle: `la tenue de ${nom} (coupe, couleurs, matières)`,
-      themes: [normaliser(nom), "tenue", "vetement", "costume", "habit", "habill", "porte", "couleur", "matiere", "coupe"],
+      themes: [nomCite(nom), "tenue", "vetement", "costume", "habit", "habill", "porte", "couleur", "matiere", "coupe", ...VETEMENTS],
       present: !!chaine(t.couleurs) && !!(chaine(t.coupe) || chaine(t.matieres)),
       texte: [t.coupe, t.couleurs, t.matieres].map(chaine).join(" "),
     });
@@ -179,7 +192,7 @@ function detailsCandidats(contenu: Record<string, unknown>): DetailCandidat[] {
     d.push({
       cle: cleDetail("lieu", nom),
       libelle: `le décor « ${nom} » (lumière, matières, palette)`,
-      themes: [normaliser(nom), "lieu", "decor", "lumiere", "eclair", "heure", "matiere", "palette", "couleur"],
+      themes: [nomCite(nom), "lieu", "decor", "lumiere", "eclair", "heure", "matiere", "palette", "couleur"],
       present: !!chaine(a.lumiere) && !!(chaine(a.matieres) || chaine(a.palette)),
       texte: [a.lumiere, a.matieres, a.palette].map(chaine).join(" "),
     });
@@ -189,7 +202,7 @@ function detailsCandidats(contenu: Record<string, unknown>): DetailCandidat[] {
     d.push({
       cle: cleDetail("element", nom),
       libelle: `« ${nom} » (couleur, ampleur, comportement)`,
-      themes: [normaliser(nom), "effet", "couleur", "ampleur", "taille", "comportement", "pouvoir", "magie", "objet"],
+      themes: [nomCite(nom), "effet", "couleur", "ampleur", "taille", "comportement", "pouvoir", "magie", "objet"],
       present: !!chaine(e.couleur) && !!(chaine(e.ampleur) || chaine(e.comportement)),
       texte: [e.couleur, e.ampleur, e.comportement].map(chaine).join(" "),
     });
@@ -198,7 +211,7 @@ function detailsCandidats(contenu: Record<string, unknown>): DetailCandidat[] {
     d.push({
       cle: "raccords",
       libelle: "les changements de tenue au fil du film (ou aucun)",
-      themes: ["raccord", "change", "tenue", "costume", "evolu"],
+      themes: ["raccord", "change", "tenue", "costume", "evolu", "transform"],
       present: persos.some((p) => !!chaine(objet(p.tenue).evolution)),
       texte: "",
     });
@@ -300,10 +313,19 @@ export function appliquerNotes(fiche: Fiche, sortie: unknown, messagesUtilisateu
     preuves.push({ cible: `detail:${cle}`, statut: origine === "dit" ? "fourni" : "delegue", citation: normaliser(citation as string) });
   }
   const themesDe = (cible: string): string[] => {
-    if (!cible.startsWith("detail:")) return THEMES_SECTION[cible] ?? [];
+    if (!cible.startsWith("detail:")) {
+      const noms = SECTIONS_NOMMEES.includes(cible) ? listeObjets(contenu[cible]).map((x) => nomCite(chaine(x.nom))) : [];
+      return [...(THEMES_SECTION[cible] ?? []), ...noms.filter(Boolean)];
+    }
     const cle = cible.slice("detail:".length);
-    return candidats.find((d) => d.cle === cle)?.themes ?? [cle.slice(cle.indexOf(":") + 1)];
+    return candidats.find((d) => d.cle === cle)?.themes ?? [nomCite(cle.slice(cle.indexOf(":") + 1))];
   };
+  // A quote proves only what it NAMES (project 259: « Elle se mouille de noir, en quelques secondes », said of the outfit's change,
+  // had proven the hero's whole outfit, cut and materials included). A `dit` quote counts for a place or effect section, or for a
+  // detail, only if it contains the subject's whole name (article aside: "danse" does not name "La Scène de Danse") or a word of
+  // its theme (THEMES_SECTION, the detail's `themes`). Otherwise the subject stays "déduit". The essentials keep the verbatim check
+  // alone: they are quoted in the user's own words, rarely with a theme word, and a missed proof would hold the interview forever.
+  const nommees = preuves.filter((p) => p.statut !== "fourni" || !(p.cible.startsWith("detail:") || SECTIONS_NOMMEES.includes(p.cible)) || mentionne(p.citation, themesDe(p.cible)));
   const contexte = (citation: string): string => {
     const conv = conversation ?? [];
     for (let i = conv.length - 1; i >= 0; i--) {
@@ -315,7 +337,7 @@ export function appliquerNotes(fiche: Fiche, sortie: unknown, messagesUtilisateu
   };
 
   const verifiees = new Map<string, StatutFiche>(); // section (or "detail:<key>") → "fourni" (verified "dit") or "delegue"
-  for (const p of delegationsBornees(preuves, themesDe, contexte)) if (verifiees.get(p.cible) !== "fourni") verifiees.set(p.cible, p.statut);
+  for (const p of delegationsBornees(nommees, themesDe, contexte)) if (verifiees.get(p.cible) !== "fourni") verifiees.set(p.cible, p.statut);
 
   const statuts = { ...fiche.statuts };
   for (const cle of touchees) {
@@ -329,7 +351,6 @@ export function appliquerNotes(fiche: Fiche, sortie: unknown, messagesUtilisateu
   }
 
   const details: Record<string, StatutDetail> = { ...(fiche.details ?? {}) };
-  const sectionDuDetail = (cle: string) => (cle.startsWith("lieu:") ? "lieux" : cle.startsWith("element:") ? "elements" : "personnages");
   for (const d of candidats) {
     const prouve = verifiees.get(`detail:${d.cle}`);
     const avant = details[d.cle];
@@ -402,9 +423,20 @@ export function ficheComplete(fiche: Fiche, messagesUtilisateur: number | readon
   return nb >= PLAFOND_MESSAGES_DETAILS || detailsAPreciser(fiche).length === 0;
 }
 
-/** The sections the agent assumed or the user delegated to it: it cites them to the user so they keep or throw them away. */
+/** What the agent assumed or the user delegated to it: it cites them to the user so they keep or throw them away. First the
+ * sections, then the details (outfit, set, effect, continuity: their key, see `libelleDetail`) not said by the user, inside a
+ * section that is itself said (an assumed section already covers its details). */
 export function suppositions(fiche: Fiche): string[] {
-  return Object.keys(fiche.contenu).filter((k) => !valeurVide(fiche.contenu[k]) && fiche.statuts[k] !== "fourni" && !["inventions", "questionsOuvertes"].includes(k));
+  const sections = Object.keys(fiche.contenu).filter((k) => !valeurVide(fiche.contenu[k]) && fiche.statuts[k] !== "fourni" && !["inventions", "questionsOuvertes"].includes(k));
+  const details = detailsCandidats(fiche.contenu)
+    .filter((d) => d.present && fiche.details?.[d.cle] !== "fourni" && !sections.includes(sectionDuDetail(d.cle)))
+    .map((d) => d.cle);
+  return [...sections, ...details];
+}
+
+/** The label of a detail key returned by `suppositions` ("la tenue de Lina (coupe, couleurs, matières)"); undefined for a section. */
+export function libelleDetail(fiche: Fiche, cle: string): string | undefined {
+  return detailsCandidats(fiche.contenu).find((d) => d.cle === cle)?.libelle;
 }
 
 const TITRES_PROVISOIRES = new Set(["", "sans titre", "projet", "untitled"]);

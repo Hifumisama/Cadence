@@ -6,7 +6,9 @@
  * - 1st wave: every asset that has a prompt and is generated from text, and every derivative in edit whose master
  *   ALREADY has an image;
  * - 2nd wave: the derivatives in edit whose master has no image yet. They are set aside with this reason: once
- *   the master is adopted, we relaunch the batch. */
+ *   the master is adopted, we relaunch the batch.
+ * A character or set STATE is always an edit of its master, even when its method is not written (editionImposee). */
+import { editionImposee } from "./asset-state";
 
 /** Beyond this number of images waiting, a batch is truncated (the next ones are relaunched). Wider than the
  * ceiling of an isolated request: filling a registry at the start of a project is exactly what a batch exists for. */
@@ -46,7 +48,7 @@ export function preparerLot(selection: AssetPourLot[], tous: AssetPourLot[], dej
       ecarte(a, "une génération de cet asset attend déjà dans la file.");
       continue;
     }
-    if (a.methodeGeneration === "edition") {
+    if (a.methodeGeneration === "edition" || editionImposee(a)) {
       const master = a.deriveDeId != null ? parId.get(a.deriveDeId) : undefined;
       if (!master) {
         ecarte(a, "édition sans master : il n'y a pas d'image de départ.");

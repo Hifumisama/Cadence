@@ -187,6 +187,7 @@ async function postProposition(tx: Tx, run: RunAgent, json: unknown, execution: 
       code: asset.code,
       type: asset.type,
       methodeGeneration: asset.methodeGeneration,
+      deriveDeId: asset.deriveDeId,
     });
   } else if (estAffiche) {
     if (prop.cibleId == null) throw new Error("Proposition d'affiche sans cible.");
@@ -458,7 +459,7 @@ async function postSousTacheRegistre(
     description: entree.asset?.descriptionCanonique ?? "",
     descriptionVide: existant ? !(existant.description ?? "").trim() : false,
     existant: existant
-      ? { id: existant.id, code: existant.code, type: existant.type, methodeGeneration: existant.methodeGeneration }
+      ? { id: existant.id, code: existant.code, type: existant.type, methodeGeneration: existant.methodeGeneration, deriveDeId: existant.deriveDeId }
       : null,
   });
   const base = rangSousTache(await runsDuLot(tx, prop.id), cle) * PAS_ORDRE_SOUS_TACHE;

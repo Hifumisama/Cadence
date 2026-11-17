@@ -147,6 +147,19 @@ test("prompt-asset → un changement d'asset : prompt, méthode si elle diffère
   assert.ok(ch!.avertissements!.some((w) => w.texte.includes("dependance-parent")));
 });
 
+test("prompt-asset → l'état d'un personnage ou d'un décor est toujours une édition de son parent (projet 259)", () => {
+  // Trace 1767: the skill chose "generation" for the ashen dancer (a large change); the code imposes the edit.
+  const sortie = { methode: "generation" as const, raisonMethode: "Changement radical de tenue.", promptGeneration: "A young woman in a black funeral dress.", remarques: [] };
+  const [etat] = depuisPromptAsset(sortie, { id: 955, code: "CHAR_la_danseuse_cendree", type: "personnage", methodeGeneration: null, deriveDeId: 953 });
+  assert.equal((etat!.apres as { methodeGeneration?: string }).methodeGeneration, "edition");
+  assert.ok(etat!.avertissements!.some((w) => w.texte.startsWith("Méthode imposée : edition.")));
+  // In edit, no sheet template is added (the parent's image already carries it).
+  assert.equal((etat!.apres as { promptGeneration: string }).promptGeneration, "A young woman in a black funeral dress.");
+  // A visual effect derived from another asset keeps the skill's choice.
+  const [vfx] = depuisPromptAsset(sortie, { id: 958, code: "VFX_tache", type: "vfx", methodeGeneration: null, deriveDeId: 957 });
+  assert.equal((vfx!.apres as { methodeGeneration?: string }).methodeGeneration, undefined);
+});
+
 const scenario: SortieScenarioEpisode = {
   episode: { titre: "Le sel", resume: "Le pont se couvre de sel." },
   scenes: [

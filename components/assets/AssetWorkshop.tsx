@@ -47,6 +47,7 @@ export function AtelierAsset({
   registre,
   affiche = false,
   jointesInitiales = [],
+  parent = null,
 }: {
   assetId: number;
   code: string;
@@ -70,6 +71,9 @@ export function AtelierAsset({
   affiche?: boolean;
   /** Images attached by default to the first instruction (the main character of a poster); they can be removed. */
   jointesInitiales?: Jointe[];
+  /** The asset this one is a state of (character or set): without its own image, an attempt starts from the parent's image, never from scratch.
+   * `src` is null while the parent has no image yet. */
+  parent?: { libelle: string; src: string | null } | null;
 }) {
   const router = useRouter();
   const [selection, setSelection] = useState<Selection>(essaiInitial && essais.some((e) => e.uuid === essaiInitial) ? essaiInitial : imageSrc ? "actuelle" : null);
@@ -95,14 +99,17 @@ export function AtelierAsset({
   const regarde: "actuelle" | GenerationVue | null = choisi ?? (selection && imageSrc ? "actuelle" : null);
 
   // The base of the next attempt: what is being viewed, if it is a ready image; otherwise the current image; otherwise nothing (the image is created from scratch).
-  const base: BaseEssai = regarde === "actuelle" ? "actuelle" : regarde && estPret(regarde) ? { essai: regarde.uuid } : imageSrc ? "actuelle" : null;
+  // A state without an image of its own starts from its parent's image.
+  const base: BaseEssai = regarde === "actuelle" ? "actuelle" : regarde && estPret(regarde) ? { essai: regarde.uuid } : imageSrc ? "actuelle" : parent ? "parent" : null;
+  const attendParent = base === "parent" && !parent?.src;
   const retouche = base != null;
-  const baseSrc = base === "actuelle" ? imageSrc : base ? (essai(base.essai)?.src ?? null) : null;
+  const baseSrc = base === "actuelle" ? imageSrc : base === "parent" ? (parent?.src ?? null) : base ? (essai(base.essai)?.src ?? null) : null;
   // Qwen Image Edit takes 3 images: creating attaches up to 3, retouching leaves only one more next to the base.
   // A poster created from images starts from an empty canvas as image 1 (which counts as the base): two attached images at most.
   const maxJointes = maxImagesJointes(retouche || affiche);
   const trop = jointes.length > maxJointes;
-  const libelleBase = base === "actuelle" ? "l'image actuelle" : base ? `l'essai n°${numeros.get(base.essai)}` : null;
+  const libelleBase =
+    base === "actuelle" ? "l'image actuelle" : base === "parent" ? `l'image de « ${parent?.libelle ?? ""} »` : base ? `l'essai n°${numeros.get(base.essai)}` : null;
 
   const retenu = (e: GenerationVue) => e.adopteAt != null && fichierAt != null && e.adopteAt === fichierAt;
   const retenuActuel = essais.find(retenu);
@@ -174,7 +181,12 @@ export function AtelierAsset({
       setRetour({ ok: false, texte: `Pour retoucher, une seule image peut s'ajouter à la base : retire-en ${jointes.length - maxJointes}.` });
       return;
     }
-    if ((retouche || (jointes.length > 0 && !affiche)) && !texte.trim()) {
+    if (attendParent) {
+      setRetour({ ok: false, texte: `Cet état part de l'image de « ${parent?.libelle ?? ""} » : génère-la et adopte-la d'abord.` });
+      return;
+    }
+    // From the parent's image, an empty instruction is allowed: the description says what the parent becomes.
+    if (((retouche && depuis !== "parent") || (jointes.length > 0 && !affiche)) && !texte.trim()) {
       setSecoue(true);
       window.setTimeout(() => setSecoue(false), 400);
       champ.current?.focus();
@@ -472,6 +484,8 @@ export function AtelierAsset({
             placeholder={
               !retouche && jointes.length > 0
                 ? "Ce qu'on fait de ces images : « elle porte la veste de l'image 2 », « dans le décor de l'image 3 »…"
+                : base === "parent"
+                ? "Laisse vide pour suivre la description de cet état, ou précise ce qui change par rapport à l'image de départ…"
                 : retouche
                 ? "Les cheveux plus courts, une fine cicatrice sur la joue gauche, la lumière d'une loge juste avant d'entrer en scène…"
                 : description.trim()
@@ -507,15 +521,17 @@ export function AtelierAsset({
                     </button>
                   </>
                 ) : null}
-                {!imageSrc ? (
+                {!imageSrc && base !== "parent" ? (
                   <>
                     {" · "}
                     <button type="button" className="lien" onClick={() => setSelection(null)}>
-                      Repartir de zéro
+                      {parent ? `Repartir de l'image de « ${parent.libelle} »` : "Repartir de zéro"}
                     </button>
                   </>
                 ) : null}
               </>
+            ) : attendParent ? (
+              `Cet état part de l'image de « ${parent?.libelle ?? ""} », qui n'existe pas encore : génère-la et adopte-la d'abord.`
             ) : (
               jointes.length > 0 ? "Pas d'image de base : l'image est créée à partir des images jointes." : "Aucune image de base : l'image sera créée de zéro."
             )}
@@ -526,7 +542,7 @@ export function AtelierAsset({
             </p>
           ) : null}
           <div className="envoi">
-            <button type="button" className="btn btn-or" onClick={() => lancer()} disabled={pending}>
+            <button type="button" className="btn btn-or" onClick={() => lancer()} disabled={pending || attendParent}>
               <Icone nom="agent" taille={15} /> {pending ? "Envoi…" : retouche ? "Retoucher l'image" : "Créer l'image"}
             </button>
             <span className="aide">

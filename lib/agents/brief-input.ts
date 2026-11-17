@@ -2,7 +2,7 @@
  * the agent reads it to dig into what is missing; the user's brief comes out of it, without a writing call. Pure (used by the
  * service and by the worker). */
 
-import { REQUIS, fichePourAgent, premierMessageGrosBloc, suppositions, type Fiche } from "./sheet";
+import { REQUIS, fichePourAgent, libelleDetail, premierMessageGrosBloc, suppositions, type Fiche } from "./sheet";
 import { SECTIONS_BRIEF } from "./types";
 
 export type MessageLlm = { role: "user" | "assistant"; content: string };
@@ -47,7 +47,7 @@ export function entreeTour(messages: MessageLlm[], fiche: Fiche, rappel: RappelF
       : "";
   const details = rappel.details ?? [];
   if (rappel.complete) {
-    const supposees = suppositions(fiche).map(libelleSection);
+    const supposees = suppositions(fiche).map((k) => libelleSupposition(fiche, k));
     contenu += `
 
 [État de l'entretien : la fiche est complète et l'utilisateur continue à l'affiner.${supposees.length ? ` Ce qui reste supposé : ${supposees.join(", ")}.` : ""} Creuse un point mince ou supposé avec une question de fond, ou prends en compte ce qu'il vient de préciser.${formatDit} ${interdit}]`;
@@ -74,6 +74,9 @@ const resume = (v: unknown): string => {
 
 const libelleSection = (cle: string): string => (SECTIONS_BRIEF.find((x) => x.cle === cle)?.libelle ?? cle).replace(/ \(.*\)$/, "").toLowerCase();
 
+/** The label of an assumption (`suppositions`): a section, or a detail ("la tenue de Lina"). */
+const libelleSupposition = (fiche: Fiche, cle: string): string => libelleDetail(fiche, cle)?.replace(/ \(.*\)$/, "") ?? libelleSection(cle);
+
 /** The message the CODE posts when the sheet becomes complete: a briefing summary, what was assumed, and the hand back to the
  * user (refine, or move to the next step with the button). It is never written by the model: only the code knows that
  * the sheet is complete, so the agent cannot announce it wrongly. */
@@ -93,7 +96,7 @@ export function messageBriefPret(fiche: Fiche): string {
   if (fiches.length) l.push(fiches.join(" · ") + ".");
   const noms = (Array.isArray(c.personnages) ? c.personnages : []).map((p) => texte((p as { nom?: unknown }).nom)).filter(Boolean);
   if (noms.length) l.push(`Personnages : ${noms.join(", ")}.`);
-  const supposees = suppositions(fiche).map(libelleSection);
+  const supposees = suppositions(fiche).map((k) => libelleSupposition(fiche, k));
   if (supposees.length) l.push(`Ce que j'ai supposé, à garder ou à jeter : ${supposees.join(", ")}.`);
   l.push("Veux-tu encore affiner d'autres points ? Sinon, passe à l'étape suivante avec le bouton.");
   return l.join("\n\n");

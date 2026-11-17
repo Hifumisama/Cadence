@@ -8,6 +8,7 @@ import { getAssetsAvecImage, getGenerationsAsset, imageActuelle } from "@/lib/as
 import { Topbar } from "@/components/ui/Topbar";
 import { delierRef } from "@/app/assets/actions";
 import { libelleAsset } from "@/lib/assets/assetCode";
+import { editionImposee } from "@/lib/assets/asset-state";
 import { Icone } from "@/components/ui/Icon";
 import "@/components/assets/fiche-asset.css";
 import "@/components/assets/fiche-asset-mise-en-page.css";
@@ -42,6 +43,8 @@ export default async function AssetDetailPage({
   const precedent = rang > 0 ? tous[rang - 1] : null;
   const suivant = rang < tous.length - 1 ? tous[rang + 1] : null;
   const libellesParId = new Map(tous.map((a) => [a.id, libelleAsset(a)]));
+  // A character or set state starts from its parent's image (lib/assets/asset-state.ts).
+  const parentEtat = editionImposee(noeud) ? (tous.find((a) => a.id === noeud.deriveDeId) ?? null) : null;
   const registreJoignable = (await getAssetsAvecImage(pid, noeud.id)).map((a) => ({ id: a.id, libelle: libellesParId.get(a.id) ?? a.code, src: a.src }));
 
   return (
@@ -137,6 +140,7 @@ export default async function AssetDetailPage({
                 description={noeud.description ?? ""}
                 plansRendus={noeud.fichier ? plansRendus : 0}
                 registre={registreJoignable}
+                parent={parentEtat ? { libelle: libelleAsset(parentEtat), src: imageActuelle(parentEtat)?.src ?? null } : null}
               />
             </div>
           </div>

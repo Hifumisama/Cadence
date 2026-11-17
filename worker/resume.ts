@@ -1,4 +1,5 @@
 import { unlink } from "node:fs/promises";
+import { balayerEssaisSansTache } from "../lib/agents/asset-attempt";
 import { join } from "node:path";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "../db";
@@ -105,6 +106,8 @@ export async function reprendreOrphelines(
       .returning({ id: agentRuns.id });
     llm += mis.length;
   }
+  // An asset attempt whose translation was interrupted would stay « en traduction » forever: it is marked cancelled (it can be relaunched).
+  if (llm > 0) await balayerEssaisSansTache(db);
 
   return {
     images: images.length - annuleesImages,

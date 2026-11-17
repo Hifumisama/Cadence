@@ -22,3 +22,11 @@ export const seuilCritique = (nbPlansEpisode: number): number =>
  * Critical as soon as ONE episode passes the threshold (it is the episode that gets made, not the series). */
 export const estCritique = (parEpisode: { cites: number; total: number }[]): boolean =>
   parEpisode.some((e) => e.cites > 0 && e.cites >= seuilCritique(e.total));
+
+/** A character or a set that is a STATE of another one (`deriveDeId`) is always made by EDITING its parent's image: generated from
+ * text, it loses the face or the place (project 259, 2026-11-17: the ashen dancer changed face, the infernal stage became another
+ * room). The skill no longer chooses for these; other types (effect, prop…) keep its choice. */
+const TYPES_ETAT_EN_EDITION = new Set(["personnage", "decor"]);
+
+export const editionImposee = (a: { type: string; deriveDeId?: number | null }): boolean =>
+  a.deriveDeId != null && TYPES_ETAT_EN_EDITION.has(a.type);

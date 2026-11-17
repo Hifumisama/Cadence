@@ -24,9 +24,19 @@ Nettoyage fait (sauvegardes du NAS supprimées, script retiré du dépôt). Rest
     - affiche faite à partir du héros (`poster-clap.ts`, déclenchée à l'adoption de son image) ;
     - contrôles de l'inventaire et de la liaison du premier plan.
   - **Phase 2, faite et validée :** détecteur « rien ne bouge » (`lib/agents/stillness.ts`), branché sur `scenario-scene` et sur la relecture.
+  - **Phase 3, faite :** l'état d'un personnage ou d'un décor part toujours de l'image de son parent (`editionImposee`, `lib/assets/asset-state.ts`), à trois endroits :
+    - la proposition du prompt, qui impose l'édition ;
+    - le lot d'images, où l'état attend le parent ;
+    - l'essai depuis la fiche, qui prend l'image du parent comme base au lieu de partir de zéro.
+
+    Cause du décor infernal raté (A8) : l'essai manuel était parti sans base, donc de zéro.
+  - **Phase 4, faite :**
+    - **Ce qui ne marchait pas :** une citation de l'utilisateur prouvait n'importe quelle section dès qu'elle figurait mot pour mot dans ses messages. Exemple : « Elle se mouille de noir » prouvait à la fois `personnages`, la tenue et les raccords.
+    - **La règle :** une citation prouve `lieux`, `elements` ou un détail seulement si elle le nomme (son nom ou un mot de son thème) ; sinon, `deduit`.
+    - **Le message de fin :** `suppositions` liste aussi les détails non dits.
+    - **Le skill `notes-entretien`** : règles 13 et 14.
+    - **Limite :** les cheveux, la voix et la gestuelle n'ont pas de statut par champ et ne sont donc pas encore signalés.
   - **Reste :**
-    - phase 3 : un état part de son parent ;
-    - phase 4 : inventions visibles ;
     - phase 5 : scénariste, scénario et durée plancher, via le banc avec réflexion ;
     - phase 6 : rejouer le projet complet.
   - **Vu à l'essai GPU de l'affiche :** titre mal orthographié par Qwen (« Pieé ») et décor absent, puisque seule l'image du héros est donnée en source. Pistes : passer le décor principal en 2ᵉ source, et poser le titre par l'app au lieu de le faire écrire par le modèle.

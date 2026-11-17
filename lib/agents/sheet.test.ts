@@ -1,5 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { messageBriefPret } from "./brief-input";
 import { chargerSkill } from "../llm/skills";
 import { compilerSchema } from "../llm/validation";
 import { SCHEMA_BRIEF } from "./brief";
@@ -181,7 +183,7 @@ test("détails : une tenue dite précisément est tranchée, une formule vague r
   const vague = "Sa tenue est inspirée du dessin animé, cheveux longs.";
   const flou = appliquerNotes(
     ficheEssentielle(),
-    { modifications: { personnages: [{ ...heros, tenue: { coupe: "inspirée du dessin animé", couleurs: "les couleurs du dessin animé" } }] }, sources: [], details: [{ detail: "tenue:theo", origine: "dit", citation: "inspirée du dessin animé" }] },
+    { modifications: { personnages: [{ ...heros, tenue: { coupe: "inspirée du dessin animé", couleurs: "les couleurs du dessin animé" } }] }, sources: [], details: [{ detail: "tenue:theo", origine: "dit", citation: "Sa tenue est inspirée du dessin animé" }] },
     [vague],
   );
   assert.equal(flou.details?.["tenue:theo"], "incertain");
@@ -278,6 +280,56 @@ test("suppositions : ce que l'agent a posé sans que l'utilisateur le dise", () 
   f.contenu.inventions = ["Le héros s'appelle Théo"];
   f.statuts.inventions = "deduit";
   assert.deepEqual(suppositions(f), ["titre"]);
+});
+
+// --- Visible inventions (project 259, trace 1758) ---------------------------------------------------------------------------------
+
+type Rejeu = { ficheAvant: Fiche; conversation: { role: string; content: string }[]; sortie: { modifications: Record<string, unknown> } & Record<string, unknown> };
+const rejeu = JSON.parse(readFileSync(new URL("./fixtures/notes-1758.json", import.meta.url), "utf-8")) as Rejeu;
+const utilisateur259 = rejeu.conversation.filter((m) => m.role === "user").map((m) => m.content);
+
+test("projet 259, trace 1758 : une citation sur le changement de tenue ne prouve ni la tenue ni le décor", () => {
+  // What this output proves on its own: the sheet as it was before the call, plus the call's patch, applied to an empty sheet.
+  const sortie = { ...rejeu.sortie, modifications: { ...rejeu.ficheAvant.contenu, ...rejeu.sortie.modifications } };
+  const f = appliquerNotes(FICHE_VIDE, sortie, utilisateur259, rejeu.conversation);
+  assert.equal(f.statuts.lieux, "deduit", "aucune citation ne parle du décor");
+  assert.equal(f.details?.["lieu:la scene de danse"], "deduit");
+  assert.equal(f.details?.["tenue:la danseuse"], "deduit", "« Elle se mouille de noir, en quelques secondes » ne nomme pas la tenue");
+  assert.equal(f.details?.raccords, "deduit", "ni ses changements (la citation est trop courte pour les nommer)");
+  assert.equal(f.details?.["element:transformation de la tenue"], "fourni", "« … des effets spéciaux » nomme bien l'effet");
+  assert.equal(f.statuts.fin, "fourni");
+  const s = suppositions(f);
+  assert.ok(s.includes("lieux"));
+  assert.ok(s.includes("tenue:la danseuse") && s.includes("raccords"), "les détails supposés d'une section dite sont listés");
+  assert.ok(!s.includes("lieu:la scene de danse"), "le décor est déjà couvert par « lieux »");
+  const message = messageBriefPret(f);
+  assert.match(message, /Ce que j'ai supposé.*lieux.*la tenue de La Danseuse/s);
+  assert.doesNotMatch(message, /\(coupe, couleurs, matières\)/, "libellé court");
+});
+
+test("une citation ne prouve que ce qu'elle nomme : le nom entier ou un mot du thème", () => {
+  const avant: Fiche = { contenu: { personnages: rejeu.ficheAvant.contenu.personnages }, statuts: { personnages: "fourni" } };
+  const lieux = rejeu.ficheAvant.contenu.lieux;
+  const f = appliquerNotes(
+    avant,
+    {
+      modifications: { lieux },
+      sources: [{ section: "lieux", origine: "dit", citation: "une danse très érotique" }],
+      details: [
+        { detail: "lieu:La Scène de Danse", origine: "dit", citation: "une danse très érotique" },
+        { detail: "tenue:La Danseuse", origine: "dit", citation: "la tenue de la danseuse soit plutôt rouge" },
+        { detail: "raccords", origine: "dit", citation: "Transformation matérielle" },
+      ],
+    },
+    utilisateur259,
+  );
+  assert.equal(f.statuts.lieux, "deduit", "« danse » ne nomme pas « La Scène de Danse »");
+  assert.equal(f.details?.["lieu:la scene de danse"], "deduit");
+  assert.equal(f.details?.["tenue:la danseuse"], "fourni", "la citation nomme la tenue");
+  assert.equal(f.details?.raccords, "fourni", "« transformation » parle des changements de tenue");
+  const nomme = appliquerNotes(avant, { modifications: { lieux }, sources: [{ section: "lieux", origine: "dit", citation: "sur la scène de danse" }] }, ["Ça se passe sur la scène de danse."]);
+  assert.equal(nomme.statuts.lieux, "fourni", "le nom entier, article ôté, suffit");
+  assert.equal(appliquerNotes(FICHE_VIDE, { modifications: { genreTon: "Fantasy" }, sources: [{ section: "genreTon", origine: "dit", citation: "une danse très érotique" }] }, utilisateur259).statuts.genreTon, "fourni", "l'essentiel garde la seule vérification mot pour mot");
 });
 
 test("fiche → brief : la forme complète, avec ce que le code peut poser sans inventer d'important", () => {
