@@ -123,8 +123,16 @@ export function separerDescription(description: string): { narration: string; re
   return { narration: gardees.join("\n").replace(/\n{3,}/g, "\n\n").trim(), repliques };
 }
 
-/** A text between straight quotes « "…" » would be taken for text to display on screen (creativity.build): we use chevrons. */
-const sansGuillemetsDroits = (texte: string): string => texte.replace(/"([^"]*)"/g, "«$1»").replace(/"/g, "'");
+/** A text between straight quotes « "…" » would be taken for text to display on screen (creativity.build): we use chevrons. Every text sent to
+ * Open H3 IR or to H3 goes through it (intent, asset notes, English translation, retouched prompt): a compiled sheet of project 259 still read `becoming "wet"`. */
+export const sansGuillemetsDroits = (texte: string): string => texte.replace(/"([^"]*)"/g, "«$1»").replace(/"/g, "'");
+
+/** Same, but the spoken lines of a prompt (`<d>…</d>`) are left as they are: they are compared word for word with the wanted lines. */
+export const sansGuillemetsDroitsHorsRepliques = (texte: string): string =>
+  texte
+    .split(/(<d>[\s\S]*?<\/d>)/gi)
+    .map((morceau, i) => (i % 2 === 1 ? morceau : sansGuillemetsDroits(morceau)))
+    .join("");
 
 export const estVoixOff = (nom: string) => slugifyCode(nom) === "voix_off";
 
@@ -184,7 +192,7 @@ export function briefDepuisPlan(entree: EntreeBrief, options: OptionsBrief = {})
   const ordonnees = [...visuelles].sort((a, b) => rang(a) - rang(b) || a.slot - b.slot);
   const assets: AssetBrief[] = ordonnees.map((r) => {
     const nom = r.label?.trim() || libelleAsset(r);
-    const note = [nom, r.description?.trim()].filter(Boolean).join(" — ");
+    const note = sansGuillemetsDroits([nom, r.description?.trim()].filter(Boolean).join(" — "));
     return {
       path: r.chemin!,
       kind: r.type === "video" ? "video" : "image",

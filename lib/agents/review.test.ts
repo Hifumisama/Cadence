@@ -53,6 +53,23 @@ test("le schéma de sortie accepte une relecture et refuse un plan sans motif", 
   assert.equal(valider(schema, longue).ok, false, "au plus 8 corrections");
 });
 
+test("le critère « immobilite » est accepté par le schéma", () => {
+  const schema = chargerSkill("relecture-scenario").schema;
+  const s = sortie([{ type: "couper_plan", plan: "P05", critere: "immobilite", motif: "Le train ne fait que s'éloigner, rien ne bouge." }], [{ critere: "immobilite", plans: ["P05"], probleme: "Rien ne bouge." }]);
+  assert.equal(valider(schema, s).ok, true);
+});
+
+test("une description réécrite qui finit encore au repos est refusée avant un plan en suite", () => {
+  const avecFin = (fin: string) => `Red Jack parle à Elias depuis le bord de la rue, toujours à cheval. ${fin}\nRed Jack : « Le train s'arrête, shérif. »\nElias : « Il part. »`;
+  const messages = (description: string, autres: SortieRelecture["corrections"] = []) =>
+    problemesDeRelecture(sortie([{ type: "modifier_plan", plan: "P03", description, critere: "immobilite", motif: "m" }, ...autres]), entree).map((p) => p.message).join("|");
+  // P04 is a `suite`
+  assert.match(messages(avecFin("Puis il reste planté là, immobile.")), /finit encore au repos .* P04 la prolonge en suite/);
+  assert.doesNotMatch(messages(avecFin("Puis il talonne son cheval, qui se cabre.")), /au repos/);
+  // the same ending is allowed when P04 becomes a cut in the same review
+  assert.doesNotMatch(messages(avecFin("Puis il reste planté là, immobile."), [{ type: "modifier_plan", plan: "P04", liaison: "coupe", critere: "temps", motif: "m" }]), /au repos/);
+});
+
 test("une relecture minimale ne soulève aucun défaut", () => {
   assert.deepEqual(problemesDeRelecture(bonne, entree), []);
   assert.deepEqual(problemesDeRelecture(sortie([]), entree), []);

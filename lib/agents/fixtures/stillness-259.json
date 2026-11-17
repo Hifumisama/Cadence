@@ -1,0 +1,96 @@
+{
+  "source": "Projet 259 (2026-11-16), traces scenario-scene 1761-1763 ; poignées globales P01-P11",
+  "personnages": [
+    "La Danseuse"
+  ],
+  "plans": [
+    {
+      "plan": "P01",
+      "scene": 1,
+      "titre": "L'appel du feu",
+      "liaison": "coupe",
+      "dureeSecondes": 10,
+      "description": "La Danseuse est au centre de la Scène de Danse, vêtue de sa robe de tulle rouge vif et de rubans dorés, la lumière chaude baignant l'espace. Elle entame sa danse, le corps souple, ses bras s'élargissant pour déployer ses rubans autour d'elle. Son hanché ondule avec fluidité, sa tête se penche sur le côté tandis que son buste s'arc-boute. Elle exécute un pas latéral gracieux, le tulle rouge ondulant avec chaque mouvement de son corps. Son expression est celle d'une passion concentrée, les yeux mi-clos dans l'effort doux. La scène s'achève sur un tournoiement de corps, son corps étiré dans un mouvement fluide, le tulle rouge déployé autour d'elle comme une aile de papillon. Ce plan établit la vitalité et la sensualité de la danse, captivant le spectateur par la beauté du mouvement. Consigne de l'auteur : La danse est très érotique, avec une jeune femme en tenue de danseuse très légère, exécutant une superbe danse. La tenue rouge représente au début la vie, la passion."
+    },
+    {
+      "plan": "P02",
+      "scene": 1,
+      "titre": "L'apogée sensuelle",
+      "liaison": "suite",
+      "dureeSecondes": 10,
+      "description": "La Danseuse poursuit sa danse, son corps s'élançant dans une arabesque haute, une jambe tendue vers le ciel, l'autre genou fléchi. Ses bras s'ouvrent en équerre, ses rubans dorés ondulant dans l'air, le tulle rouge enveloppant ses formes avec légèreté. Son visage est levé, les yeux fermés, une expression de pur abandon dans le mouvement. Elle se redresse lentement, son corps ondulant de la tête aux pieds, le tissu rouge caressant sa peau claire. La lumière chaude met en valeur chaque courbe de son corps, chaque plie de son tulle. Elle termine dans une position de grâce, le buste incliné, une main tendue vers le spectateur, les doigts effilés, le tulle rouge flottant encore autour d'elle. Ce plan porte la danse à son apogée, la sensualité et la beauté atteignant leur point culminant, le spectateur captivé par l'incarnation de la passion."
+    },
+    {
+      "plan": "P03",
+      "scene": 1,
+      "titre": "Le premier frisson",
+      "liaison": "suite",
+      "dureeSecondes": 8,
+      "description": "La Danseuse se tient en équilibre sur la pointe d'un pied, l'autre jambe fléchie, son corps légèrement incliné. Ses bras sont tendus devant elle, ses doigts effilés, ses rubans dorés tombant mollement. Son expression change imperceptiblement : ses yeux s'ouvrent, le regard s'attarde, une ombre subtile glissant sur ses traits. La lumière chaude commence à vaciller, des reflets plus froids apparaissant dans les ombres de la scène. Son tulle rouge, toujours vif, semble palir légèrement dans la lumière changeante. Elle reste immobile, son corps tendu dans l'attente, une tension nouvelle s'installant dans ses épaules. Ce plan prépare la bascule, le premier signe de changement se profilant dans l'ombre, la danseuse au seuil de sa transformation."
+    },
+    {
+      "plan": "P04",
+      "scene": 2,
+      "titre": "L'Éveil des Flammes Vertes",
+      "liaison": "coupe",
+      "dureeSecondes": 10,
+      "description": "La Danseuse est au centre de la Scène de Danse, son corps étiré dans la poursuite d'un mouvement de danse fluide, le tulle rouge vif de sa tenue encore entier. Autour d'elle, dans l'espace, les premières flammes vertes pâles et translucides commencent à s'élever et à tourbillonner, fines et subtiles, s'insinuant dans l'ombre sans l'envelopper. La lumière chaude initiale s'estompe, remplacée par une lueur verte et cendrée qui crée des ombres franches et oppressantes. Les flammes s'intensifient, leur tourbillon devenant plus dense et plus visible, marquant le début de la bascule infernale. La Danseuse s'arrête net, son corps se figeant un instant dans la tension de cette transformation, incarnant le passage de la vie à la mort. Ce plan établit la rupture visuelle et thématique, avec des effets spéciaux impressionnants et une atmosphère soudainement inquiétante.\nConsigne de l'auteur : Mouvements de caméra et effets spéciaux impressionnants pour la bascule."
+    },
+    {
+      "plan": "P05",
+      "scene": 2,
+      "titre": "La Tache Noire sur le Tulle",
+      "liaison": "suite",
+      "dureeSecondes": 10,
+      "description": "La Danseuse est figée au centre de l'espace infernal, les flammes vertes tourbillonnant autour d'elle, leur lueur verte baignant son visage et son corps. Sur le tulle rouge de sa tenue, une tache noire commence à apparaître, comme une substance liquide qui se propage rapidement sur le tissu. Le rouge vif se 'mouille' de noir en quelques secondes, la couleur s'étendant et se transformant en un gris cendré mat. Le tissu devient plus structuré, moins léger, perdant son élan sensuel pour une rigidité funèbre. Les rubans dorés s'assombrissent, perdant leur éclat. La transformation est instantanée et brutale, la tenue changeant de matière sous les yeux du spectateur. La Danseuse reste immobile, son corps subissant ce changement, son expression figée dans une acceptation sombre. Ce plan montre la transformation matérielle de la tenue, du rouge passionné au noir funèbre.\nConsigne de l'auteur : La tenue se mouille de noir, en quelques secondes, transformation impressionnante avec effets spéciaux."
+    },
+    {
+      "plan": "P06",
+      "scene": 2,
+      "titre": "La Danseuse Cendrée",
+      "liaison": "suite",
+      "dureeSecondes": 10,
+      "description": "La Danseuse est au centre de l'espace infernal, sa tenue maintenant entièrement noire et cendrée, plus structurée, avec un voile ou un liseré funéraire. Les flammes vertes pâles et translucides entourent l'espace sans l'envelopper totalement, tourbillonnant autour d'elle dans une atmosphère oppressante. Son corps est statique, figé dans une pose sombre, incarnant désormais la mort. La lumière verte et cendrée crée des ombres franches, sa silhouette fine et souple maintenant baignée dans une teinte funèbre. Ses cheveux longs sombres tombent en cascade, sa peau claire contrastant avec la tenue noire. Le tissu cendré et mat de sa tenue ne bouge plus, ses rubans attachés aux bras et aux jambes désormais sombres et rigides. La Danseuse est immobile, son regard fixe, une présence macabre et sensuelle à la fois. Ce plan montre la fin de la transformation, la danseuse ayant perdu sa vie et sa passion pour devenir une figure funèbre.\nConsigne de l'auteur : La jeune danseuse devient bien plus sombre, représentant le thème de la mort."
+    },
+    {
+      "plan": "P07",
+      "scene": 2,
+      "titre": "Le Piège Infernal",
+      "liaison": "suite",
+      "dureeSecondes": 10,
+      "description": "La Danseuse est au centre de l'espace infernal, sa tenue noire et cendrée parfaitement transformée, son corps statique avant la disparition. Les flammes vertes tourbillonnent autour d'elle, leur lueur pâle et translucide créant une atmosphère oppressante et délicieusement dangereuse. Son corps est immobile, figé dans une pose de mort, ses mains suspendues à mi-chemin, ses jambes fines et nues maintenant baignées de cendre. La lumière verte et cendrée crée des ombres franches, sa silhouette fine et souple maintenant baignée dans une teinte funèbre. Ses cheveux longs sombres tombent en cascade, sa peau claire contrastant avec la tenue noire. Le tissu cendré et mat de sa tenue ne bouge plus, ses rubans attachés aux bras et aux jambes désormais sombres et rigides. La Danseuse est immobile, son regard fixe, une présence macabre et sensuelle à la fois. Ce plan montre la fin de la transformation, la danseuse ayant perdu sa vie et sa passion pour devenir une figure funèbre, prête à disparaître dans l'explosion finale.\nConsigne de l'auteur : En ressortant de la scène, on doit être à la fois séduit, et également dérangé, un peu comme si on tombait dans un piège, un délicieux et agréable piège, mais un piège quand même."
+    },
+    {
+      "plan": "P08",
+      "scene": 3,
+      "titre": "Le dernier ondulement",
+      "liaison": "coupe",
+      "dureeSecondes": 8,
+      "description": "La Danseuse est au centre de l'espace infernal, en tenue noire et cendrée, drapée et structurée, ses bras tendus vers l'avant et sa hanche légèrement inclinée. Les flammes vertes pâles tourbillonnent autour d'elle, sans l'envelopper, leurs lueurs blanches dans les cœurs. Elle exécute un dernier mouvement de danse, amples et ondulants, les bras se déployant en large arc avant de se refermer lentement vers sa poitrine, ses doigts s'entrelaçant. Ses yeux s'ouvrent largement, fixant le vide devant elle, puis se ferment progressivement. Le tissu noir de sa robe tremble au ralenti, comme soupirant. La lumière verte pâle scintille sur sa peau claire, créant des reflets translucides. Ce plan tient le dernier souffle de la vie avant la disparition, la beauté sensuelle se figeant dans un geste final, la danseuse s'évanouissant lentement dans l'immobilité, captivante et étrange. À la fin, sa main est à demi refermée sur son cœur, ses yeux fermés, son corps en légère contraction."
+    },
+    {
+      "plan": "P09",
+      "scene": 3,
+      "titre": "L'éclatement des flammes",
+      "liaison": "suite",
+      "dureeSecondes": 10,
+      "description": "Là où la Danseuse se tenait, une explosion de flammes vertes éclate, ses lueurs blanches au cœur projetant des ombres franches sur l'espace. Le corps de la danseuse se dissout en une traînée de matière noire et cendrée qui s'évapore dans la lumière verte, ses bras s'étirant vers le haut avant de se désintégrer en particules minuscules. Les flammes vertes pâles montent en tourbillon, leurs formes angulaires découpant l'obscurité, sans former d'enveloppe totale mais irradiant l'espace de leur éclat. Des cendres fines, grisâtres et translucides, s'élèvent lentement vers le plafond, suspendues dans l'air. L'espace se vide progressivement, les flammes commençant à s'éteindre par les bords, leur intensité diminuant. Cette explosion est subtile et délicieuse, à la fois infernale et magnifique, le spectateur restant captivé par la beauté de la transformation tout en étant dérangé par son caractère macabre, comme pris dans un piège délicat. À la fin, l'espace est vide, quelques flammes vertes encore visibles mais en train de s'éteindre, les cendres volantes dispersées dans l'obscurité."
+    },
+    {
+      "plan": "P10",
+      "scene": 3,
+      "titre": "La cendre qui s'éteint",
+      "liaison": "suite",
+      "dureeSecondes": 8,
+      "description": "L'espace est vide, les dernières flammes vertes pâles s'éteignant lentement par les bords, leur lumière diminuant progressivement. Des cendres fines, grisâtres et translucides, continuent de voler lentement vers le plafond, suspendues dans l'obscurité, quelques-unes tombant en spirale lente. La lumière verte devient plus faible, presque invisible, laissant place à une obscurité profonde. L'espace infernal se vide de sa présence, les flammes ne formant plus que quelques points de lumière pâle. Ce plan laisse le spectateur seul avec la beauté et le dérangement de ce qui vient de se passer, la disparition étant complète, le piège délicieux ayant capturé la vie et la laissant derrière en cendres volantes. À la fin, l'espace est quasi obscur, une dernière lueur verte pâle vacillant au centre, les cendres presque disparues."
+    },
+    {
+      "plan": "P11",
+      "scene": 3,
+      "titre": "Le silence cendré",
+      "liaison": "suite",
+      "dureeSecondes": 6,
+      "description": "L'espace est dans une quasi obscurité totale, une dernière lueur verte pâle vacillant faiblement au centre, à peine visible. Les dernières cendres fines, grisâtres, tombent en spirale lente, quelques-unes s'évanouissant dans l'obscurité. La lumière verte est à peine perceptible, l'espace infernal ayant presque disparu, ne laissant que l'écho de ce qui fut. Cette fin laisse le spectateur captivé et dérangé, la beauté de la transformation étant indissociable de son caractère infernal, le piège délicieux ayant accompli son œuvre. L'espace est vide, la danseuse ayant totalement disparu, sa présence réduite à une lueur mourante. À la fin, la lueur verte s'éteint presque complètement, l'obscurité gagnant l'espace, les cendres disparaissant."
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { briefDepuisPlan, normaliserReplique, separerDescription, type EntreeBrief, type PersonnageEntree, type ReferenceEntree } from "./brief";
+import { briefDepuisPlan, sansGuillemetsDroitsHorsRepliques, normaliserReplique, separerDescription, type EntreeBrief, type PersonnageEntree, type ReferenceEntree } from "./brief";
 
 const MAI: PersonnageEntree = { code: "CHAR_mai", label: "Mai" };
 const GARDE: PersonnageEntree = { code: "CHAR_le_garde", label: null };
@@ -125,6 +125,22 @@ test("briefDepuisPlan : guillemets droits remplacés", () => {
   assert.ok(brief);
   assert.ok(brief.intent.includes("«danger»"));
   assert.ok(!brief.intent.includes('"'));
+});
+
+test("briefDepuisPlan : guillemets droits remplacés dans l'intent et les notes d'assets, répliques en chevrons intactes", () => {
+  const description = 'Le rouge vif becoming "wet" sur la lame.\nMai : « Tu es sûr ? »';
+  const vfx = { ...ref("VFX_sang", "vfx", 2), description: 'the bright red becoming "wet"' };
+  const { brief } = briefDepuisPlan(entree({ plan: { description, dureeSecondes: 5, seed: "1" }, references: [ref("CHAR_mai", "personnage", 1), vfx] }));
+  assert.ok(brief);
+  assert.ok(brief.intent.includes("becoming «wet»"));
+  const note = brief.assets.find((a) => a.role === "style")!.note!;
+  assert.ok(note.includes("the bright red becoming «wet»"));
+  assert.ok(!JSON.stringify(brief.intent + note).includes('\\"'));
+  assert.equal(brief.dialogue[0]!.text, "Tu es sûr?");
+});
+
+test("sansGuillemetsDroitsHorsRepliques : les blocs <d> ne changent pas", () => {
+  assert.equal(sansGuillemetsDroitsHorsRepliques('red becoming "wet", <d>[French] Il a dit "non"</d> "fin"'), 'red becoming «wet», <d>[French] Il a dit "non"</d> «fin»');
 });
 
 test("briefDepuisPlan : un effet visuel part en style (référence faible), un prop reste un sujet", () => {

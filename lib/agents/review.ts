@@ -9,6 +9,7 @@ import type { Operation, OperationBrute } from "./view-operations/types";
 import { numeroDePoignee, planParUuid, type VueEpisode } from "./view-operations/view-episode";
 import type { Avertissement } from "./types";
 import { aUnEtatDeFin, recitDe } from "../clips/intent";
+import { signesImmobilite } from "./stillness";
 
 /** SCREENPLAY REVIEW (skill `relecture-scenario`, FRICTIONS 2026-10-19): a model pass that reflects on an episode's WRITTEN screenplay
  * (intents and lines of dialogue), before the clip sheets. It does not rewrite the episode: it returns the SMALLEST corrections
@@ -27,6 +28,7 @@ const CRITERES_RELECTURE = [
   "menace", // threat that arrives or is presented badly
   "resolution", // episode without an ending
   "dialogue", // hollow, redundant or inconsistent line of dialogue
+  "immobilite", // nothing moves: a character standing still or posing, an empty set (lib/agents/stillness.ts, project 259)
 ] as const;
 type CritereRelecture = (typeof CRITERES_RELECTURE)[number];
 
@@ -40,6 +42,7 @@ const LIBELLE_CRITERE: Record<CritereRelecture, string> = {
   menace: "arrivée de la menace",
   resolution: "résolution",
   dialogue: "dialogue",
+  immobilite: "rien ne bouge",
 };
 
 /** At most this many corrections: "the smallest corrections"; an episode that calls for more must be rewritten, not reviewed. */
@@ -59,6 +62,8 @@ export type EntreeRelecture = {
   plans: { plan: string; scene: string; titre: string; liaison: string; dureeSecondes: number; description: string }[];
   parolesDeLAuteur?: string[];
   dureeCibleSecondes?: number | null;
+  /** Findings measured by the code (still plans, empty plans, duplicated sentences: lib/agents/stillness.ts), to be handled one by one. */
+  signalements?: string[];
 };
 
 // --- code checks ----------------------------------------------------------------------------------------------------------------
@@ -119,6 +124,15 @@ export function problemesDeRelecture(sortie: SortieRelecture, entree: EntreeRele
       }
     }
     const avant = c.plan ? parHandle.get(c.plan) : undefined;
+    // A rewritten plan that still ends at rest makes a flat join when the next plan continues it (`suite`): its first moment would be a still image.
+    if (c.type === "modifier_plan" && c.plan && texte) {
+      const suivant = entree.plans[entree.plans.findIndex((x) => x.plan === c.plan) + 1];
+      const liaisonSuivant = corrections.find((x) => x.type === "modifier_plan" && x.plan === suivant?.plan && x.liaison)?.liaison ?? suivant?.liaison;
+      const fin = signesImmobilite(texte).finAuRepos;
+      if (suivant && liaisonSuivant === "suite" && fin) {
+        dit(i, `${nom} : la nouvelle description finit encore au repos (« ${fin.length > 90 ? `${fin.slice(0, 89)}…` : fin} ») alors que ${suivant.plan} la prolonge en suite. Termine le plan sur un geste en cours, celui que ${suivant.plan} continue.`);
+      }
+    }
     if (c.type === "modifier_plan" && avant && texte) {
       if (norme(texte) === norme(avant.description)) dit(i, `${nom} : la description est identique à l'actuelle.`);
       else if (partConservee(avant.description, texte) < PART_CONSERVEE_MIN) {

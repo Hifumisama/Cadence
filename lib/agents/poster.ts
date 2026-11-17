@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { assets, episodes, projects } from "../../db/schema";
 import { cibleDeCodeAffiche, personnagePrincipal, titreDansPrompt, type CibleAffiche } from "../posters/posters";
 import { horsAffiches } from "../assets/assets-visible";
@@ -42,17 +42,21 @@ async function briefUtilisable(db: Db, projectId: number) {
 }
 
 /** The project's main character and its image: the first character of the brief found in the registry (see
- * `personnagePrincipal`). Read server side (disk access to know whether the image exists). */
+ * `personnagePrincipal`). Read server side (disk access to know whether the image exists). A character's STATE (an asset derived from
+ * another, e.g. the heroine after her transformation) is never the main character: the poster shows the hero in their main look
+ * (project 259: « la danseuse » also matched « la danseuse cendrée »). */
 export async function lirePersonnagePrincipal(db: Db, projectId: number) {
   const brief = await lireBriefDuProjet(db, projectId);
   const lignes = await db
-    .select({ code: assets.code, description: assets.description, fichier: assets.fichier })
+    .select({ id: assets.id, code: assets.code, description: assets.description, fichier: assets.fichier })
     .from(assets)
-    .where(and(eq(assets.projectId, projectId), eq(assets.type, "personnage"), horsAffiches))
+    .where(and(eq(assets.projectId, projectId), eq(assets.type, "personnage"), isNull(assets.deriveDeId), horsAffiches))
     .orderBy(assets.code);
   const registre = lignes.map((a) => ({
+    id: a.id,
     code: a.code,
     description: a.description ?? "",
+    fichier: a.fichier,
     aImage: imageActuelle({ id: 0, code: a.code, type: "personnage", fichier: a.fichier }) != null,
   }));
   const choix = personnagePrincipal(brief && brief.statut !== "partiel" ? brief.contenu.personnages : [], registre);

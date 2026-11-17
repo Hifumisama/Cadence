@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { depuisRegistreAsset } from "./conversion";
+import { avecGabarit } from "../assets/sheet-templates";
 import { candidatsRegistre, cleSousTacheAsset, codeDeCleAsset, descriptionPersonnage, detailsDuBrief, libelleDetailsDuBrief, type AssetExistant } from "./registry";
 
 const brief = {
@@ -72,9 +73,11 @@ test("depuisRegistreAsset : un asset existant ne reçoit que son prompt ; la des
   const [a] = depuisRegistreAsset(sortie, { code: "CHAR_maya", type: "personnage", suffixe: "maya", description: "du brief", existant: courant });
   assert.equal(a!.operation, "modifier");
   assert.equal(a!.cibleRef, "1");
-  assert.deepEqual(a!.apres, { promptGeneration: sortie.promptGeneration });
+  // A character in generation receives the 4-view template from the code (lib/assets/sheet-templates.ts).
+  const attendu = avecGabarit(sortie.promptGeneration, "personnage", "generation");
+  assert.deepEqual(a!.apres, { promptGeneration: attendu });
   const [b] = depuisRegistreAsset(sortie, { code: "CHAR_maya", type: "personnage", suffixe: "maya", description: "du brief", existant: courant, descriptionVide: true });
-  assert.deepEqual(b!.apres, { promptGeneration: sortie.promptGeneration, description: "du brief" });
+  assert.deepEqual(b!.apres, { promptGeneration: attendu, description: "du brief" });
 });
 
 test("descriptionPersonnage : ce qu'on voit (âge, apparence, trait), jamais le rôle ni la voix", () => {

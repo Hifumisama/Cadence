@@ -1,8 +1,16 @@
-import { controlerDureeScenario, controlerStructureScenario } from "../agents/screenplay-checks";
+import { controlerDureeScenario, controlerLiaisonPremierPlan, controlerStructureScenario } from "../agents/screenplay-checks";
 import { controlerTraitement } from "../agents/treatment";
+import { constatsImmobilite, nomsPersonnagesDeLEntree } from "../agents/stillness";
 import { contexteDepuisEntree, controlerSortieIterationPlan, type SortieIterationPlan } from "../agents/iteration-clip";
 import { problemesDeRelecture, type EntreeRelecture, type SortieRelecture } from "../agents/review";
-import { contexteReferencesDepuisEntree, controlerReferences, type SortieInventaire } from "../agents/inventory";
+import {
+  contexteReferencesDepuisEntree,
+  controlerDescriptionsImmobiles,
+  controlerPersonnagesNommes,
+  controlerReferences,
+  nomsPersonnagesDuBrief,
+  type SortieInventaire,
+} from "../agents/inventory";
 import { corrigerCodesReferencesPlan, problemesReferencesPlan, SKILL_REFERENCES_PLAN, type EntreeSkillReferencesPlan, type SortieReferencesPlan } from "../agents/references-clip";
 
 /** SEMANTIC checks of a skill, applied to an output that already respects the schema: what the
@@ -38,11 +46,17 @@ export function controleurPourSkill(skill: string, entree: unknown): Controleur 
   if (skill === "inventaire-assets") {
     // Each clip's references (2026-11-09): known codes (registry, assets already proposed, assets of the answer), no sound, 6 images at most,
     // one entry per clip. What the code fixes alone (duplicate, second set, second face, uncited keyframe) is only a warning.
+    // Also (2026-11-17, project 259): no stillness or pose word in a description, and a character named by a plan's intention is in its references.
     return (json) => {
       const sortie = json as SortieInventaire;
-      return controlerReferences(sortie, contexteReferencesDepuisEntree(entree, sortie))
-        .problemes.filter((p) => p.niveau === "erreur")
-        .map((p) => p.message);
+      const ctx = contexteReferencesDepuisEntree(entree, sortie);
+      return [
+        ...controlerReferences(sortie, ctx)
+          .problemes.filter((p) => p.niveau === "erreur")
+          .map((p) => p.message),
+        ...controlerDescriptionsImmobiles(sortie),
+        ...controlerPersonnagesNommes(sortie, { ...ctx, nomsDuBrief: nomsPersonnagesDuBrief(entree) }),
+      ];
     };
   }
   if (skill === "traitement-episode") {
@@ -51,8 +65,21 @@ export function controleurPourSkill(skill: string, entree: unknown): Controleur 
     return (json) => controlerTraitement(json as Parameters<typeof controlerTraitement>[0], vise);
   }
   if (skill === "scenario-scene") {
-    // Durations are brought back to the target by the code (ajusterDureesScene): only the structure of the descriptions is checked, as for an episode.
-    return (json) => controlerStructureScenario({ scenes: [{ plans: (json as { plans?: { titre?: string; description?: string }[] }).plans }] });
+    // Durations are brought back to the target by the code (ajusterDureesScene): only the structure of the descriptions is checked, as for an episode,
+    // plus the plans where nothing moves (still character, empty set, duplicated sentences: lib/agents/stillness.ts, project 259). One resend only:
+    // if they persist, the review receives the same findings as signals (`signalements`, context.ts).
+    // And the first plan's liaison against the treatment (a scene whose entry state copies the previous exit state continues it).
+    const noms = nomsPersonnagesDeLEntree(entree);
+    const e = (entree ?? {}) as Parameters<typeof controlerLiaisonPremierPlan>[0];
+    return (json) => {
+      const sortie = json as { plans?: { titre?: string; description?: string; liaison?: string }[] };
+      const plans = sortie.plans;
+      return [
+        ...controlerStructureScenario({ scenes: [{ plans }] }),
+        ...controlerLiaisonPremierPlan(e, sortie),
+        ...constatsImmobilite((plans ?? []).map((p) => ({ plan: `Le plan « ${p.titre ?? "?"} »`, description: p.description ?? "" })), noms).map((c) => c.message),
+      ];
+    };
   }
   if (skill === "scenario-episode") {
     // Only a WHOLE episode screenplay is compared to the target duration (a clip to insert or correct is only a piece of it).

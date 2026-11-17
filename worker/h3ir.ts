@@ -1,5 +1,5 @@
 import { chargerBriefPlan, type SurchargeBrief } from "../lib/h3ir/brief-clip";
-import type { ResultatBrief } from "../lib/h3ir/brief";
+import { sansGuillemetsDroits, sansGuillemetsDroitsHorsRepliques, type ResultatBrief } from "../lib/h3ir/brief";
 import { compilerAvecRelances, ErreurCompilation, reglagesH3ir, type EnveloppeH3ir, type LanceurPython, type ResultatCompilation } from "../lib/h3ir/compiler";
 import { SKILL_H3IR, SKILL_TRADUCTION, type CompilationReduite, type EntreeH3ir, type ResultatH3ir } from "../lib/h3ir/result";
 import { executerSkill, type OptionsExecution } from "../lib/llm/execute";
@@ -92,13 +92,15 @@ async function retoucherPrompt(
     if (sortie.refonte === true) return { refonte: String(sortie.raison ?? "").trim() || "la consigne demande de refaire le plan", usage };
     defauts = verifierRetouche(e.sections, sortie, e.repliques);
     if (defauts.length === 0) {
+      // Straight quotes written by the skill would be lettered on screen by H3 (the spoken lines `<d>` stay as checked).
+      const sections = Object.fromEntries(ORDRE_SECTIONS.map((nom) => [nom, sansGuillemetsDroitsHorsRepliques(sortie.sections[nom])])) as SortieRetouche["sections"];
       return {
         resultat: {
           moteur: "retouche",
           planUuid: run.planUuid,
           depuisNumero: e.numeroRendu,
-          sections: sortie.sections,
-          passages: passagesChanges(e.sections, sortie.sections),
+          sections,
+          passages: passagesChanges(e.sections, sections),
           modifications: (sortie.modifications ?? []).filter((m) => typeof m === "string" && m.trim()),
           modeleRetouche: r.modele,
         },
@@ -205,5 +207,5 @@ export async function executerH3ir(
 
 /** The translated text, ready for the compiler: a straight quote would be read there as text to display on screen. */
 export function nettoyerIntent(brut: unknown): string {
-  return typeof brut === "string" ? brut.replace(/"/g, "'").trim() : "";
+  return typeof brut === "string" ? sansGuillemetsDroits(brut).trim() : "";
 }

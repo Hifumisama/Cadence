@@ -14,7 +14,7 @@
         "additionalProperties": false,
         "required": ["critere", "plans", "probleme"],
         "properties": {
-          "critere": { "type": "string", "enum": ["physique", "temps", "direction", "entrees-sorties", "motif", "doublon", "menace", "resolution", "dialogue"], "description": "Which check the fault breaks." },
+          "critere": { "type": "string", "enum": ["physique", "temps", "direction", "entrees-sorties", "motif", "doublon", "menace", "resolution", "dialogue", "immobilite"], "description": "Which check the fault breaks." },
           "plans": { "type": "array", "items": { "type": "string" }, "description": "References of the plans concerned, exactly as in the input (P01, P02…). May be empty for a missing resolution." },
           "probleme": { "type": "string", "description": "(French) The fault in one or two sentences, quoting the words that break it." }
         }
@@ -36,7 +36,7 @@
               "description": { "type": "string", "description": "(French) The COMPLETE new description of the plan: the original with only the broken sentence changed or one sentence added. Keep the rest word for word, including the lines `NOM : « … »`; never only the changed sentence, no « État en fin de plan » line. No reference to another plan, no camera. Leave out if only `liaison` or `titre` changes." },
               "titre": { "type": "string", "description": "(French) A new title, only if the old one is now false." },
               "liaison": { "type": "string", "enum": ["suite", "coupe"], "description": "The new link with the PREVIOUS plan, only if it changes. The first plan is always a coupe." },
-              "critere": { "type": "string", "enum": ["physique", "temps", "direction", "entrees-sorties", "motif", "doublon", "menace", "resolution", "dialogue"] },
+              "critere": { "type": "string", "enum": ["physique", "temps", "direction", "entrees-sorties", "motif", "doublon", "menace", "resolution", "dialogue", "immobilite"] },
               "motif": { "type": "string", "description": "(French) One sentence: why, pointing at the broken words." }
             }
           },
@@ -47,7 +47,7 @@
             "properties": {
               "type": { "type": "string", "const": "couper_plan" },
               "plan": { "type": "string", "description": "Reference of the plan to delete (a duplicated beat). Its lines must go to the plan that keeps the beat." },
-              "critere": { "type": "string", "enum": ["doublon", "motif", "entrees-sorties", "physique", "temps", "direction", "menace", "resolution", "dialogue"] },
+              "critere": { "type": "string", "enum": ["doublon", "motif", "entrees-sorties", "physique", "temps", "direction", "menace", "resolution", "dialogue", "immobilite"] },
               "motif": { "type": "string", "description": "(French) One sentence: why, and which plan keeps the beat." }
             }
           },
@@ -59,7 +59,7 @@
               "type": { "type": "string", "const": "duree_plan" },
               "plan": { "type": "string", "description": "Reference of the plan concerned." },
               "secondes": { "type": "integer", "minimum": 4, "maximum": 10, "description": "The new generation duration, whole seconds." },
-              "critere": { "type": "string", "enum": ["doublon", "motif", "entrees-sorties", "physique", "temps", "direction", "menace", "resolution", "dialogue"] },
+              "critere": { "type": "string", "enum": ["doublon", "motif", "entrees-sorties", "physique", "temps", "direction", "menace", "resolution", "dialogue", "immobilite"] },
               "motif": { "type": "string", "description": "(French) One sentence: why (usually to keep the total on target after a cut or an addition)." }
             }
           },

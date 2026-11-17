@@ -1,4 +1,4 @@
-import { construireCode } from "../assets/assetCode";
+import { construireCode, slugifyCode } from "../assets/assetCode";
 import type { ChangementBrut } from "./changes";
 import { correspondances } from "./similar-codes";
 import { MAX_REFS_VISUELLES } from "../clips/clip-continuity";
@@ -286,6 +286,71 @@ export function contexteReferencesDepuisEntree(entree: unknown, sortie: Pick<Sor
     if (!connus.some((c) => c.code === final)) connus.push({ code: final, type: m.type, parent: m.parent ?? null, aCreer: true });
   }
   return { plans, connus, alias };
+}
+
+// --- semantic checks of the answer (project 259, 2026-11-17) -------------------------------------------------------------
+
+/** Words of stillness or pose in an asset description: the image prompt turns them into a frozen subject (« Apparence funèbre et statique » became
+ * « posture is perfectly static »), and the video model then keeps it still. Pose and action belong to the plans. */
+const MOTS_IMMOBILES = /(?<![\p{L}\d])(statiques?|immobiles?|immobilité|figée?s?|static|motionless|stillness|pose)(?![\p{L}\d])/iu;
+
+/** An asset description that speaks of stillness or pose (A5): a contract error, sent back once. Pure. */
+export function controlerDescriptionsImmobiles(sortie: Pick<SortieInventaire, "assets">): string[] {
+  const erreurs: string[] = [];
+  for (const m of sortie.assets ?? []) {
+    const mot = MOTS_IMMOBILES.exec(m.description ?? "")?.[0];
+    if (mot) {
+      erreurs.push(
+        `${m.code} : sa description dit « ${mot} ». Une description montre l'asset seul (son aspect, sa tenue, sa matière), jamais une pose ni une immobilité : l'image en ferait un sujet figé. Retire ce mot ; la pose et l'action vont dans les plans.`,
+      );
+    }
+  }
+  return erreurs;
+}
+
+/** The same family of characters: the code itself, one of its states (`CHAR_mai_blessee` for `CHAR_mai`) or the subject it is a state of. */
+const memeFamille = (a: string, b: string) => a === b || a.startsWith(`${b}_`) || b.startsWith(`${a}_`);
+
+/** A character NAMED in a plan's intention whose image is not in that plan's references (A2): the video model then draws them from the text alone.
+ * The name is the readable code suffix (`CHAR_le_garde` → « le garde »), or the brief's name when the code is built on it (« Tifa Lockhart » for
+ * `CHAR_tifa`). Only the base characters (without a parent): a state is accepted in place of its subject and vice versa. Pure. */
+export function controlerPersonnagesNommes(
+  sortie: Pick<SortieInventaire, "references">,
+  ctx: { plans: PlanInventaire[]; connus: AssetConnu[]; alias?: Map<string, string>; nomsDuBrief?: string[] },
+): string[] {
+  const personnages = ctx.connus.filter((a) => a.type === "personnage" && !a.parent?.trim());
+  const nomsDe = (code: string): string[] => {
+    const suffixe = slugifyCode(code.slice(code.indexOf("_") + 1));
+    const duBrief = (ctx.nomsDuBrief ?? []).filter((n) => {
+      const s = slugifyCode(n);
+      return s === suffixe || s.startsWith(`${suffixe}_`);
+    });
+    return [...duBrief, suffixe.replace(/_/g, " ")];
+  };
+  const parPlan = new Map((sortie.references ?? []).map((r) => [(r?.plan ?? "").trim().toUpperCase(), (r?.codes ?? []).map((c) => ctx.alias?.get(c) ?? c)]));
+  const erreurs: string[] = [];
+  for (const plan of ctx.plans) {
+    const codes = parPlan.get(plan.id.toUpperCase());
+    if (!codes) continue; // a forgotten plan is already an error of controlerReferences
+    const texte = ` ${nomComparable(plan.intention ?? "")} `;
+    for (const p of personnages) {
+      const nom = nomsDe(p.code).find((n) => {
+        const c = nomComparable(n);
+        return c.length >= 3 && texte.includes(` ${c} `);
+      });
+      if (!nom || codes.some((c) => memeFamille(c, p.code))) continue;
+      erreurs.push(
+        `${plan.id} : l'intention nomme « ${nom} » mais ${p.code} n'est pas dans ses références ; ajoute-le s'il est à l'image (s'il est seulement entendu ou hors champ, n'ajoute rien).`,
+      );
+    }
+  }
+  return erreurs;
+}
+
+/** The names of the brief's characters (`brief.personnages[].nom`) in the inventory input, for `controlerPersonnagesNommes`. */
+export function nomsPersonnagesDuBrief(entree: unknown): string[] {
+  const brief = ((entree ?? {}) as { brief?: { personnages?: { nom?: unknown }[] } | null }).brief;
+  return (brief?.personnages ?? []).flatMap((p) => (typeof p?.nom === "string" && p.nom.trim() ? [p.nom.trim()] : []));
 }
 
 // --- input and split into scene groups (2026-11-09) ------------------------------------------------------------------

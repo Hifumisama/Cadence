@@ -12,6 +12,25 @@ Nettoyage fait (sauvegardes du NAS supprimées, script retiré du dépôt). Rest
 
 ## À faire, décidé
 - **Validation côté serveur (zod)** des server actions : en cours (branche menage/zod).
+- **Corrections de la cartographie du projet 259** (2026-11-17). Le projet a été mené de bout en bout sans retouche : 54 problèmes relevés, page https://claude.ai/artifact/GfHq9Bg4fgTXE5YyNq6KBf. Plan en 6 phases. Cahier de tests : https://claude.ai/artifact/BsEvsY43RMmMfbgmZTx64D.
+  - **Décisions de l'utilisateur :**
+    - l'affiche attend l'image du héros, et elle est abstraite si l'histoire n'a pas de personnage ;
+    - la durée demandée est un plancher strict ;
+    - la réflexion est gardée pour le scénario et le scénariste, si la qualité suit.
+  - **Phase 1, faite et validée par l'utilisateur :**
+    - course au lancement des fiches ;
+    - guillemets droits ;
+    - gabarits de planches posés par le code (`lib/assets/sheet-templates.ts`) ;
+    - affiche faite à partir du héros (`poster-clap.ts`, déclenchée à l'adoption de son image) ;
+    - contrôles de l'inventaire et de la liaison du premier plan.
+  - **Phase 2, faite et validée :** détecteur « rien ne bouge » (`lib/agents/stillness.ts`), branché sur `scenario-scene` et sur la relecture.
+  - **Reste :**
+    - phase 3 : un état part de son parent ;
+    - phase 4 : inventions visibles ;
+    - phase 5 : scénariste, scénario et durée plancher, via le banc avec réflexion ;
+    - phase 6 : rejouer le projet complet.
+  - **Vu à l'essai GPU de l'affiche :** titre mal orthographié par Qwen (« Pieé ») et décor absent, puisque seule l'image du héros est donnée en source. Pistes : passer le décor principal en 2ᵉ source, et poser le titre par l'app au lieu de le faire écrire par le modèle.
+  - `npm run lint` est cassé depuis longtemps : `next lint` n'existe plus et il n'y a pas de configuration ESLint.
 
 ## Retours du test en profondeur (2026-11-13)
 Lot rapide fait : onglets Assets/Tournage inversés, bouton « Retour au clap » retiré, état « Intention seule / Fiche rédigée » dans le tournage, prévisualisation en lot depuis le tournage, liste « Hors montage » plafonnée (~4 rangées), plans liés (« suite » / « suite rompue ») dans le montage.
@@ -53,3 +72,4 @@ Reset CSS condensé · Assets rangés par projet (260 images, local) · Docs ret
 - **Vue SQL `v_taches`** : la complexité de `listerTaches` est dans les mappeurs par type, les lots et la fenêtre de création, pas dans les 6 requêtes. Une vue ne la réduirait pas.
 - **Séparer le dépôt en deux** : gain faible, coût de synchronisation élevé.
 - **Tailwind, bibliothèques structurantes** (file de tâches, machine à états, zod sur les sorties LLM) : aucune ne remplace proprement l'existant.
+- **Découpage technique du scénario** (étudié et banc le 2026-11-16, abandonné ; essais non suivis dans `essais/decoupage/`) : fiche par scène/plan en champs (enjeu, repères, temps, cadres, positions), prose recollée par le code pour Open H3 IR. Mesures (3 scènes, une seed, modèle `qwen3.8-27b-swift1.5-mtp`) : JSON valide 20/20 ; découpage jugé plus lisible (4 contre 2-3) et cadres tenus à 100 %, **mais la prose actuelle gagne 3/3 en vidéo à l'aveugle**, y compris contre une version sans caméra imposée (B′). Cause : le format en champs appauvrit l'écriture (2-3 actions courtes par plan contre une dizaine de micro-gestes dans la prose), et H3 a besoin de cette densité ; imposer cadres et nombre de shots fige en plus le rendu. Vue 3D (coordonnées en mètres, caméra calculée) : vue de dessus lisible, vue caméra illisible (gros plans sur mannequins, cadres monotones du modèle). À retenir si le sujet revient : l'enjeu de scène (veut/contre/bascule) a été validé 3/3 ; une vue dérivée de la prose (la lire, pas la contraindre) et la liste de shots extraite de la fiche Open H3 IR pour relire avant de rendre sont les deux pistes non testées.

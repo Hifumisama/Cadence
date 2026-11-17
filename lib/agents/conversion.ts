@@ -1,4 +1,5 @@
 import { avecTitreDansImage, titreDansPrompt } from "../posters/posters";
+import { avecGabarit } from "../assets/sheet-templates";
 import { PREFIXE_PAR_TYPE, TYPES_ASSET, slugifyCode } from "../assets/assetCode";
 import type { ChangementBrut } from "./changes";
 import { estLiaison } from "../clips/clip-link";
@@ -35,7 +36,8 @@ function avertissementsRemarques(remarques: { type: string; message: string }[])
 /** An asset to modify: its prompt (and, if the agent recommends it differently, its method).
  * The canonical description is never rewritten by this skill. */
 export function depuisPromptAsset(sortie: SortiePromptAsset, asset: AssetCourant): ChangementBrut[] {
-  const apres: Record<string, unknown> = { promptGeneration: sortie.promptGeneration };
+  // The sheet template (4 views, 3 views in a fixed layout) is added by the code, never left to the model.
+  const apres: Record<string, unknown> = { promptGeneration: avecGabarit(sortie.promptGeneration, asset.type, sortie.methode) };
   if (sortie.methode !== (asset.methodeGeneration ?? "generation")) apres.methodeGeneration = sortie.methode;
   const avertissements = avertissementsRemarques(sortie.remarques ?? []);
   if (apres.methodeGeneration) {

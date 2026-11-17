@@ -284,6 +284,16 @@ export function decisionFichePlan(prop: PropositionAjout | null): DecisionFicheP
   return { action: "appliquer", changementIds: retenus.map((c) => c.id) };
 }
 
+/** How long a sheet request may stay without its agent task before we fail it: the launch inserts the request (compilation step already
+ * « en cours ») BEFORE posting the run, so a pilot tick in between must wait, not fail (bug of 2026-11-17: the run came 2 ms later, orphaned). */
+export const DELAI_TACHE_FICHE_MS = 60_000;
+
+/** What to do with the compilation step's agent task. `runTrouve`: a run exists (by its uuid in the context, or by `demandeId`). Pure. */
+export function deciderTacheFiche(runTrouve: boolean, creeeLe: Date, maintenant: Date = new Date()): "utiliser" | "attendre" | "echouer" {
+  if (runTrouve) return "utiliser";
+  return maintenant.getTime() - creeeLe.getTime() < DELAI_TACHE_FICHE_MS ? "attendre" : "echouer";
+}
+
 /** Moves step `cle` to `statut` and launches the next one if we have just finished it; `sauter` marks them « passées » (e.g. no rewrite). */
 export function avancerEtapes(etapes: EtapeDemande[], cle: string, statut: StatutEtapeDemande, sauter: string[] = []): EtapeDemande[] {
   const res = etapes.map((e) => (e.cle === cle ? { ...e, statut } : sauter.includes(e.cle) ? { ...e, statut: "passe" as const } : e));

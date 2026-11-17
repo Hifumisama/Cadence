@@ -3,8 +3,11 @@ import assert from "node:assert/strict";
 import {
   MAX_REFERENCES_PLAN,
   contexteReferencesDepuisEntree,
+  controlerDescriptionsImmobiles,
+  controlerPersonnagesNommes,
   controlerReferences,
   decouperInventaire,
+  nomsPersonnagesDuBrief,
   depuisInventaire,
   estimerInventaire,
   groupeInventaireDeCle,
@@ -292,4 +295,54 @@ test("clés de sous-tâche d'un inventaire découpé", () => {
   assert.equal(cleSousTacheInventaire(2), "inv:2");
   assert.equal(groupeInventaireDeCle("inv:2"), 2);
   assert.equal(groupeInventaireDeCle("ep:2"), null);
+});
+
+test("controlerDescriptionsImmobiles : statique, immobile, figée, static, pose… font renvoyer (A5)", () => {
+  const avec = (description: string) => controlerDescriptionsImmobiles({ assets: [a("CHAR_veuve", "personnage", { description })] });
+  assert.equal(avec("Apparence funèbre et statique, voile noir.").length, 1);
+  assert.match(avec("Apparence funèbre et statique, voile noir.")[0]!, /CHAR_veuve.*« statique »/);
+  for (const d of ["Silhouette immobile.", "Le visage figé.", "Statue figée dans le temps.", "A static look.", "Motionless figure.", "A sense of stillness.", "Debout, en pose de garde."]) {
+    assert.equal(avec(d).length, 1, d);
+  }
+  for (const d of ["Robe noire, voile de dentelle, gants.", "Posée sur une table.", "Imposant, épaules larges."]) {
+    assert.deepEqual(avec(d), [], d);
+  }
+});
+
+test("controlerPersonnagesNommes : un personnage nommé par l'intention doit être dans les références du plan (A2)", () => {
+  const entree: EntreeInventaire = {
+    ...entreeDe([
+      {
+        episode: "Épisode 1",
+        resume: null,
+        scenes: [{ titre: "S1", fonction: "", plans: [planE(1, "Tifa Lockhart frappe le sac sous l'œil du garde."), planE(2, "Héroïne seule sur le quai."), planE(3, "Le port au loin.")] }],
+      },
+    ]),
+    registre: [
+      { code: "CHAR_tifa", type: "personnage", description: "Une combattante" },
+      { code: "CHAR_heroine", type: "personnage", description: "Une femme" },
+      { code: "CHAR_heroine_blessee", type: "personnage", description: "La même, blessée" },
+      { code: "DEC_port", type: "decor", description: "Un port" },
+    ],
+    brief: { personnages: [{ nom: "Tifa Lockhart" }] },
+  };
+  const s: SortieInventaire = {
+    assets: [{ code: "CHAR_garde", type: "personnage", parent: null, element: null, description: "Un garde en armure", plans: ["P01"], raison: "r" }],
+    references: [
+      { plan: "P01", codes: ["DEC_port"] },
+      { plan: "P02", codes: ["CHAR_heroine_blessee", "DEC_port"] },
+      { plan: "P03", codes: ["DEC_port"] },
+    ],
+    notes: "",
+  };
+  const ctx = contexteReferencesDepuisEntree(entree, s);
+  const e = controlerPersonnagesNommes(s, { ...ctx, nomsDuBrief: nomsPersonnagesDuBrief(entree) });
+  assert.equal(e.length, 2);
+  assert.ok(e.some((m) => /P01.*« Tifa Lockhart ».*CHAR_tifa/.test(m)));
+  assert.ok(e.some((m) => /P01.*« garde ».*CHAR_garde/.test(m)));
+  // Through the skill's checker: the same messages; fixed references → nothing.
+  const controleur = controleurPourSkill("inventaire-assets", entree)!;
+  assert.ok(controleur(s).some((m) => /CHAR_tifa/.test(m)));
+  const corrige = { ...s, references: [{ plan: "P01", codes: ["CHAR_tifa", "CHAR_garde", "DEC_port"] }, ...s.references!.slice(1)] };
+  assert.deepEqual(controleur(corrige), []);
 });

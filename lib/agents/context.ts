@@ -17,6 +17,7 @@ import { poigneePlan, type EntreeInventaire } from "./inventory";
 import { liaisonOuDefaut, type Liaison } from "../clips/clip-link";
 import { sansEtatDeFin } from "../clips/intent";
 import { nombreDeScenesVise, traitementDeScene } from "./treatment";
+import { constatsImmobilite, nomsPersonnagesDeLEntree } from "./stillness";
 import { choisirReferencesPlan, type ChoixReferencesPlan } from "../h3ir/references-clip-db";
 import { construireEntreeReferencesPlan, SKILL_REFERENCES_PLAN } from "./references-clip";
 import type { BriefContenu, ContexteUtilise, PlaceScene, Position } from "./types";
@@ -504,6 +505,8 @@ export async function entreeRelecture(
     ...(paroles.length ? [{ type: "brief" as const, libelle: `Paroles de l'auteur (${paroles.length} message${paroles.length > 1 ? "s" : ""} de sa conception)` }] : []),
   ];
   const duree = (c.extrait as { dureeEpisodeSecondes?: number } | null)?.dureeEpisodeSecondes;
+  // Measured by the code (lib/agents/stillness.ts): still plans, empty plans, duplicated sentences. The skill must handle each one.
+  const signalements = constatsImmobilite(lesPlans, nomsPersonnagesDeLEntree({ briefExtrait: c.extrait })).map((x) => x.message);
   return {
     skill: "relecture-scenario",
     contexte,
@@ -515,6 +518,7 @@ export async function entreeRelecture(
       ...(paroles.length ? { parolesDeLAuteur: paroles } : {}),
       scenes: c.lesScenes.map((s) => ({ titre: s.titre, fonction: s.fonction ?? "", ambiance: (s.ambiance ?? "").trim() })),
       plans: lesPlans,
+      ...(signalements.length ? { signalements } : {}),
       ...(typeof duree === "number" && duree > 0 ? { dureeCibleSecondes: duree } : {}),
       registre: c.registre,
       consigne,

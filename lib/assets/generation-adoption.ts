@@ -6,6 +6,7 @@ import { assetGenerations, assets } from "../../db/schema";
 import { appliquerAffiche } from "../posters/poster-application";
 import { TYPE_AFFICHE, titreDansPrompt } from "../posters/posters";
 import { cheminAssetMedia, cheminGenerationMedia } from "../media";
+import { relancerAfficheApresHeros } from "../agents/poster-clap";
 
 /** Adopt a candidate: its file becomes the asset's image, and its prompt the asset's. Shared by
  * the « Adopter » action of the interface (app/assets/generation-actions.ts) and by the worker, which adopts on its own the generations of a
@@ -44,6 +45,8 @@ export async function adopterCandidat(generationId: number, mediaRoot: string): 
     const appliquee = await appliquerAffiche(asset.code, nom, mediaRoot, titreDansPrompt(gen.prompt));
     if (!appliquee.ok) return appliquee;
   }
+  // The hero's image: the project's poster waits for it and is made from it (decision 2026-11-17). A failure here never undoes the adoption.
+  if (asset.type === "personnage") await relancerAfficheApresHeros(db, asset.projectId, asset.id).catch(() => false);
   // Adopting means having seen the result: the header indicator no longer flags it.
   if (!gen.vuAt) await db.update(assetGenerations).set({ vuAt: new Date() }).where(eq(assetGenerations.id, gen.id));
   return { ok: true };

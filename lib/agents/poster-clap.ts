@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
-import { agentConversations, agentRuns, assetGenerations, assets, briefs, projects } from "../../db/schema";
+import { agentConversations, agentRuns, assetGenerationSources, assetGenerations, assets, briefs, projects } from "../../db/schema";
 import { TYPE_AFFICHE, avecTitreDansImage, codeAffiche, formatAfficheParDefaut, promptAffiche } from "../posters/posters";
 import { nouvelleSeed } from "../assets/asset-generation";
 import { VARIANTE_AFFICHE } from "../llm/variants";
-import { styleDesImages } from "../projects/design";
+import { styleDesEditions, styleDesImages } from "../projects/design";
+import { lirePersonnagePrincipal } from "./poster";
 import { lireConception } from "../projects/design-db";
 import type { Db } from "./appliers/common";
 import { ficheCourante } from "./sheet-db";
@@ -32,7 +33,16 @@ export type DonneesAffiche = {
   /** The style's long prompt (it changes if the style changes) and its short clause. */
   styleImage: string;
   clauseStyle: string;
+  /** The hero's registry asset (main look, never a state), once it exists; `aImage` once its image is there. The poster WAITS for it
+   * (decision 2026-11-17, cartography of project 259: a poster drawn from text showed a third woman, in the final state). */
+  heros?: { id: number; code: string; nom: string; description: string; fichier: string | null; aImage: boolean } | null;
 };
+
+/** The poster waits for the hero's image: the story has characters, but the hero's image is not there yet. Without any character, the
+ * poster is abstract and goes at once. Pure. */
+export function afficheAttendLeHeros(d: Pick<DonneesAffiche, "personnages" | "heros">): boolean {
+  return d.personnages.length > 0 && !d.heros?.aImage;
+}
 
 const TITRES_PROVISOIRES = new Set(["", "sans titre", "projet", "untitled"]);
 
@@ -47,17 +57,28 @@ export function signatureAffiche(d: Omit<DonneesAffiche, "clauseStyle">): string
     lieux: net(d.lieux),
     genres: [...d.genres].sort(),
     style: createHash("sha1").update(d.styleImage).digest("hex"),
+    // The hero's image counts: when it arrives (or is replaced), the poster is made from it.
+    heros: d.heros?.aImage ? `${d.heros.code}:${d.heros.fichier ?? ""}` : null,
   });
   return createHash("sha1").update(canon).digest("hex").slice(0, 16);
 }
 
 const decrire = (p: DonneesAffiche["personnages"][number]): string => [net(p.age), net(p.apparence), net(p.gestuelle) || net(p.reconnaissable)].filter(Boolean).join(", ");
 
-/** The `prompt-asset` skill input (`affiche` variant) for the clap's poster. Character images do not exist yet: it is a generation from
- * text, the hero is described by his sheet. */
+/** The poster template, the same for every project (cartography of project 259: no fixed composition, the title missing). */
+export const GABARIT_AFFICHE =
+  "Composition: one single main subject in a medium shot, filling the middle of the vertical frame; the story's main place behind; a calm, dark, uncluttered band across the bottom quarter.";
+
+/** The `prompt-asset` skill input (`affiche` variant) for the project's poster. Two cases only: the hero's image exists (an edit from it, the
+ * hero in their main look), or the story has no character (an abstract poster from text). With characters but no hero image yet, the poster
+ * waits (`afficheAttendLeHeros`): it is not launched. */
 export function entreeAfficheClap(d: DonneesAffiche): Record<string, unknown> {
-  const [heros] = d.personnages;
   const autres = d.personnages.slice(1).map((p) => `${net(p.nom)} : ${decrire(p)}`).filter((x) => x.length > 3);
+  const [premier] = d.personnages;
+  const heros = d.heros?.aImage ? d.heros : null;
+  const consigne = heros
+    ? `The main character's image is image 2: paint the poster from it, with the character in exactly this look (this face, this outfit, these colours), never a later state of the story. Choose the moment of the story where they look like this. ${GABARIT_AFFICHE}`
+    : `This story has no character: make an abstract poster, without any person or silhouette: the main place, an element or a material of the story, in the tone. ${GABARIT_AFFICHE}`;
   return {
     cible: "projet",
     titre: d.titre,
@@ -67,8 +88,10 @@ export function entreeAfficheClap(d: DonneesAffiche): Record<string, unknown> {
     // The title is written into the image ("Title lettering" line added by the skill, and re-applied by the code on return) as long as it exists.
     titreDansImage: net(d.titre) !== "",
     promptActuel: "",
-    personnagePrincipal: heros ? { code: "HERO", nom: net(heros.nom), description: decrire(heros), imageDisponible: false } : null,
-    consigne: "Poster written at the end of the design interview: no character image exists yet, so write a text-only generation (method `generation`, no sources). The summary is the whole story: choose one striking moment.",
+    personnagePrincipal: heros
+      ? { code: heros.code, nom: net(premier?.nom) || heros.nom, description: heros.description || (premier ? decrire(premier) : ""), imageDisponible: true }
+      : null,
+    consigne,
   };
 }
 
@@ -97,6 +120,7 @@ export async function donneesAffiche(db: Db, projectId: number): Promise<Donnees
   const [b] = await db.select({ contenu: briefs.contenu }).from(briefs).where(eq(briefs.projectId, projectId));
   const style = (b?.contenu as BriefContenu | undefined)?.style;
   const titre = titreDeLAffiche({ nom: projet.nom, titreBrief: (b?.contenu as { titre?: unknown } | undefined)?.titre, titreFiche: (fiche.contenu as { titre?: unknown }).titre });
+  const principal = personnages.length > 0 ? await lirePersonnagePrincipal(db, projectId) : null;
   return {
     titre,
     arc,
@@ -105,10 +129,12 @@ export async function donneesAffiche(db: Db, projectId: number): Promise<Donnees
     genres: conception.genres,
     styleImage: styleDesImages({ clauseStyle: projet.clauseStyle, stylePromptImage: projet.stylePromptImage }) || style?.clause || "",
     clauseStyle: projet.clauseStyle,
+    heros: principal ? { id: principal.id, code: principal.code, nom: principal.nom, description: principal.description, fichier: principal.fichier, aImage: principal.aImage } : null,
   };
 }
 
-export type EtatAfficheClap = "a_lancer" | "en_cours" | "prete" | "echec";
+/** `attend_heros`: the story has characters and the hero's image is not there yet (the poster will be made from it, see `relancerAfficheApresHeros`). */
+export type EtatAfficheClap = "a_lancer" | "en_cours" | "prete" | "echec" | "attend_heros";
 
 /** Where the poster stands for THIS fingerprint: to launch (no task for it), in progress (prompt or image), ready, or failed. A
  * fingerprint already tried and failed is not relaunched on its own (no loop): "Réessayer" goes through `relancerAfficheClap`. */
@@ -156,9 +182,22 @@ export async function lancerAfficheClap(db: Db, projectId: number, d: DonneesAff
   await creerRun(db, { skill: "prompt-asset", entree: entreeAfficheClap(d), but: "affiche", projectId, conversationId: null, options: { signature, variante: VARIANTE_AFFICHE } });
 }
 
+/** When the hero's image is adopted (lib/assets/generation-adoption.ts): if the poster was waiting for it, or was made without it, it is
+ * made now, from that image. Nothing happens before the clap (no story yet), for another character, or when the poster already comes
+ * from this very image (same fingerprint). Returns whether a poster task was launched. */
+export async function relancerAfficheApresHeros(db: Db, projectId: number, assetId: number): Promise<boolean> {
+  const d = await donneesAffiche(db, projectId);
+  if (!d?.heros?.aImage || d.heros.id !== assetId) return false;
+  const signature = signatureAffiche(d);
+  if ((await etatAfficheClap(db, projectId, signature)) !== "a_lancer") return false;
+  await lancerAfficheClap(db, projectId, d, signature);
+  return true;
+}
+
 /** Skill return (called by the worker, in its transaction): the prompt becomes the poster's, and the generation goes into the image queue,
- * adopted automatically (it is the project's poster). Same request as `lancerGeneration` for a poster: 2:3, text mode. */
-export async function ecrireAfficheEtGenerer(db: Db, projectId: number, sortie: { promptGeneration?: unknown }): Promise<void> {
+ * adopted automatically (it is the project's poster). Same request as `lancerGeneration` for a poster: 2:3. In `edition` with the hero's
+ * image, the hero is the only source (the worker puts the empty 2:3 canvas as image 1, worker/images.ts `sourcesEdition`); otherwise text mode. */
+export async function ecrireAfficheEtGenerer(db: Db, projectId: number, sortie: { promptGeneration?: unknown; methode?: unknown }): Promise<void> {
   const promptModele = typeof sortie.promptGeneration === "string" ? sortie.promptGeneration.trim() : "";
   if (!promptModele) throw new Error("Le prompt de l'affiche est vide.");
   const [asset] = await db.select({ id: assets.id }).from(assets).where(and(eq(assets.projectId, projectId), eq(assets.code, codeAffiche("projects", projectId))));
@@ -168,18 +207,25 @@ export async function ecrireAfficheEtGenerer(db: Db, projectId: number, sortie: 
   // The title is set by the code, word for word: the model neither rewrites nor translates it (see `avecTitreDansImage`). We read the same one
   // that fed the poster (the sheet's title when the project's name is still provisional).
   const nom = net(projet?.nom);
-  const titre = (await donneesAffiche(db, projectId))?.titre ?? (TITRES_PROVISOIRES.has(nom.toLowerCase()) ? "" : nom);
+  const d = await donneesAffiche(db, projectId);
+  const titre = d?.titre ?? (TITRES_PROVISOIRES.has(nom.toLowerCase()) ? "" : nom);
   const prompt = titre ? avecTitreDansImage(promptModele, titre, true) : avecTitreDansImage(promptModele, "", false);
-  await db.update(assets).set({ promptGeneration: prompt }).where(eq(assets.id, asset.id));
-  await db.insert(assetGenerations).values({
-    assetId: asset.id,
-    methode: "generation",
-    prompt,
-    clauseStyle: styleDesImages(projet),
-    aspect: format.aspect,
-    megapixels: format.megapixels,
-    lightning: null,
-    seed: nouvelleSeed(),
-    adoptionAuto: true,
-  });
+  const heros = d?.heros?.aImage && d.heros.fichier ? d.heros : null;
+  const edition = sortie.methode === "edition" && heros != null;
+  await db.update(assets).set({ promptGeneration: prompt, methodeGeneration: edition ? "edition" : "generation" }).where(eq(assets.id, asset.id));
+  const [gen] = await db
+    .insert(assetGenerations)
+    .values({
+      assetId: asset.id,
+      methode: edition ? "edition" : "generation",
+      prompt,
+      // Same snapshot as lib/assets/generation-launch.ts: the long style prompt in text mode, the short clause in an edit (the edit follows image 1).
+      clauseStyle: edition ? styleDesEditions(projet) : styleDesImages(projet),
+      ...(edition ? {} : { aspect: format.aspect, megapixels: format.megapixels }),
+      lightning: edition ? true : null,
+      seed: nouvelleSeed(),
+      adoptionAuto: true,
+    })
+    .returning({ id: assetGenerations.id });
+  if (edition) await db.insert(assetGenerationSources).values({ generationId: gen!.id, position: 1, origine: "asset", assetId: heros.id, fichier: heros.fichier! });
 }

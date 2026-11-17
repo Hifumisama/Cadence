@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { controlerDureeScenario, dureeTotaleScenario } from "./screenplay-checks";
+import { controlerDureeScenario, controlerLiaisonPremierPlan, dureeTotaleScenario } from "./screenplay-checks";
 
 const scenes = (...durees: number[]) => ({ scenes: [{ plans: durees.map((d) => ({ dureeSecondes: d })) }] });
 
@@ -40,4 +40,23 @@ test("controlerStructureScenario : un récit est exigé, l'ancien « État en fi
   assert.equal(e.length, 2);
   assert.match(e[0]!, /P1.*État en fin de plan/);
   assert.match(e[1]!, /P2.*pas de récit/);
+});
+
+test("controlerLiaisonPremierPlan : état d'entrée copié de la sortie précédente → le premier plan est une suite", () => {
+  const etat = "Pika, dos au mur du hangar, face à Soom qui lève la jambe.";
+  const entree = { scene: { etatEntree: `  ${etat.replace(".", "")} ` }, scenePrecedente: { etatSortie: etat } };
+  const e = controlerLiaisonPremierPlan(entree, { plans: [{ titre: "P1", liaison: "coupe" }, { titre: "P2", liaison: "coupe" }] });
+  assert.equal(e.length, 1);
+  assert.match(e[0]!, /P1.*« suite »/);
+  assert.deepEqual(controlerLiaisonPremierPlan(entree, { plans: [{ titre: "P1", liaison: "suite" }] }), []);
+});
+
+test("controlerLiaisonPremierPlan : états différents, aucune règle floue ; sans scène précédente, une suite est refusée", () => {
+  const autre = { scene: { etatEntree: "Le lendemain, Pika seule au bar." }, scenePrecedente: { etatSortie: "Pika, dos au mur du hangar." } };
+  assert.deepEqual(controlerLiaisonPremierPlan(autre, { plans: [{ titre: "P1", liaison: "coupe" }] }), []);
+  assert.deepEqual(controlerLiaisonPremierPlan(autre, { plans: [{ titre: "P1", liaison: "suite" }] }), []);
+  const premiere = { scene: { etatEntree: "Pika au bar." }, scenePrecedente: null };
+  assert.equal(controlerLiaisonPremierPlan(premiere, { plans: [{ titre: "P1", liaison: "suite" }] }).length, 1);
+  assert.deepEqual(controlerLiaisonPremierPlan(premiere, { plans: [{ titre: "P1", liaison: "coupe" }] }), []);
+  assert.deepEqual(controlerLiaisonPremierPlan(premiere, { plans: [] }), []);
 });

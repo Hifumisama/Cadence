@@ -16,7 +16,7 @@ import { EnteteScene } from "./Scenes";
 /** `image`: the style's preview (fallback while the poster is being prepared); `poster`: the project's real poster, when it has one. */
 export type StyleAffiche = { nom: string; image: string | null; poster?: string | null };
 /** The poster's state as seen from the clap (see app/affiches/clap-actions.ts). */
-export type AfficheEtat = { etat: "en_cours" | "prete" | "echec" | "indisponible"; src: string | null };
+export type AfficheEtat = { etat: "en_cours" | "prete" | "echec" | "indisponible" | "attend_heros"; src: string | null; heros?: string };
 
 export function AfficheProjet({ conception, style, titre, affiche, reessayer }: { conception: Conception; style: StyleAffiche; titre: string; affiche?: AfficheEtat | null; reessayer?: () => void }) {
   const genres = conception.genres.join(" et ").toLowerCase();
@@ -30,6 +30,9 @@ export function AfficheProjet({ conception, style, titre, affiche, reessayer }: 
       {reelle ? <img src={reelle} alt="" /> : style.image ? <img src={urlMiniature(`/api/media/styles/${style.image}`, 768)} alt="" /> : null}
       <div className="cn-poster-voile" />
       {enCours ? <p className="cn-poster-attente" role="status">{reelle ? "L’affiche se refait…" : "L’affiche se tourne…"}</p> : null}
+      {affiche?.etat === "attend_heros" ? (
+        <p className="cn-poster-attente" role="status">L’affiche sera faite dès que l’image de {affiche.heros?.trim() || "ton personnage principal"} sera prête.</p>
+      ) : null}
       {affiche?.etat === "echec" ? (
         <p className="cn-poster-attente is-echec" role="alert">
           L’affiche n’a pas pu se faire.{reessayer ? <> <button type="button" className="cn-lien" onClick={reessayer}>Réessayer</button></> : null}

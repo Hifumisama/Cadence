@@ -56,3 +56,35 @@ export function controlerStructureScenario(sortie: { scenes?: { titre?: string; 
   }
   return erreurs;
 }
+
+/** Comparable form of a treatment state: case, spaces and final punctuation ignored. */
+const formeEtat = (s: string | null | undefined) =>
+  (s ?? "")
+    .normalize("NFC")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/[\s.…;,!]+$/, "")
+    .trim();
+
+/** The first plan's `liaison` of a scene (skill `scenario-scene`, bug S4 of project 259). The treatment COPIES the previous scene's `etatSortie`
+ * into `etatEntree` when the story goes on without a break (traitement-episode, rule 4): only that exact copy (normalised) is taken as « same place,
+ * same moment », never a resemblance. Then a first plan in `coupe` is an error; and without a previous scene, a `suite` is one. Pure. */
+export function controlerLiaisonPremierPlan(
+  entree: { scene?: { etatEntree?: string } | null; scenePrecedente?: { etatSortie?: string } | null },
+  sortie: { plans?: { titre?: string; liaison?: string }[] },
+): string[] {
+  const premier = sortie.plans?.[0];
+  if (!premier) return [];
+  const nom = `Le premier plan « ${premier.titre ?? "?"} »`;
+  if (!entree.scenePrecedente) {
+    return premier.liaison === "suite" ? [`${nom} : il n'y a pas de scène précédente, sa liaison est donc « coupe ».`] : [];
+  }
+  const debut = formeEtat(entree.scene?.etatEntree);
+  const enContinuite = debut !== "" && debut === formeEtat(entree.scenePrecedente.etatSortie);
+  if (enContinuite && premier.liaison === "coupe") {
+    return [
+      `${nom} : la scène commence là où la précédente s'arrête (son état d'entrée est l'état de sortie de la scène précédente : même lieu, même moment), sa liaison est donc « suite », et sa description commence directement sur le premier temps, sans redonner les positions.`,
+    ];
+  }
+  return [];
+}

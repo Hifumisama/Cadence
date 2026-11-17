@@ -1,9 +1,9 @@
 import type { Resultat } from "../agents/types";
 import { db } from "../../db";
 import { plans, demandes, episodes, assets, agentRuns, propositions } from "../../db/schema";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { etatsRefsVisuelles } from "../h3ir/engine-db";
-import { type ParcoursFichePlan, type ContexteFichePlan, etapesFichePlan, type StatutDemande, etapeCouranteDemande, type EtapeDemande, avancerEtapes, renommerEtape, decisionFichePlan } from "./requests";
+import { type ParcoursFichePlan, type ContexteFichePlan, etapesFichePlan, type StatutDemande, etapeCouranteDemande, type EtapeDemande, avancerEtapes, renommerEtape, decisionFichePlan, deciderTacheFiche } from "./requests";
 import { refusReferences } from "../h3ir/engine";
 import { ouvrirConversation } from "../agents/service-conversation";
 import { genererFiches, genererReferencesPlan } from "../agents/service-clips";
@@ -289,8 +289,13 @@ export async function avancerFichePlan(d: LigneDemande): Promise<boolean> {
 
 /** The task that compiles the sheet (`compilation` step). Same wait as the additions; once the proposal is ready, we record the sheet. */
 async function avancerTacheFiche(d: LigneDemande, ctx: ContexteFichePlan, etapes: EtapeDemande[]): Promise<boolean> {
-  const [run] = ctx.runUuid ? await db.select().from(agentRuns).where(eq(agentRuns.uuid, ctx.runUuid)) : [];
-  if (!run) return echouer(d, "La tâche de l'agent n'existe plus.");
+  // The launch writes `runUuid` after posting the run: if the pilot ticks in between, we find the run by its request.
+  const [run] = ctx.runUuid
+    ? await db.select().from(agentRuns).where(eq(agentRuns.uuid, ctx.runUuid))
+    : await db.select().from(agentRuns).where(eq(agentRuns.demandeId, d.id)).orderBy(desc(agentRuns.id)).limit(1);
+  const choix = deciderTacheFiche(run != null, d.createdAt);
+  if (choix === "attendre") return false;
+  if (!run || choix === "echouer") return echouer(d, "La tâche de l'agent n'existe plus.");
   if (run.statut === "en_attente" || run.statut === "en_cours") return false;
   if (run.statut === "annulee" || (run.statut === "echoue" && run.erreur === ERREUR_ANNULEE)) return annuler(d);
   const prefixe = "La compilation Open H3 IR a échoué : ";

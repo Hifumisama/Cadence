@@ -26,7 +26,7 @@
 
 ## Project templates
 
-- **Character sheet** (a single description block, then the layout instruction) `[project]`:
+- **Character sheet** (a single description block, then the layout instruction; **since 2026-11-17 the layout sentence is appended by the code**, `lib/assets/sheet-templates.ts`: the skill writes only the description) `[project]`:
 
   ```text
   [character description], neutral standing pose, plain light background, character has 4 views : front full-body view, body side view, body back view, detailed single headshot portrait on the right side of the image, in the foreground.
@@ -50,7 +50,7 @@
   Station mechanic: a fitted slate-blue thermal bodysuit, olive quilted coveralls with orange hazard stitching and a dented steel chest plate, a sleeveless padded vest with one mismatched patch; magnetic-soled boots, a worn leather tool belt, fingerless gloves. Her silhouette: the oversized ribbed collar ring.
   ```
 
-- **Set sheet** (one image, three views of the SAME deserted place; to test on Krea 2, which has no dedicated LoRA for it) `[project, untested]`:
+- **Set sheet** (one image, three views of the SAME deserted place; to test on Krea 2, which has no dedicated LoRA for it; **since 2026-11-17 the views sentence is appended by the code with a fixed layout** (wide view across the top half, reverse view bottom left, detail bottom right), `lib/assets/sheet-templates.ts`: the skill writes the description and ends with `Close-up detail of <landmark>.`) `[project, untested]`:
 
   ```text
   [set description], deserted and still, even daylight [the set's fixed light sentence], the place has 3 views : wide establishing view at eye level, reverse view from the opposite side, close-up detail of [one landmark of the place].

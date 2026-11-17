@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ERREUR_ANNULEE } from "./cancellation";
-import { avancerEtapes, decisionAjoutPlan, decisionAjoutScene, decisionFichePlan, etapesAjoutScene, etapesFichePlan, deciderIteration, etapeCouranteDemande, etapesAjoutPlan, etapesIterationPlan, insererEtapesImagesIteration, progressionDemande, renommerEtape } from "./requests";
+import { avancerEtapes, deciderTacheFiche, decisionAjoutPlan, decisionAjoutScene, decisionFichePlan, etapesAjoutScene, etapesFichePlan, deciderIteration, etapeCouranteDemande, etapesAjoutPlan, etapesIterationPlan, insererEtapesImagesIteration, progressionDemande, renommerEtape } from "./requests";
 
 const run = (statut: string, erreur: string | null = null) => ({ genre: "run" as const, statut, erreur });
 const job = (statut: string, erreur: string | null = null) => ({ genre: "job" as const, statut, erreur });
@@ -39,6 +39,14 @@ test("le rendu : terminé, annulé ou échoué", () => {
 
 test("sans tâche, la demande échoue", () => {
   assert.equal(deciderIteration("agent", { tache: null, decision: null }).type, "echouer");
+});
+
+test("fiche : sans tâche d'agent, on attend une minute avant d'échouer (course au lancement)", () => {
+  const creee = new Date("2026-11-17T08:00:08.870Z");
+  assert.equal(deciderTacheFiche(true, creee, new Date("2026-11-17T08:00:08.906Z")), "utiliser");
+  assert.equal(deciderTacheFiche(false, creee, new Date("2026-11-17T08:00:08.906Z")), "attendre");
+  assert.equal(deciderTacheFiche(false, creee, new Date("2026-11-17T08:01:30.000Z")), "echouer");
+  assert.equal(deciderTacheFiche(true, creee, new Date("2026-11-17T09:00:00.000Z")), "utiliser");
 });
 
 test("les étapes avancent, une étape peut être passée", () => {

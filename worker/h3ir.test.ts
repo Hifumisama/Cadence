@@ -108,12 +108,12 @@ test("executerH3ir : brief → traduction (une fois, intent français) → compi
   assert.equal(appels.traduction[0]!.entree, BRIEF.intent, "la traduction reçoit l'intent français");
   assert.equal(appels.traduction[0]!.options.temperature, 0.1);
   assert.equal(appels.envoyes.length, 1);
-  assert.equal(appels.envoyes[0]!.intent, "Mai enters the room. 'Mood': night", "les guillemets droits sont retirés avant l'envoi");
+  assert.equal(appels.envoyes[0]!.intent, "Mai enters the room. «Mood»: night", "les guillemets droits deviennent des chevrons avant l'envoi");
   assert.equal(appels.envoyes[0]!.seed, 50);
 
   assert.equal((r.json as ResultatH3ir).moteur, "h3ir");
   assert.equal((r.json as ResultatH3ir).intentFrancais, BRIEF.intent);
-  assert.equal((r.json as ResultatH3ir).intentAnglais, "Mai enters the room. 'Mood': night");
+  assert.equal((r.json as ResultatH3ir).intentAnglais, "Mai enters the room. «Mood»: night");
   assert.deepEqual((r.json as ResultatH3ir).liens, BRIEF_OK.liens);
   assert.deepEqual((r.json as ResultatH3ir).avertissements, ["un avertissement"]);
   assert.equal((r.json as ResultatH3ir).compilation.mode, "ref2va");
@@ -166,7 +166,7 @@ test("executerH3ir : une traduction vide est refusée ; sans projet, la tâche e
 });
 
 test("nettoyerIntent / reduireEnveloppe", () => {
-  assert.equal(nettoyerIntent(' un "mot" '), "un 'mot'");
+  assert.equal(nettoyerIntent(' un "mot" '), "un «mot»");
   assert.equal(nettoyerIntent(42), "");
   const r = reduireEnveloppe({});
   assert.deepEqual(r, { status: null, source: null, mode: null, promptTokens: null, sections: {}, manifest: [], diagnostics: [], dureeEffectiveSecondes: null });
@@ -210,6 +210,20 @@ test("executerH3ir : partir d'un essai retouche son prompt, sans compiler ni tra
   assert.deepEqual(json.passages.map((p) => p.section), ["detailed_description"]);
   assert.deepEqual(appels.map((a) => a.skill), [SKILL_RETOUCHE]);
   assert.ok(appels[0]!.entree.includes("Katara | l'Air"));
+});
+
+test("executerH3ir : les guillemets droits d'une retouche deviennent des chevrons, hors répliques <d>", async () => {
+  const { d } = deps();
+  const avecGuillemets: SortieRetouche = {
+    ...BONNE_RETOUCHE,
+    sections: { ...SECTIONS_ESSAI, detailed_description: `${SECTIONS_ESSAI.detailed_description} The bright red becoming "wet". Katara's voice is heard, <d>[French] l'Air</d>` },
+  };
+  const { executer } = depsRetouche([avecGuillemets]);
+  const r = await executerH3ir({ projectId: 7, entree: { planUuid: "u1", retouche: RETOUCHE } }, OPTIONS(), { ...d, executer, lancer: async () => assert.fail("pas de compilation") });
+  const json = r.json as ResultatRetouche;
+  assert.ok(json.sections.detailed_description.includes("becoming «wet»"));
+  assert.ok(!json.sections.detailed_description.includes('"'));
+  assert.ok(json.sections.detailed_description.includes("<d>[French] l'Air</d>"));
 });
 
 test("executerH3ir : une retouche invalide est rejouée une fois avec ses défauts, puis échoue sans recompiler", async () => {
