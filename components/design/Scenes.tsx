@@ -3,9 +3,10 @@
 import { useMemo, type ReactNode } from "react";
 import {
   DUREE_EXPERIMENTALE_SECONDES,
-  GENRES,
-  GENRES_MAX,
+  INTENTIONS_MUSIQUE,
   LANGUES_DIALOGUES,
+  LIBELLES_INTENTION_MUSIQUE,
+  REFERENCE_MUSIQUE_MAX,
   PLAGES_RYTHME,
   POSITION_DUREE_MAX,
   REPERES_DUREE,
@@ -14,12 +15,12 @@ import {
   plansEstimes,
   positionDepuisDuree,
 } from "@/lib/projects/design";
-import { basculerGenre, minutesSecondes } from "@/lib/projects/design-ui";
+import { minutesSecondes } from "@/lib/projects/design-ui";
 import { Curseur } from "./Cursor";
 import type { PropsScene } from "./types";
 
-/** The first four scenes of the design: format, genre, duration and rhythm, language. The style scene is separate
- * (SceneStyle.tsx). Each scene only displays the state and changes it through `maj`; the rules live in lib/projects/design-ui.ts. */
+/** The simple scenes of the design: welcome, duration, language, music. The style and staging scenes are separate
+ * (SceneStyle.tsx, StagingScene.tsx). Each scene only displays the state and changes it through `maj`; the rules live in lib/projects/design-ui.ts. */
 
 export function EnteteScene({ acte, titre, sous }: { acte: string; titre: ReactNode; sous?: string }) {
   return (
@@ -37,9 +38,9 @@ export function EnteteScene({ acte, titre, sous }: { acte: string; titre: ReactN
 export function SceneAccueil() {
   return (
     <>
-      <EnteteScene acte="Bienvenue" titre={<>On va <em>générer un film</em> avec l’IA.</>} sous="En quelques choix (genre, durée, langue, style), tu poses le cadre de ton film. Ensuite, un scénariste te pose ses questions pour écrire l’histoire avec toi, et la production des images, des voix et des plans peut commencer." />
+      <EnteteScene acte="Bienvenue" titre={<>On va <em>générer un film</em> avec l’IA.</>} sous="En quelques choix (durée, langue, style, mise en scène, musique), tu poses le cadre de ton film. Ensuite, un scénariste te pose ses questions pour écrire l’histoire avec toi (genre compris), et la production des images, des voix et des plans peut commencer." />
       <ol className="cn-accueil-etapes">
-        <li><b>Tu choisis</b><span>l’univers, la durée, la langue et le style graphique.</span></li>
+        <li><b>Tu poses le cadre</b><span>la durée, la langue, le style graphique, la mise en scène et la musique.</span></li>
         <li><b>Tu rencontres le scénariste</b><span>un entretien pour transformer ton idée en scénario.</span></li>
         <li><b>L’IA fabrique le film</b><span>assets, voix, plans, jusqu’au montage.</span></li>
       </ol>
@@ -47,38 +48,7 @@ export function SceneAccueil() {
   );
 }
 
-/* ----------------------------------------------------------- 2. Genre */
-
-export function SceneGenreTon({ etat, maj }: PropsScene) {
-  return (
-    <>
-      <EnteteScene acte="Acte 02" titre={<>Un film de quel <em>genre</em> ?</>} />
-      <div className="cn-nuage" role="group" aria-label="Genres">
-        {GENRES.map((g) => (
-          <button
-            key={g.nom}
-            type="button"
-            className="cn-bulle"
-            style={{ fontSize: `${(22 + (g.poids - 2.2) * 10).toFixed(0)}px` }}
-            aria-pressed={etat.genres.includes(g.nom)}
-            onClick={() => maj((e) => basculerGenre(e, g.nom))}
-          >
-            {g.nom}
-          </button>
-        ))}
-      </div>
-      <p className="cn-compte">
-        {etat.genres.length ? (
-          <><b>{etat.genres.join(" + ")}</b> — {GENRES_MAX} genres au maximum, le plus récent remplace le plus ancien.</>
-        ) : (
-          "Choisis un genre, ou deux pour un mélange. L’ambiance de la salle change avec eux."
-        )}
-      </p>
-    </>
-  );
-}
-
-/* ------------------------------------------------------ 3. Duration and rhythm */
+/* ------------------------------------------------------ 2. Duration and rhythm */
 
 const PRESETS = [60, 120, 180, 300, 600, 1800, 3600, 5400] as const;
 const MAX_CASES = 120;
@@ -95,7 +65,7 @@ export function SceneDuree({ etat, maj }: PropsScene) {
   const poser = (duree: number) => maj((e) => ({ ...e, duree, dureeChoisie: true }));
   return (
     <>
-      <EnteteScene acte="Acte 03" titre={<>Combien de <em>temps</em> ?</>} sous="La durée visée donne le nombre de plans que le scénario écrira, à peu près." />
+      <EnteteScene acte="Acte 02" titre={<>Combien de <em>temps</em> ?</>} sous="La durée visée donne le nombre de plans que le scénario écrira, à peu près." />
       <p className="cn-grande-duree">{minutesSecondes(etat.duree)}</p>
       {etat.duree > DUREE_EXPERIMENTALE_SECONDES ? (
         <p className="cn-note-duree">Au-delà de 10 min, c’est <b>expérimental</b> : le scénario compte des centaines de plans, et le modèle local risque d’y perdre le fil.</p>
@@ -136,7 +106,7 @@ export function SceneDuree({ etat, maj }: PropsScene) {
   );
 }
 
-/* ---------------------------------------------------------------- 4. Language */
+/* ---------------------------------------------------------------- 3. Language */
 
 const NOMS_LANGUES: Record<string, string> = {
   Français: "Par défaut",
@@ -155,7 +125,7 @@ export function SceneLangue({ etat, maj }: PropsScene) {
   const choisir = (langue: string) => maj((e) => ({ ...e, langue, langueChoisie: true }));
   return (
     <>
-      <EnteteScene acte="Acte 04" titre={<>Dans quelle <em>langue</em> ?</>} sous="Les dialogues parlés. Le français est présélectionné ; « Sans dialogue » coupe la parole." />
+      <EnteteScene acte="Acte 03" titre={<>Dans quelle <em>langue</em> ?</>} sous="Les dialogues parlés. Le français est présélectionné ; « Sans dialogue » coupe la parole." />
       <div className="cn-langues" role="group" aria-label="Langue des dialogues">
         {LANGUES_DIALOGUES.map((l) => (
           <button key={l} type="button" className="cn-langue" aria-pressed={etat.langue === l} onClick={() => choisir(l)}>
@@ -169,6 +139,47 @@ export function SceneLangue({ etat, maj }: PropsScene) {
         </button>
       </div>
       <p className="cn-note">Les dix langues que le modèle vidéo sait parler. Les prompts restent écrits en anglais.</p>
+    </>
+  );
+}
+
+/* ---------------------------------------------------------------- 6. Music */
+
+const AIDES_MUSIQUE: Record<(typeof INTENTIONS_MUSIQUE)[number], string> = {
+  aucune: "Pas de musique : seulement les voix, les bruitages et l’ambiance.",
+  discrete: "En fond, sous les bruitages. Recommandée.",
+  presente: "Elle porte le film, comme dans un clip.",
+};
+
+/** The music intention: how present the score is. Its content (genre, instruments, tempo) is deduced in the interview, from the story. */
+export function SceneMusique({ etat, maj }: PropsScene) {
+  return (
+    <>
+      <EnteteScene acte="Acte 06" titre={<>Et la <em>musique</em> ?</>} sous="Combien de place elle prend. Le scénariste en déduira le reste (genre, instruments, tempo) à partir de ton histoire." />
+      <div className="cn-langues" role="group" aria-label="Place de la musique">
+        {INTENTIONS_MUSIQUE.map((m) => (
+          <button key={m} type="button" className="cn-langue" aria-pressed={etat.musique === m} onClick={() => maj((e) => ({ ...e, musique: m }))}>
+            <b>{LIBELLES_INTENTION_MUSIQUE[m]}</b>
+            <span>{AIDES_MUSIQUE[m]}</span>
+          </button>
+        ))}
+      </div>
+      {etat.musique === "aucune" ? null : (
+        <label className="cn-champ-reference">
+          <span>Une référence ? <small>(facultatif)</small></span>
+          <input
+            type="text"
+            maxLength={REFERENCE_MUSIQUE_MAX}
+            placeholder="Un peu comme… (un film, un artiste, une ambiance)"
+            value={etat.referenceMusique}
+            onChange={(e) => {
+              const referenceMusique = e.target.value;
+              maj((x) => ({ ...x, referenceMusique }));
+            }}
+          />
+        </label>
+      )}
+      <p className="cn-note">{etat.musique === "aucune" ? "Aucune musique sur aucun plan, quelle que soit la mise en scène." : "La même musique court sur tout le film, sans coupure entre les plans liés."}</p>
     </>
   );
 }

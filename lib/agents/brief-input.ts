@@ -45,7 +45,7 @@ export function entreeTour(messages: MessageLlm[], fiche: Fiche, rappel: RappelF
   const utilisateur = messages.filter((m) => m.role === "user").map((m) => m.content);
   const premierBloc =
     utilisateur.length === 1 && premierMessageGrosBloc(utilisateur)
-      ? " Son premier message est un gros bloc : réagis à un détail, résume en UNE phrase ce qui est acquis, puis pose les questions d'UN seul sujet, regroupées et numérotées."
+      ? " Son premier message est un gros bloc : réagis à un détail, résume en UNE phrase ce qui est acquis, puis pose les questions d'UN seul sujet, regroupées dans le champ « questions »."
       : "";
   const details = rappel.details ?? [];
   // The film's moments (2026-11-17): once the heart is known, the screenwriter proposes the missing sequence itself and has it validated.
@@ -65,7 +65,7 @@ export function entreeTour(messages: MessageLlm[], fiche: Fiche, rappel: RappelF
   } else if (rappel.manques.length > 0) {
     contenu += `
 
-[État de l'entretien : l'utilisateur n'a pas encore dit : ${rappel.manques.join(" ; ")}. Ce n'est pas un programme : réagis d'abord à ce qu'il vient de dire, puis choisis dans cette liste, dans l'ordre que tu veux, l'angle qui se raccroche le mieux à son message (ou propose-lui toi-même si c'est ce qu'il demande ou s'il te laisse décider : alors ne repose pas la question). Un seul sujet par message, ses questions regroupées et numérotées (trois au plus) pour qu'il puisse y répondre d'un coup ; les points pratiques se regroupent aussi.${consigneMoments}${premierBloc}${dejaDit}${dejaPropose} Avant de questionner, relis la conversation : ce qu'il a déjà dit (même au passage, même dans un message plus haut) ou ce que tu as déjà demandé ne se redemande pas.${formatDit} ${interdit}]`;
+[État de l'entretien : l'utilisateur n'a pas encore dit : ${rappel.manques.join(" ; ")}. Ce n'est pas un programme : réagis d'abord à ce qu'il vient de dire, puis choisis dans cette liste, dans l'ordre que tu veux, l'angle qui se raccroche le mieux à son message (ou propose-lui toi-même si c'est ce qu'il demande ou s'il te laisse décider : alors ne repose pas la question). Un seul sujet par message, ses questions (trois au plus) dans le champ « questions », avec des réponses rapides quand elles aident, pour qu'il puisse y répondre d'un coup ; les points pratiques se regroupent aussi.${consigneMoments}${premierBloc}${dejaDit}${dejaPropose} Avant de questionner, relis la conversation : ce qu'il a déjà dit (même au passage, même dans un message plus haut) ou ce que tu as déjà demandé ne se redemande pas.${formatDit} ${interdit}]`;
   } else if (details.length > 0) {
     contenu += `
 
@@ -85,7 +85,7 @@ export function noteChangements(changements: ChangementFiche[]): string {
   const lignes = changements.map((c) => `${libelleSection(c.cle)} (avant : « ${court(c.avant)} » ; maintenant : « ${court(c.apres)} »)`);
   const dependantes = [...new Set(changements.flatMap((c) => DEPENDANCES_CHANGEMENT[c.cle] ?? []))].filter((k) => !changements.some((c) => c.cle === k));
   const libelles = dependantes.map((k) => libelleSection(k).toLowerCase());
-  return `[Changement de direction : son dernier message modifie ce qui était tranché : ${lignes.join(" ; ")}. Dis-le clairement (« avant on avait…, tu proposes maintenant… »). S'il n'a pas dit lui-même qu'il remplace l'ancienne version, demande-lui laquelle garder, ou ce qu'il prend de chacune ; une demande de changement n'est jamais une validation.${libelles.length ? ` Si le changement est confirmé, dis ce qu'il faut revoir en conséquence (${libelles.join(", ")}) et propose la version revue.` : ""} C'est la priorité de ce tour, avant toute autre question.]`;
+  return `[Changement de direction : son dernier message modifie ce qui était tranché : ${lignes.join(" ; ")}. Une carte s'affiche sous ton message avec l'avant, l'après${libelles.length ? ` et ce qu'il faudra revoir (${libelles.join(", ")})` : ""}, et trois boutons : garder l'ancien, prendre le nouveau, un mélange. Dis le changement en une ou deux phrases (« avant on avait…, tu proposes maintenant… »), dis ce que chaque version apporte, et invite-le à trancher avec la carte. Ne recopie pas la carte, ne pose aucune autre question dans ce tour et ne propose pas encore la version revue : une demande de changement n'est jamais une validation.]`;
 }
 
 const resume = (v: unknown): string => {

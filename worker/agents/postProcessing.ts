@@ -5,10 +5,13 @@ import { horsAffiches } from "../../lib/assets/assets-visible";
 import { sortieVersBrief } from "../../lib/agents/brief";
 import { ecrireBrouillon } from "../../lib/agents/brief-db";
 import { entreeTour, messageBriefPret } from "../../lib/agents/brief-input";
-import { contenuPourLlm, normaliserSequence } from "../../lib/agents/chat-sequence";
+import { contenuPourLlm, normaliserSequence, sequenceValidee } from "../../lib/agents/chat-sequence";
 import { appliquerNotes, changementsDeFiche, detailsAPreciser, ficheComplete, manquesEssentiels, manquesFiche } from "../../lib/agents/sheet";
 import { ficheCourante, enregistrerFiche } from "../../lib/agents/sheet-db";
-import { informationsFormat } from "../../lib/projects/design";
+import { informationsFormat, verrousDeConception } from "../../lib/projects/design";
+import { demandeAuScenariste } from "../../lib/agents/sheet";
+import { carteChangement, normaliserCarteChangement, pointsCadre } from "../../lib/agents/chat-change";
+import { normaliserQuestions } from "../../lib/agents/chat-questions";
 import { lireConception } from "../../lib/projects/design-db";
 import { creerRun } from "../../lib/agents/runs";
 import { ecrireAfficheEtGenerer } from "../../lib/agents/poster-clap";
@@ -101,11 +104,24 @@ async function postNotes(tx: Tx, run: RunAgent, sortie: unknown) {
   const utilisateur = messages.filter((m) => m.role === "user").map((m) => m.content);
   const avant = await ficheCourante(tx, conv);
   // The whole conversation (the agent's questions included) bounds the delegations: « je te laisse décider » only counts for the question asked.
-  const fiche = appliquerNotes(avant, sortie, utilisateur, messages);
+  // The frame of a designed project (duration, language, style, music « aucune ») has one source, the form: the notes never write it.
+  const conception = await lireConception(tx, conv.projectId);
+  const notee = appliquerNotes(avant, sortie, utilisateur, messages, verrousDeConception(conception));
+  // The card's « Valider la séquence »: the sheet takes exactly that list, its strong moment marked, whatever the notes copied.
+  const validee = sequenceValidee((conv.messages as MessageConversation[]) ?? []);
+  const fiche = validee ? { ...notee, contenu: { ...notee.contenu, moments: validee }, statuts: { ...notee.statuts, moments: "fourni" as const } } : notee;
+  // The tone or the heart that changes is applied at once (the user said it); the card can put it back (« Garder l'ancien »).
   const complete = await enregistrerFiche(tx, conv, fiche, utilisateur);
-  // A settled point the user just changed: the screenwriter says it and asks which direction to keep, before anything is announced.
+  // A settled point the user just changed (the story, or the frame of a designed project): the screenwriter says it and a card under his
+  // message lets the user keep the old version, take the new one or mix them (lib/agents/chat-change.ts), before anything is announced.
+  const verrous = verrousDeConception(conception);
   const changements = changementsDeFiche(avant, fiche, sortie, utilisateur);
-  if (complete && changements.length === 0 && !ficheComplete(avant, utilisateur.slice(0, -1))) {
+  const cadre = pointsCadre(avant, sortie, verrous, utilisateur);
+  const carte = carteChangement(avant, changements, cadre);
+  const pourLaNote = [...cadre.map((c) => ({ cle: c.cle, libelle: c.cle, avant: String(avant.contenu[c.cle] ?? ""), apres: String(c.valeur) })), ...changements];
+  // A question or a request (« Propose-m'en d'autres ») is answered by the screenwriter first; the « prêt » state follows anyway (postTour).
+  const demande = demandeAuScenariste(utilisateur[utilisateur.length - 1] ?? "");
+  if (complete && !carte && !demande && !ficheComplete(avant, utilisateur.slice(0, -1))) {
     // The sheet has just become complete: it is the CODE that announces it (summary, assumptions, « étape suivante » button), without an agent
     // turn. If the user carries on, the agent resumes to refine (« complète » note of entreeTour).
     const messagesStockes = [...((conv.messages as unknown[]) ?? []), { role: "assistant", content: messageBriefPret(fiche), at: new Date().toISOString() }];
@@ -114,22 +130,17 @@ async function postNotes(tx: Tx, run: RunAgent, sortie: unknown) {
   }
   await creerRun(tx, {
     skill: "conversation-agent",
-    entree: entreeTour(messages, fiche, { manques: manquesEssentiels(fiche), details: detailsAPreciser(fiche).map((d) => d.libelle), complete }, await formatDuProjet(tx, conv.projectId), changements),
+    entree: entreeTour(messages, fiche, { manques: manquesEssentiels(fiche), details: detailsAPreciser(fiche).map((d) => d.libelle), complete }, conception ? informationsFormat(conception) : undefined, pourLaNote),
     but: "tour",
+    ...(carte ? { options: { changement: carte } } : {}),
     projectId: conv.projectId,
     conversationId: conv.id,
   });
 }
 
-/** The format of the designed project (a film), for the conversation agent; undefined for a project without design. */
-async function formatDuProjet(tx: Tx, projectId: number): Promise<string | undefined> {
-  const c = await lireConception(tx, projectId);
-  return c ? informationsFormat() : undefined;
-}
-
 const majuscule = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
-async function postTour(tx: Tx, run: RunAgent, sortie: { reponse: string; resteADefinir?: string[]; choix?: unknown; sequence?: unknown }) {
+async function postTour(tx: Tx, run: RunAgent, sortie: { reponse: string; resteADefinir?: string[]; choix?: unknown; sequence?: unknown; questions?: unknown }) {
   if (run.conversationId == null) return;
   const [conv] = await tx.select().from(agentConversations).where(eq(agentConversations.id, run.conversationId));
   if (!conv) return; // conversation overwritten in the meantime: the turn is lost, without error
@@ -137,7 +148,20 @@ async function postTour(tx: Tx, run: RunAgent, sortie: { reponse: string; resteA
   const choix = normaliserChoix(sortie.choix);
   // The proposed sequence: its own card under the message (lib/agents/chat-sequence.ts); malformed, it is dropped.
   const sequence = normaliserSequence(sortie.sequence);
-  const message: MessageConversation = { role: "assistant", content: sortie.reponse, at: new Date().toISOString(), ...(choix ? { choix } : {}), ...(sequence ? { sequence } : {}) };
+  // The change card was built by the notes step (postNotes) and travels with this turn's task.
+  const changement = normaliserCarteChangement((run.options as { changement?: unknown } | null)?.changement);
+  // The grouped questions: their own card; never with a change card (the user decides the change first).
+  const questions = changement ? null : normaliserQuestions(sortie.questions);
+  const message: MessageConversation = {
+    role: "assistant",
+    content: sortie.reponse,
+    at: new Date().toISOString(),
+    // A change card replaces the answer cards: the user decides with the card first.
+    ...(choix && !changement && !questions ? { choix } : {}),
+    ...(questions ? { questions } : {}),
+    ...(sequence ? { sequence } : {}),
+    ...(changement ? { changement } : {}),
+  };
   const messages = [...((conv.messages as unknown[]) ?? []), message];
   const utilisateur = messages
     .filter((m) => (m as { role?: string }).role === "user")

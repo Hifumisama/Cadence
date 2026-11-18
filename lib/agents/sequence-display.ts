@@ -1,3 +1,4 @@
+import { estTempsFort, sansMarqueTempsFort } from "./chat-sequence";
 import { momentsDeFiche, momentsRequis, type StatutFiche } from "./sheet";
 
 /** The film's moments (interview notes sheet, `moments` section), shaped for the sequence component: numbered, each with an approximate
@@ -10,7 +11,10 @@ import { momentsDeFiche, momentsRequis, type StatutFiche } from "./sheet";
 export type MomentView = {
   /** 1-based rank in the film. */
   number: number;
+  /** The moment's sentence, without the strong-moment mark. */
   text: string;
+  /** The strong moment the user kept on the sequence card (« (temps fort) » in the sheet). */
+  strong: boolean;
   /** Approximate start and end in seconds (even split of the duration); null when the duration is unknown. */
   startSeconds: number | null;
   endSeconds: number | null;
@@ -60,7 +64,8 @@ export function buildSequence(contenu: Record<string, unknown>, status: StatutFi
   const n = texts.length;
   const moments: MomentView[] = texts.map((text, i) => ({
     number: i + 1,
-    text,
+    text: sansMarqueTempsFort(text),
+    strong: estTempsFort(text),
     startSeconds: duration === null ? null : Math.round((i * duration) / n),
     endSeconds: duration === null ? null : Math.round(((i + 1) * duration) / n),
   }));

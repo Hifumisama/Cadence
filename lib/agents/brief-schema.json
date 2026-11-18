@@ -208,6 +208,58 @@
                   "incertain"
                 ],
                 "description": "Set by the application from the quotations, never by you: leave it out."
+              },
+              "pieces": {
+                "type": "array",
+                "maxItems": 8,
+                "description": "(French) The outfit piece by piece, from head to feet: what is worn, its named colour, its material. Fill it whenever the outfit is described or proposed.",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "piece"
+                  ],
+                  "properties": {
+                    "piece": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "(French) The piece: « veste courte », « pantalon ample », « bottes »."
+                    },
+                    "couleur": {
+                      "type": "string",
+                      "description": "(French) Its named colour: « bleu nuit »."
+                    },
+                    "matiere": {
+                      "type": "string",
+                      "description": "(French) Its material: « laine bouillie »."
+                    }
+                  }
+                }
+              },
+              "nuancier": {
+                "type": "array",
+                "maxItems": 6,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "nom",
+                    "hex"
+                  ],
+                  "properties": {
+                    "nom": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "(French) The colour's name: « bleu nuit », « ocre », « blanc cassé »."
+                    },
+                    "hex": {
+                      "type": "string",
+                      "pattern": "^#[0-9a-fA-F]{6}$",
+                      "description": "Its value, for the screen swatches: « #1b2a4a »."
+                    }
+                  }
+                },
+                "description": "(French names) The outfit's colour chart, 2 to 6 named colours with their hex value, the same colours as `pieces` and `couleurs`."
               }
             }
           },
@@ -270,6 +322,31 @@
                   "incertain"
                 ],
                 "description": "Set by the application from the quotations, never by you: leave it out."
+              },
+              "nuancier": {
+                "type": "array",
+                "maxItems": 6,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "nom",
+                    "hex"
+                  ],
+                  "properties": {
+                    "nom": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "(French) The colour's name: « bleu nuit », « ocre », « blanc cassé »."
+                    },
+                    "hex": {
+                      "type": "string",
+                      "pattern": "^#[0-9a-fA-F]{6}$",
+                      "description": "Its value, for the screen swatches: « #1b2a4a »."
+                    }
+                  }
+                },
+                "description": "(French names) The place's colour chart, 2 to 6 named colours with their hex value, the same colours as `palette`."
               }
             }
           },

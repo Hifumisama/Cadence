@@ -39,6 +39,10 @@ export const SECTIONS_PATCHABLES = [
   "questionsOuvertes",
 ] as const;
 
+/** The FRAME of a designed project (2026-11-18): chosen in the design form, the form is their only source. The notes model never writes
+ * them (`appliquerNotes`, parameter `verrous`); a change asked in the interview goes through the change-of-direction card. */
+export const SECTIONS_CADRE = ["style", "langueDialogues", "dureeEpisodeSecondes", "rythme"] as const;
+
 /** Sections a `dit` quote proves only if it names them (see `appliquerNotes`): what gets drawn and is never an essential. */
 const SECTIONS_NOMMEES: readonly string[] = ["lieux", "elements"];
 
@@ -298,7 +302,14 @@ function delegationsBornees(preuves: Preuve[], themesDe: (cible: string) => stri
  * Delegations are bounded (`delegationsBornees`), and a delegation on an informative section (open questions, inventions) settles
  * nothing. The details (`details` of the output) follow the same rules; a detail said in vague terms is "incertain".
  * `conversation` (optional: all turns, agent included) is used to find the question a delegation answers. */
-export function appliquerNotes(fiche: Fiche, sortie: unknown, messagesUtilisateur: string[], conversation?: { role: string; content: string }[]): Fiche {
+export function appliquerNotes(
+  fiche: Fiche,
+  sortie: unknown,
+  messagesUtilisateur: string[],
+  conversation?: { role: string; content: string }[],
+  /** Sections the patch cannot touch (the frame of a designed project, `SECTIONS_CADRE`): their content and status stay as they are. */
+  verrous: readonly string[] = [],
+): Fiche {
   const corpus = messagesUtilisateur.map(normaliser);
   const o = objet(sortie);
   const modifications = objet(o.modifications);
@@ -306,7 +317,7 @@ export function appliquerNotes(fiche: Fiche, sortie: unknown, messagesUtilisateu
   const contenu = { ...fiche.contenu };
   const touchees = new Set<string>();
   for (const [cle, valeur] of Object.entries(modifications)) {
-    if (!(SECTIONS_PATCHABLES as readonly string[]).includes(cle) || valeurVide(valeur)) continue;
+    if (!(SECTIONS_PATCHABLES as readonly string[]).includes(cle) || verrous.includes(cle) || valeurVide(valeur)) continue;
     contenu[cle] = valeur;
     touchees.add(cle);
   }
@@ -372,7 +383,7 @@ export function appliquerNotes(fiche: Fiche, sortie: unknown, messagesUtilisateu
     else statuts[cle] = !momentsAjoutes && (statuts[cle] === "fourni" || statuts[cle] === "delegue") ? statuts[cle]! : "deduit"; // enriching a said section does not make it assumed
   }
   for (const [cle, prouve] of verifiees) {
-    if (cle.startsWith("detail:")) continue;
+    if (cle.startsWith("detail:") || verrous.includes(cle)) continue;
     if (cle === "fin" || !valeurVide(contenu[cle])) statuts[cle] = statuts[cle] === "fourni" && prouve === "delegue" ? "fourni" : prouve;
   }
 
@@ -394,6 +405,15 @@ export function appliquerNotes(fiche: Fiche, sortie: unknown, messagesUtilisateu
   return { contenu: avecDetails ? estampillerDetails(contenu, details) : contenu, statuts, ...(avecDetails ? { details } : {}) };
 }
 
+/** What the notes model tried to write in a locked section (the frame): the section and the refused value, in the order of the patch.
+ * A value identical to the current one is not a request. Pure. */
+export function demandesSurLeCadre(fiche: Fiche, sortie: unknown, verrous: readonly string[]): { cle: string; valeur: unknown }[] {
+  const modifications = objet(objet(sortie).modifications);
+  return Object.entries(modifications)
+    .filter(([cle, valeur]) => verrous.includes(cle) && !valeurVide(valeur) && JSON.stringify(valeur) !== JSON.stringify(fiche.contenu[cle]))
+    .map(([cle, valeur]) => ({ cle, valeur }));
+}
+
 /** A change of direction (user request 2026-11-18, project 261: the tone moved from melancholic to « joyeux, la mort danse avec toi » and
  * the moments and the place were never revised; a change request was once taken for a validation). */
 export type ChangementFiche = { cle: string; libelle: string; avant: string; apres: string };
@@ -408,16 +428,23 @@ export const DEPENDANCES_CHANGEMENT: Record<string, string[]> = {
 
 const enTexte = (v: unknown): string => (typeof v === "string" ? v : JSON.stringify(v ?? ""));
 
-/** The sections the user had settled (said or delegated) and that THIS message changes: the content differs, and a source of the patch
- * quotes the last user message on that section. A rewording by the notes model alone (no quote of the new message) is not a change. Pure. */
-export function changementsDeFiche(avant: Fiche, apres: Fiche, sortie: unknown, messagesUtilisateur: string[]): ChangementFiche[] {
-  const dernier = messagesUtilisateur.length ? [normaliser(messagesUtilisateur[messagesUtilisateur.length - 1]!)] : [];
-  if (!dernier.length) return [];
+/** The sections a `dit` source of the patch proves with a quote of the LAST user message. Pure. */
+export function sectionsCitees(sortie: unknown, messagesUtilisateur: string[]): Set<string> {
   const citees = new Set<string>();
+  const dernier = messagesUtilisateur.length ? [normaliser(messagesUtilisateur[messagesUtilisateur.length - 1]!)] : [];
+  if (!dernier.length) return citees;
   for (const s of Array.isArray(objet(sortie).sources) ? (objet(sortie).sources as unknown[]) : []) {
     const { section, origine, citation } = objet(s);
     if (typeof section === "string" && origine === "dit" && citationVerifiee(citation, dernier)) citees.add(section);
   }
+  return citees;
+}
+
+/** The sections the user had settled (said or delegated) and that THIS message changes: the content differs, and a source of the patch
+ * quotes the last user message on that section. A rewording by the notes model alone (no quote of the new message) is not a change. Pure. */
+export function changementsDeFiche(avant: Fiche, apres: Fiche, sortie: unknown, messagesUtilisateur: string[]): ChangementFiche[] {
+  const citees = sectionsCitees(sortie, messagesUtilisateur);
+  if (!citees.size) return [];
   const res: ChangementFiche[] = [];
   for (const cle of SECTIONS_PATCHABLES) {
     if (SECTIONS_INFORMATIVES.includes(cle) || cle === "titre") continue;
@@ -507,7 +534,23 @@ export function ficheComplete(fiche: Fiche, messagesUtilisateur: number | readon
   const min = typeof messagesUtilisateur === "number" ? MIN_MESSAGES_FICHE : minMessagesFiche(messagesUtilisateur);
   const bloquants = essentielsManquants(fiche).filter((r) => r.cle !== "moments" || nb < PLAFOND_MESSAGES_MOMENTS);
   if (nb < min || bloquants.length > 0) return false;
-  return nb >= PLAFOND_MESSAGES_DETAILS || detailsAPreciser(fiche).length === 0;
+  // The user asks to stop (project 265: « On peut s'arrêter là », the details still open): once the essentials are settled, it closes.
+  const dernier = typeof messagesUtilisateur === "number" ? "" : (messagesUtilisateur[messagesUtilisateur.length - 1] ?? "");
+  return nb >= PLAFOND_MESSAGES_DETAILS || detailsAPreciser(fiche).length === 0 || arretDemande(dernier);
+}
+
+/** The user asks to end the interview (« on peut s'arrêter là », « c'est bon pour moi », « passons au clap »). Deliberately narrow: « ça me va »
+ * validates a proposal, it does not end anything. Pure. */
+export function arretDemande(message: string): boolean {
+  const t = ` ${normaliser(message)} `;
+  return / (on peut|on va|je veux|j aimerais|on peut maintenant) (s arreter|arreter|en rester) /.test(t) || / (arretons nous|arretons la|on s arrete|on arrete la|c est bon pour moi|on a tout ce qu il faut|passons au clap|on passe au clap|passons a la suite|on peut passer a la suite) /.test(t);
+}
+
+/** The user's message asks the screenwriter for something (a question, « propose-m'en d'autres », « propose-moi la suite »): the screenwriter
+ * answers it, even when the sheet has just become complete (project 265: a palette request got « Le briefing est prêt » instead). Pure. */
+export function demandeAuScenariste(message: string): boolean {
+  const brut = message.trim();
+  return brut.includes("?") || /^(propose|donne|peux[- ]tu|tu peux|montre|refais)/i.test(brut) || /propose-m/i.test(brut);
 }
 
 /** What the agent assumed or the user delegated to it: it cites them to the user so they keep or throw them away. First the
@@ -532,8 +575,10 @@ const TITRES_PROVISOIRES = new Set(["", "sans titre", "projet", "untitled"]);
 export const titreManquant = (fiche: Fiche): boolean => TITRES_PROVISOIRES.has(String(fiche.contenu.titre ?? "").trim().toLowerCase());
 
 /** Input of the `notes-entretien` skill: the sheet as it is, and the conversation (who speaks, what). */
-export function entreeNotes(messages: { role: string; content: string }[], fiche: Fiche) {
+export function entreeNotes(messages: { role: string; content: string }[], fiche: Fiche, cadre?: string) {
   return {
+    /** The frame chosen in the design form (format, music wanted), for a designed project: never written by the notes. */
+    ...(cadre ? { cadre } : {}),
     fiche: { contenu: fiche.contenu, statuts: fiche.statuts },
     /** What the user has not yet settled: if their message leaves ALL the rest to the agent, each point is a delegation. */
     aTrancher: essentielsManquants(fiche).map((r) => r.cle),

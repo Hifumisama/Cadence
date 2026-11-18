@@ -43,7 +43,9 @@ export function sansEtatDeFin(description: string | null | undefined): string {
 /** Does the description still contain an end-state line (clip written before 2026-11-08)? */
 export const aUnEtatDeFin = (description: string | null | undefined): boolean => ETAT_DE_FIN.test(description ?? "");
 
-/** Removes the sentence « Consigne de l'auteur : … » (up to the end of its line). For DISPLAY only: storage keeps it. */
+/** Removes the sentence « Consigne de l'auteur : … » (up to the end of its line). For DISPLAY only: storage keeps it.
+ * A clip made ONLY of the author's instruction (project 264, plan 12: a title drawn by brush strokes, written as one line « Consigne de l'auteur : … »)
+ * would show nothing: its instruction is then its narrative, shown without the marker. */
 export function sansConsigneAuteur(description: string | null | undefined): string {
   const gardees: string[] = [];
   for (const ligne of (description ?? "").replace(/\r\n?/g, "\n").split("\n")) {
@@ -55,7 +57,9 @@ export function sansConsigneAuteur(description: string | null | undefined): stri
     const avant = ligne.slice(0, m.index);
     if (avant.trim()) gardees.push(avant);
   }
-  return ranger(gardees);
+  const reste = ranger(gardees);
+  if (reste) return reste;
+  return ranger((description ?? "").replace(/\r\n?/g, "\n").split("\n").map((l) => l.replace(CONSIGNE, "").trim()));
 }
 
 /** The intent as it is DISPLAYED: without the old « État en fin de plan », without the « Consigne de l'auteur ». */

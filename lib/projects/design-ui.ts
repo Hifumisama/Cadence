@@ -1,10 +1,17 @@
 import {
   DUREE_MAX_SECONDES,
+  genresReconnus,
+  luminositeAmbiance,
+  type Conception,
   DUREE_MIN_SECONDES,
   DUREE_PAR_DEFAUT_SECONDES,
   GENRES,
-  GENRES_MAX,
+  INTENTIONS_MUSIQUE,
+  INTENTION_MUSIQUE_PAR_DEFAUT,
   LANGUES_DIALOGUES,
+  LIBELLES_INTENTION_MUSIQUE,
+  REFERENCE_MUSIQUE_MAX,
+  type IntentionMusique,
   LANGUE_PAR_DEFAUT,
   RYTHME_PAR_DEFAUT,
   SANS_DIALOGUE,
@@ -23,7 +30,6 @@ export type StyleChoisi =
   | { source: "libre"; nom: string; promptImage: string; clause: string; image?: string };
 
 export type EtatAssistant = {
-  genres: string[];
   duree: number;
   rythme: RythmeBrief;
   dureeChoisie: boolean;
@@ -36,9 +42,15 @@ export type EtatAssistant = {
   /** True as soon as the user has chosen the staging style himself. As long as it is false, `styleCamera` FOLLOWS the recommendation of the project's style (`suivreRecommandation`);
    * when true, a style change never overwrites it. Saved in session, not sent to the server. */
   miseEnSceneChoisie: boolean;
+  /** The music intention (preselected « discrète ») and its optional reference (« un peu comme… »). */
+  musique: IntentionMusique;
+  referenceMusique: string;
 };
 
-export const ETAPES_ASSISTANT = ["Accueil", "Genre", "Durée", "Langue", "Style", "Mise en scène"] as const;
+/** The form holds the FRAME only (2026-11-18): the genre and the story are decided in the interview. */
+export const ETAPES_ASSISTANT = ["Accueil", "Durée", "Langue", "Style", "Mise en scène", "Musique"] as const;
+/** Index of each step, so that screens never hard-code a number. */
+export const ETAPE = { accueil: 0, duree: 1, langue: 2, style: 3, miseEnScene: 4, musique: 5 } as const;
 export const DERNIERE_ETAPE = ETAPES_ASSISTANT.length - 1;
 /** The whole film strip, visible from the start page: the six choices, then what follows the project's creation. */
 export const ETAPES_CONCEPTION = [...ETAPES_ASSISTANT, "Scénario", "Clap", "Avancée"] as const;
@@ -46,7 +58,6 @@ export const CLE_SESSION = "cadence.conception.v1";
 
 export function etatInitial(): EtatAssistant {
   return {
-    genres: [],
     duree: DUREE_PAR_DEFAUT_SECONDES,
     rythme: RYTHME_PAR_DEFAUT,
     dureeChoisie: false,
@@ -56,6 +67,8 @@ export function etatInitial(): EtatAssistant {
     creativite: CREATIVITE_PAR_DEFAUT,
     styleCamera: STYLE_AUCUN,
     miseEnSceneChoisie: false,
+    musique: INTENTION_MUSIQUE_PAR_DEFAUT,
+    referenceMusique: "",
   };
 }
 
@@ -75,13 +88,6 @@ export function suivreRecommandation(etat: EtatAssistant): EtatAssistant {
 /** A MANUAL staging choice (card clicked, « aucun » included): it is kept and no longer follows the recommendation. */
 export const choisirMiseEnScene = (etat: EtatAssistant, styleCamera: string): EtatAssistant => ({ ...etat, styleCamera, miseEnSceneChoisie: true });
 
-/** Ticks or unticks a genre; beyond `GENRES_MAX`, the oldest is replaced. */
-export function basculerGenre(etat: EtatAssistant, nom: string): EtatAssistant {
-  const present = etat.genres.includes(nom);
-  const genres = present ? etat.genres.filter((g) => g !== nom) : [...etat.genres, nom].slice(-GENRES_MAX);
-  return { ...etat, genres };
-}
-
 /** A free style is complete with its two prompts (the name and the image are optional). */
 export function styleComplet(style: StyleChoisi | null, styleUtilisable: (id: string) => boolean): boolean {
   if (!style) return false;
@@ -91,8 +97,7 @@ export function styleComplet(style: StyleChoisi | null, styleUtilisable: (id: st
 
 /** We can leave step `i` for the next one. */
 export function etapeValide(i: number, etat: EtatAssistant, styleUtilisable: (id: string) => boolean): boolean {
-  if (i === 1) return etat.genres.length >= 1;
-  if (i === 4) return styleComplet(etat.style, styleUtilisable);
+  if (i === ETAPE.style) return styleComplet(etat.style, styleUtilisable);
   return true;
 }
 
@@ -111,21 +116,21 @@ export function minutesSecondes(s: number): string {
 /** The summary under the step's name, in the ribbon (empty as long as nothing is chosen). `nomStyle`: name of the library style. */
 export function resumeEtape(i: number, etat: EtatAssistant, nomStyle: (id: string) => string | null): string {
   switch (i) {
-    case 0:
+    case ETAPE.accueil:
       return "Film IA";
-    case 1:
-      return etat.genres.join("/");
-    case 2:
+    case ETAPE.duree:
       return minutesSecondes(etat.duree);
-    case 3:
+    case ETAPE.langue:
       // The language is preselected on screen: the ribbon shows it too (otherwise « — » next to a visibly ticked choice).
       return etat.langue;
-    case 4:
+    case ETAPE.style:
       if (!etat.style) return "";
       return etat.style.source === "libre" ? etat.style.nom.trim() || "Style libre" : (nomStyle(etat.style.styleId) ?? "");
-    case 5:
+    case ETAPE.miseEnScene:
       // The starting values are ticked on screen: the ribbon shows them too.
       return resumeMiseEnScene(etat.creativite, etat.styleCamera);
+    case ETAPE.musique:
+      return LIBELLES_INTENTION_MUSIQUE[etat.musique];
     default:
       return "";
   }
@@ -137,10 +142,23 @@ export function teinteAmbiance(genres: readonly string[]): number {
   return t.length ? Math.round(t.reduce((a, b) => a + b, 0) / t.length) : 42;
 }
 
+/** The ambient light of a created project's screens, from the film's genre (free text: `genreDuFilm`): gold while it is not decided. */
+export function ambianceDuGenre(genre: string): { "--cn-hue": number; "--cn-lum": string } {
+  const g = genresReconnus(genre);
+  return { "--cn-hue": teinteAmbiance(g), "--cn-lum": luminositeAmbiance(g) };
+}
+
+/** The ribbon's summaries of a CREATED project, one per `ETAPES_ASSISTANT` step (the choices are made: shown, not replayed). A project designed
+ * before the music step shows « — » there. */
+export function resumesCadre(c: Conception, nomStyle: string, miseEnScene: string): string[] {
+  return ["Film", minutesSecondes(c.dureeSecondes), c.langue, nomStyle, miseEnScene, c.musique ? LIBELLES_INTENTION_MUSIQUE[c.musique.intention] : "—"];
+}
+
 /** The payload sent to `creerProjetConcu` (the server re-validates it entirely). */
 export function versCharge(etat: EtatAssistant): Record<string, unknown> {
+  const reference = etat.referenceMusique.trim();
   return {
-    genres: etat.genres,
+    genres: [],
     dureeSecondes: etat.duree,
     rythme: etat.rythme,
     dureeChoisie: etat.dureeChoisie,
@@ -149,6 +167,7 @@ export function versCharge(etat: EtatAssistant): Record<string, unknown> {
     style: etat.style ?? undefined,
     creativite: etat.creativite,
     styleCamera: etat.styleCamera,
+    musique: { intention: etat.musique, ...(reference && etat.musique !== "aucune" ? { reference } : {}) },
   };
 }
 
@@ -167,8 +186,6 @@ export function lireEtatSauvegarde(brut: string | null): EtatAssistant | null {
     return null;
   }
   const depart = etatInitial();
-  const nomsGenres = GENRES.map((g) => g.nom);
-  const genres = (Array.isArray(o.genres) ? o.genres : []).filter((g): g is string => typeof g === "string" && nomsGenres.includes(g)).slice(0, GENRES_MAX);
   const s = o.style as Record<string, unknown> | null | undefined;
   let style: StyleChoisi | null = null;
   if (s && s.source === "bibliotheque" && typeof s.styleId === "string") style = { source: "bibliotheque", styleId: s.styleId };
@@ -184,7 +201,6 @@ export function lireEtatSauvegarde(brut: string | null): EtatAssistant | null {
   const langue = typeof o.langue === "string" && (o.langue === SANS_DIALOGUE || (LANGUES_DIALOGUES as readonly string[]).includes(o.langue)) ? o.langue : depart.langue;
   const styleCamera = styleCameraOuNull(o.styleCamera) ?? depart.styleCamera;
   return suivreRecommandation({
-    genres,
     duree: entier(o.duree, DUREE_MIN_SECONDES, DUREE_MAX_SECONDES, depart.duree),
     // The rhythm is no longer a choice: a saved session from before keeps the starting value.
     rythme: depart.rythme,
@@ -197,5 +213,7 @@ export function lireEtatSauvegarde(brut: string | null): EtatAssistant | null {
     styleCamera,
     // A session from before this field: a style other than « aucun » can only come from a manual choice, we keep it.
     miseEnSceneChoisie: typeof o.miseEnSceneChoisie === "boolean" ? o.miseEnSceneChoisie : styleCamera !== STYLE_AUCUN,
+    musique: (INTENTIONS_MUSIQUE as readonly unknown[]).includes(o.musique) ? (o.musique as IntentionMusique) : depart.musique,
+    referenceMusique: typeof o.referenceMusique === "string" ? o.referenceMusique.slice(0, REFERENCE_MUSIQUE_MAX) : "",
   });
 }

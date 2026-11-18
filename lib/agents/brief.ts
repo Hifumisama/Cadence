@@ -8,9 +8,16 @@ import { SECTIONS_BRIEF, type BriefContenu, type CleSectionBrief, type SectionBr
  * conversation. The sub-schemas of the patchable sections are repeated in that of `notes-entretien` (a test requires them to be identical). */
 export const SCHEMA_BRIEF = schemaBrief as unknown as Record<string, unknown>;
 
-/** The sections that carry a choice made in the design (language, duration, genre and tone): changing them would mean redoing the project, so they
- * are no longer edited by hand once the design is done (see `modifierChampBrief`). */
-export const SECTIONS_FIGEES_PAR_LA_CONCEPTION: readonly string[] = ["langueDialogues", "dureeEpisodeSecondes", "genreTon"];
+/** The sections that carry a choice made in the design (language, duration): changing them would mean redoing the project, so they
+ * are no longer edited by hand once the design is done (see `modifierChampBrief`). The genre too, but only for projects that chose it in
+ * the form (before 2026-11-18): since then it is decided in the interview, like the rest of the story. */
+export const SECTIONS_FIGEES_PAR_LA_CONCEPTION: readonly string[] = ["langueDialogues", "dureeEpisodeSecondes"];
+
+/** The sections frozen by a design: `SECTIONS_FIGEES_PAR_LA_CONCEPTION`, plus the genre when the form chose it. Pure. */
+export function sectionsFigees(conception: { genres: readonly string[] } | null): readonly string[] {
+  if (!conception) return [];
+  return conception.genres.length ? [...SECTIONS_FIGEES_PAR_LA_CONCEPTION, "genreTon"] : SECTIONS_FIGEES_PAR_LA_CONCEPTION;
+}
 
 const CLES_SECTION: string[] = SECTIONS_BRIEF.map((s) => s.cle);
 

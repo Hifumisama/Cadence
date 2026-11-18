@@ -1,17 +1,20 @@
 import { type Portee, type CibleDemandee, PORTEES, type Profondeur, type MessageConversation, type Resultat, type StatutChamp } from "./types";
 import { contenuPourLlm } from "./chat-sequence";
+import type { ViaMessage } from "./chat-trace";
 import { db } from "../../db";
 import { projects, episodes, plans, assets, agentConversations, agentRuns, propositions, briefs } from "../../db/schema";
 import { eq, and, isNull, inArray } from "drizzle-orm";
 import { TYPE_AFFICHE } from "../posters/posters";
 import { accrocheEntretien } from "./hook";
 import { type Fiche, entreeNotes, ficheVersBrief } from "./sheet";
-import { ouvertureConcue, lireConception } from "../projects/design-db";
+import { ecrireConception, ouvertureConcue, lireConception } from "../projects/design-db";
 import { creerRun } from "./runs";
 import { choixActif, selectionValide, formulerReponse } from "./choice";
-import { ficheCourante } from "./sheet-db";
+import { enregistrerFiche, ficheCourante } from "./sheet-db";
+import { conceptionApresDecision, ficheApresDecision, messageDecision, normaliserCarteChangement } from "./chat-change";
 import { ecrireBrouillon, creerBriefPartiel, synchroniserClauseStyle } from "./brief-db";
-import { estCleSection, SECTIONS_FIGEES_PAR_LA_CONCEPTION, sousSchemaSection, SCHEMA_BRIEF } from "./brief";
+import { estCleSection, sectionsFigees, sousSchemaSection, SCHEMA_BRIEF } from "./brief";
+import { informationsFormat } from "../projects/design";
 import { valider } from "../llm/validation";
 import { ERR, refusSiTacheActive } from "./service-shared";
 
@@ -173,10 +176,10 @@ export async function repondreAuChoix(conversationUuid: string, libelles: string
   if (!conv) return ERR("Conversation introuvable.");
   const choix = choixActif((conv.messages as MessageConversation[]) ?? []);
   if (!choix || !selectionValide(choix, libelles)) return ERR("Ce choix n'est plus disponible : réponds dans la zone de saisie.");
-  return envoyerMessage(conversationUuid, formulerReponse(choix, libelles), libelles);
+  return envoyerMessage(conversationUuid, formulerReponse(choix, libelles), libelles, undefined, "choix");
 }
 
-export async function envoyerMessage(conversationUuid: string, texte: string, choisis?: string[]): Promise<Resultat<{ runUuid: string }>> {
+export async function envoyerMessage(conversationUuid: string, texte: string, choisis?: string[], decision?: "garder" | "nouveau", via?: ViaMessage): Promise<Resultat<{ runUuid: string }>> {
   const conv = await conversationParUuid(conversationUuid);
   if (!conv) return ERR("Conversation introuvable.");
   if (conv.profondeur !== "complete") return ERR("Cette conversation est courte : donne une consigne et génère la proposition.");
@@ -186,14 +189,14 @@ export async function envoyerMessage(conversationUuid: string, texte: string, ch
   // A turn OR the briefing's writing (the first version goes alone, and is worth waiting for) block the send.
   { const refus = await refusSiTacheActive(conv.id, "L'agent est déjà en train de répondre : attends sa réponse.", ["tour", "brief"]); if (refus) return refus; }
 
-  const messages = [...((conv.messages as MessageConversation[]) ?? []), { role: "user" as const, content: message, at: new Date().toISOString(), ...(choisis ? { choisis } : {}) }];
+  const messages = [...((conv.messages as MessageConversation[]) ?? []), { role: "user" as const, content: message, at: new Date().toISOString(), ...(choisis ? { choisis } : {}), ...(decision ? { decision } : {}), ...(via ? { via } : {}) }];
   const run = await db.transaction(async (tx) => {
     await tx.update(agentConversations).set({ messages, briefPret: false, etape: "conversation", updatedAt: new Date() }).where(eq(agentConversations.id, conv.id));
     // First the notes (a short call that returns a patch of the sheet): on its return, the worker applies the patch and posts the
     // agent's turn, with the updated sheet and what is still to ask (worker/agents/postProcessing.ts, postNotes).
     return creerRun(tx, {
       skill: "notes-entretien",
-      entree: entreeNotes(messages.map((m) => ({ role: m.role, content: contenuPourLlm(m) })), await ficheCourante(tx, conv)),
+      entree: await entreeNotesDuProjet(tx, conv.projectId, messages, await ficheCourante(tx, conv)),
       but: "tour",
       projectId: conv.projectId,
       conversationId: conv.id,
@@ -227,7 +230,7 @@ export async function genererBrief(conversationUuid: string): Promise<Resultat> 
 
 export async function modifierChampBrief(projectId: number, section: string, valeur: unknown): Promise<Resultat> {
   if (!estCleSection(section)) return ERR(`Section de brief inconnue : « ${section} ».`);
-  if (SECTIONS_FIGEES_PAR_LA_CONCEPTION.includes(section) && (await lireConception(db, projectId))) {
+  if (sectionsFigees(await lireConception(db, projectId)).includes(section)) {
     return ERR("Ce choix a été fait à la conception du projet : le changer reviendrait à refaire le projet (la langue touche tous les dialogues, la durée tout le découpage).");
   }
   const sous = sousSchemaSection(SCHEMA_BRIEF, section);
@@ -255,4 +258,39 @@ export async function modifierChampBrief(projectId: number, section: string, val
     if (section === "titre" && typeof valeur === "string" && valeur.trim()) await tx.update(projects).set({ nom: valeur.trim() }).where(eq(projects.id, projectId));
   });
   return { ok: true };
+}
+
+/** The `notes-entretien` input, with the frame of a designed project (the music wanted: the model writes the `musique` section from it). */
+async function entreeNotesDuProjet(tx: Parameters<typeof lireConception>[0], projectId: number, messages: MessageConversation[], fiche: Fiche) {
+  const conception = await lireConception(tx, projectId);
+  return entreeNotes(
+    messages.map((m) => ({ role: m.role, content: contenuPourLlm(m) })),
+    fiche,
+    conception ? informationsFormat(conception) : undefined,
+  );
+}
+
+/** The user's choice on a « changement de direction » card (lib/agents/chat-change.ts): only on the screenwriter's last message, once.
+ * « garder » puts the story back as it was; « nouveau » takes the new frame into the design itself (the steps ribbon follows) and settles it in
+ * the sheet. Then the choice is sent as the user's answer, like any message (notes, then the screenwriter's turn). « Un mélange » stays on
+ * the screen: the user writes it. */
+export async function trancherChangement(conversationUuid: string, indexMessage: number, choix: "garder" | "nouveau"): Promise<Resultat<{ runUuid: string }>> {
+  const conv = await conversationParUuid(conversationUuid);
+  if (!conv) return ERR("Conversation introuvable.");
+  const messages = (conv.messages as MessageConversation[]) ?? [];
+  const m = messages[indexMessage];
+  const carte = normaliserCarteChangement(m?.changement);
+  if (!m || indexMessage !== messages.length - 1 || m.role !== "assistant" || !carte || carte.choix) return ERR("Ce choix n'est plus disponible : réponds dans la zone de saisie.");
+  { const refus = await refusSiTacheActive(conv.id, "L'agent est déjà en train de répondre : attends sa réponse.", ["tour", "brief"]); if (refus) return refus; }
+
+  await db.transaction(async (tx) => {
+    const fiche = ficheApresDecision(await ficheCourante(tx, conv), carte, choix);
+    await enregistrerFiche(tx, conv, fiche, messages.filter((x) => x.role === "user").map((x) => x.content));
+    const conception = await lireConception(tx, conv.projectId);
+    const nouvelle = conception ? conceptionApresDecision(conception, carte, choix) : null;
+    if (nouvelle) await ecrireConception(tx, conv.projectId, nouvelle);
+    const marques = messages.map((x, i) => (i === indexMessage ? { ...x, changement: { ...(x.changement as object), choix } } : x));
+    await tx.update(agentConversations).set({ messages: marques, updatedAt: new Date() }).where(eq(agentConversations.id, conv.id));
+  });
+  return envoyerMessage(conversationUuid, messageDecision(carte, choix), undefined, choix);
 }

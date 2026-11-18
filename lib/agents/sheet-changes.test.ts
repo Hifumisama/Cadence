@@ -17,7 +17,7 @@ test("changementsDeFiche : un point tranché que le dernier message modifie", ()
   assert.equal(c[0]!.avant, "Drame mélancolique");
   const note = noteChangements(c);
   assert.match(note, /Changement de direction/);
-  assert.match(note, /demande-lui laquelle garder/);
+  assert.match(note, /trancher avec la carte/);
   assert.match(note, /moments du film, musique du film, lieux/i);
 });
 

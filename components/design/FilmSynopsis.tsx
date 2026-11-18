@@ -93,7 +93,16 @@ function Entrees({ liste }: { liste: EntreeSynopsis[] }) {
         <li key={`${e.nom}-${i}`}>
           {e.nom ? <b>{e.nom}</b> : null}
           {e.detail ? <span>{e.detail}</span> : null}
-          {e.extra ? <span className="fsy-extra">{e.extra}</span> : null}
+          {e.extra || e.nuancier?.length ? (
+            <span className="fsy-extra">
+              {e.extra}
+              {e.nuancier?.length ? (
+                <span className="fsy-nuancier" role="img" aria-label={`Couleurs : ${e.nuancier.map((c) => c.nom).join(", ")}`}>
+                  {e.nuancier.map((c) => <span key={c.nom} style={{ background: c.hex }} title={c.nom} />)}
+                </span>
+              ) : null}
+            </span>
+          ) : null}
         </li>
       ))}
     </ul>

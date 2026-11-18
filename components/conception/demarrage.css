@@ -211,6 +211,55 @@ dialog.fsy h2 { margin: 0; font-family: var(--font-brand), Georgia, serif; font-
 }
 
 /* Séquence proposée dans le chat (ChatSequence) : une carte sous le message du scénariste. */
+/* Grouped questions card (mock-up C2). */
+.cq { flex: 0 0 auto; align-self: stretch; max-width: 720px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface); overflow: hidden; display: flex; flex-direction: column; animation: cn-entre 0.45s var(--cn-ease) both; }
+.cq.is-repondu { border-color: var(--line); }
+.cq-tete { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.cq-tete b { font-size: 14px; font-weight: 600; color: var(--ink); }
+.cq-meta { font-size: 12px; color: var(--ink-3); }
+.cq-question { margin: 0; border: 0; padding: 14px 16px 4px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cq-question legend { padding: 0; font-size: 14px; line-height: 1.5; color: var(--ink); margin-bottom: 8px; }
+.cq-num { color: var(--ink-4); }
+.cq-rapides { display: flex; flex-wrap: wrap; gap: 8px; }
+.cq-puce { min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line-strong); background: transparent; color: var(--ink-2); font: inherit; font-size: 13px; cursor: pointer; }
+.cq-puce:hover:not(:disabled) { border-color: var(--or-soft); }
+.cq-puce[aria-pressed="true"] { border-color: var(--or); background: rgba(201, 162, 75, 0.12); color: var(--or-glow); }
+.cq-puce:focus-visible { outline: 2px solid var(--or-glow); outline-offset: 2px; }
+.cq-autre { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; }
+.cq-autre-libelle { font-size: 12px; color: var(--ink-3); }
+.cq-autre input { min-height: 38px; box-sizing: border-box; background: var(--bg, #121217); border: 1px solid var(--line-strong); border-radius: 8px; color: var(--ink); padding: 0 12px; font: inherit; font-size: 14px; width: 100%; }
+.cq-autre input:focus-visible { outline: none; border-color: var(--or); }
+.cq-question:disabled .cq-puce:not([aria-pressed="true"]) { opacity: 0.55; }
+.cq-pied { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 16px; margin-top: 10px; border-top: 1px solid var(--line); }
+.cq-pied .cq-repondre { background: var(--or); border-color: var(--or); color: #121217; font-weight: 600; }
+.cq-pied .cq-repondre:hover:not(:disabled) { background: var(--or-glow); border-color: var(--or-glow); }
+.cq-pied .cq-repondre:disabled { opacity: 0.5; }
+.cq.is-repondu .cq-question:last-of-type { padding-bottom: 14px; }
+/* « Changement de direction » card (mock-up C1). */
+.cc { flex: 0 0 auto; align-self: stretch; max-width: 720px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface); overflow: hidden; animation: cn-entre 0.45s var(--cn-ease) both; }
+.cc.is-tranche { border-color: var(--line); }
+.cc-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.cc-tete b { font-size: 14px; font-weight: 600; color: var(--ink); }
+.cc-icone { color: var(--or); flex: 0 0 auto; }
+.cc-meta { font-size: 12px; color: var(--ink-3); }
+.cc-pastille { margin-left: auto; font-size: 12px; color: var(--or); border: 1px solid var(--or-soft); border-radius: 999px; padding: 2px 10px; }
+.cc-corps { display: grid; gap: 10px; padding: 16px; }
+.cc-ligne { display: grid; grid-template-columns: minmax(0, 1fr) 32px minmax(0, 1fr); align-items: stretch; }
+.cc-cote { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.cc-cote.is-apres { border-color: var(--or-soft); }
+.cc-etiquette { font-size: 12px; color: var(--ink-4); }
+.cc-cote.is-apres .cc-etiquette { color: var(--or); }
+.cc-valeur { font-size: 15px; line-height: 1.45; color: var(--ink); overflow-wrap: anywhere; }
+.cc-valeur.is-avant { color: var(--ink-2); }
+.cc-fleche { display: flex; align-items: center; justify-content: center; color: var(--ink-4); }
+.cc-revoir { margin: 0; padding: 0 16px 14px; font-size: 13px; color: var(--ink-3); }
+.cc-revoir span { color: var(--or-glow); }
+.cc-pied { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); }
+.cc-pied .cc-prendre { background: var(--or); border-color: var(--or); color: #121217; font-weight: 600; }
+.cc-pied .cc-prendre:hover { background: var(--or-glow); border-color: var(--or-glow); }
+.cc-decide { font-size: 13px; color: var(--ink-3); }
+.cc-decide.is-choisi { display: inline-flex; align-items: center; gap: 6px; color: var(--or); }
+@media (max-width: 560px) { .cc-ligne { grid-template-columns: minmax(0, 1fr); } .cc-fleche { transform: rotate(90deg); height: 24px; } }
 .cs { flex: 0 0 auto; align-self: stretch; max-width: 720px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface); overflow: hidden; animation: cn-entre 0.45s var(--cn-ease) both; }
 .cs.is-validee, .cs.is-remplacee { border-color: var(--line); }
 .cs-tete { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
@@ -226,7 +275,11 @@ dialog.fsy h2 { margin: 0; font-family: var(--font-brand), Georgia, serif; font-
 .cs-barre span { flex: 1 1 0; background: var(--line-strong); }
 .cs-barre span.is-fort { background: var(--or); }
 .cs-liste { list-style: none; margin: 0; padding: 6px 0; }
-.cs-liste li { display: grid; grid-template-columns: 28px 76px minmax(0, 1fr); gap: 10px; align-items: baseline; padding: 8px 16px; }
+.cs-liste li { display: grid; grid-template-columns: 28px 76px minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 8px 16px; }
+.cs-etoile { align-self: center; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--ink-4); cursor: pointer; }
+.cs-etoile:hover { color: var(--or); border-color: var(--line); }
+.cs-etoile.is-fort { color: var(--or); }
+.cs-etoile:focus-visible { outline: 2px solid var(--or-glow); outline-offset: 1px; }
 .cs-num, .cs-temps { font-size: 12.5px; color: var(--ink-4); font-variant-numeric: tabular-nums; }
 .cs-texte { font-size: 14px; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
 .cs-liste li.is-fort .cs-texte { color: var(--or-glow); }
@@ -242,3 +295,32 @@ dialog.fsy h2 { margin: 0; font-family: var(--font-brand), Georgia, serif; font-
   .cs-pied .btn { flex: 1 1 100%; min-height: 44px; }
   .cs-note { margin-left: 0; }
 }
+
+/* The strong moment in the synopsis sequence. */
+.fs-texte.is-fort { color: var(--or-glow); }
+.fs-fort { font-size: 12px; color: var(--or); }
+
+/* Material gauge on the sequence card (mock-up C7). */
+.cs-matiere { display: flex; flex-direction: column; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--line); }
+.cs-matiere-tete { display: flex; align-items: baseline; gap: 10px; }
+.cs-matiere-tete b { font-size: 13px; font-weight: 600; color: var(--ink); }
+.cs-matiere-chiffre { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--ink); }
+.cs-cases { display: flex; gap: 2px; height: 18px; }
+.cs-cases span { flex: 1 1 0; border-radius: 3px; background: var(--line-strong); }
+.cs-cases span.is-fort { background: var(--or); }
+.cs-cases span.is-vide { background: transparent; border: 1px dashed var(--or-soft); }
+.cs-matiere-pied { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.cs-manque { font-size: 13px; color: var(--or-glow); }
+.cs-suite { margin-left: auto; }
+
+/* Palette cards (mock-up C4): real swatches on the answer cards. */
+.cn-nuancier { display: flex; gap: 4px; margin-bottom: 6px; }
+.cn-nuancier span { width: 28px; height: 28px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.12); }
+.cn-nuancier-noms { color: var(--ink-4); }
+.cn-choix-autres { margin-top: 10px; }
+.fsy-nuancier { display: inline-flex; gap: 3px; vertical-align: middle; margin-left: 6px; }
+.fsy-nuancier span { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(255, 255, 255, 0.12); }
+
+/* A message sent by a card: a discreet line instead of a bubble. */
+.cn-trace { align-self: flex-end; display: inline-flex; align-items: center; gap: 6px; margin: 0; max-width: 80%; font-size: 12.5px; color: var(--or); }
+.cn-trace svg { flex: 0 0 auto; }

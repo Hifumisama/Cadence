@@ -3,9 +3,9 @@ import assert from "node:assert/strict";
 import { GENRES, SANS_DIALOGUE, validerConception } from "./design";
 import {
   DERNIERE_ETAPE,
+  ETAPE,
   ETAPES_ASSISTANT,
   ETAPES_CONCEPTION,
-  basculerGenre,
   choisirMiseEnScene,
   etapeMax,
   etapeValide,
@@ -24,31 +24,19 @@ import {
 const tout = () => true;
 const aucun = () => false;
 
-test("état de départ : film, français, 2 min, rythme variable, rien choisi", () => {
+test("état de départ : film, français, 2 min, rythme variable, musique discrète, rien choisi", () => {
   const e = etatInitial();
-  assert.deepEqual([e.langue, e.duree, e.rythme, e.genres.length, e.style], ["Français", 120, "variable", 0, null]);
+  assert.deepEqual([e.langue, e.duree, e.rythme, e.style, e.musique, e.referenceMusique], ["Français", 120, "variable", null, "discrete", ""]);
 });
 
-test("genres : deux au maximum (le plus ancien part)", () => {
-  let e = basculerGenre(etatInitial(), "Comédie");
-  e = basculerGenre(e, "Drame");
-  assert.deepEqual(e.genres, ["Comédie", "Drame"]);
-  e = basculerGenre(e, "Thriller");
-  assert.deepEqual(e.genres, ["Drame", "Thriller"]);
-  e = basculerGenre(e, "Drame");
-  assert.deepEqual(e.genres, ["Thriller"]);
-});
-
-test("étapes : il faut un genre, puis un style complet ; etapeMax s'arrête à la première étape incomplète", () => {
+test("étapes : le cadre seulement (plus de genre), il faut un style complet ; etapeMax s'arrête à la première étape incomplète", () => {
+  assert.deepEqual([...ETAPES_ASSISTANT], ["Accueil", "Durée", "Langue", "Style", "Mise en scène", "Musique"]);
   let e = etatInitial();
-  assert.equal(etapeValide(1, e, tout), false);
-  assert.equal(etapeMax(e, tout), 1);
-  e = basculerGenre(e, "Drame");
-  assert.equal(etapeMax(e, tout), 4, "le style manque : on atteint l'étape du style");
-  assert.equal(etapeValide(4, e, tout), false);
+  assert.equal(etapeMax(e, tout), ETAPE.style, "le style manque : on atteint l'étape du style");
+  assert.equal(etapeValide(ETAPE.style, e, tout), false);
   e = { ...e, style: { source: "bibliotheque", styleId: "x" } };
-  assert.equal(etapeValide(4, e, aucun), false, "style de la bibliothèque sans clause : inutilisable");
-  assert.equal(etapeValide(4, e, tout), true);
+  assert.equal(etapeValide(ETAPE.style, e, aucun), false, "style de la bibliothèque sans clause : inutilisable");
+  assert.equal(etapeValide(ETAPE.style, e, tout), true);
   assert.equal(etapeMax(e, tout), DERNIERE_ETAPE);
 });
 
@@ -59,13 +47,14 @@ test("style libre : les deux prompts sont obligatoires, le nom et l'image non", 
   assert.equal(styleComplet(null, tout), false);
 });
 
-test("résumés du ruban : vides tant que rien n'est choisi, sauf la durée et la langue présélectionnées", () => {
+test("résumés du ruban : vides tant que rien n'est choisi, sauf les valeurs présélectionnées", () => {
   let e = etatInitial();
   const nom = (id: string) => (id === "g" ? "Gouache" : null);
-  assert.deepEqual([0, 1, 2, 3, 4].map((i) => resumeEtape(i, e, nom)), ["Film IA", "", minutesSecondes(e.duree), "Français", ""]);
-  e = { ...basculerGenre(etatInitial(), "Drame"), dureeChoisie: true, duree: 150, langueChoisie: true, langue: SANS_DIALOGUE, style: { source: "bibliotheque", styleId: "g" } };
-  assert.deepEqual([0, 1, 2, 3, 4].map((i) => resumeEtape(i, e, nom)), ["Film IA", "Drame", "2 min 30", SANS_DIALOGUE, "Gouache"]);
-  assert.equal(resumeEtape(4, { ...e, style: { source: "libre", nom: " ", promptImage: "a", clause: "b" } }, nom), "Style libre");
+  const resumes = (x: EtatAssistant) => [ETAPE.accueil, ETAPE.duree, ETAPE.langue, ETAPE.style, ETAPE.musique].map((i) => resumeEtape(i, x, nom));
+  assert.deepEqual(resumes(e), ["Film IA", minutesSecondes(e.duree), "Français", "", "Discrète"]);
+  e = { ...etatInitial(), dureeChoisie: true, duree: 150, langueChoisie: true, langue: SANS_DIALOGUE, style: { source: "bibliotheque", styleId: "g" }, musique: "aucune" };
+  assert.deepEqual(resumes(e), ["Film IA", "2 min 30", SANS_DIALOGUE, "Gouache", "Aucune"]);
+  assert.equal(resumeEtape(ETAPE.style, { ...e, style: { source: "libre", nom: " ", promptImage: "a", clause: "b" } }, nom), "Style libre");
   assert.equal(minutesSecondes(45), "45 s");
   assert.equal(minutesSecondes(60), "1 min");
 });
@@ -75,48 +64,51 @@ test("teinte d'ambiance : or par défaut, moyenne des genres sinon", () => {
   assert.equal(teinteAmbiance(["Comédie"]), GENRES.find((g) => g.nom === "Comédie")!.teinte);
 });
 
-test("charge utile : acceptée par la validation du serveur", () => {
-  const base: EtatAssistant = { ...basculerGenre(etatInitial(), "Drame"), style: { source: "bibliotheque", styleId: "gouache" } };
+test("charge utile : acceptée par la validation du serveur, sans genre, avec l'intention musicale", () => {
+  const base: EtatAssistant = { ...etatInitial(), style: { source: "bibliotheque", styleId: "gouache" }, referenceMusique: "  Daft Punk  " };
   const biblio = [{ id: "gouache" }];
   const film = validerConception(versCharge(base), biblio);
   assert.ok(film.ok, film.ok ? "" : film.erreurs.join(" "));
-  assert.ok(!validerConception(versCharge({ ...base, genres: [] }), biblio).ok);
+  assert.deepEqual(film.ok && [film.valeur.genres, film.valeur.musique], [[], { intention: "discrete", reference: "Daft Punk" }]);
+  // « Aucune »: the reference is dropped.
+  const sans = validerConception(versCharge({ ...base, musique: "aucune" }), biblio);
+  assert.deepEqual(sans.ok && sans.valeur.musique, { intention: "aucune" });
 });
 
 test("sauvegarde en session : aller-retour, et toute valeur inattendue retombe sur le départ", () => {
-  const e: EtatAssistant = { ...basculerGenre(etatInitial(), "Horreur"), dureeChoisie: true, duree: 300, style: { source: "libre", nom: "Mien", promptImage: "p", clause: "c", image: "libres/x.webp" } };
+  const e: EtatAssistant = { ...etatInitial(), dureeChoisie: true, duree: 300, style: { source: "libre", nom: "Mien", promptImage: "p", clause: "c", image: "libres/x.webp" }, musique: "presente", referenceMusique: "Hans Zimmer" };
   assert.deepEqual(lireEtatSauvegarde(JSON.stringify(e)), e);
   assert.equal(lireEtatSauvegarde(null), null);
   assert.equal(lireEtatSauvegarde("pas du json"), null);
   assert.equal(lireEtatSauvegarde("[1]"), null);
-  const abime = lireEtatSauvegarde(JSON.stringify({ genres: ["Inconnu", "Drame", "Action", "Western"], duree: 5, rythme: "x", langue: "Klingon", style: { source: "?" } }))!;
-  assert.deepEqual([abime.duree, abime.rythme, abime.langue, abime.style], [120, "variable", "Français", null]);
-  assert.deepEqual(abime.genres, ["Drame", "Action"], "genres inconnus retirés, deux au maximum");
+  const abime = lireEtatSauvegarde(JSON.stringify({ genres: ["Drame"], duree: 5, rythme: "x", langue: "Klingon", style: { source: "?" }, musique: "fort" }))!;
+  assert.deepEqual([abime.duree, abime.rythme, abime.langue, abime.style, abime.musique], [120, "variable", "Français", null, "discrete"]);
+  assert.equal("genres" in abime, false, "une session d'avant garde ses genres hors de l'état");
 });
 
 // --- « Mise en scène » step (creativity and staging style of Open H3 IR, step 6 of /nouveau) ---------------------------
 
-test("mise en scène : sixième étape, départ coché (équilibrée, aucun style), toujours franchissable", () => {
-  assert.equal(DERNIERE_ETAPE, 5);
-  assert.equal(ETAPES_ASSISTANT[5], "Mise en scène");
+test("mise en scène : cinquième étape, départ coché (équilibrée, aucun style), toujours franchissable", () => {
+  assert.equal(DERNIERE_ETAPE, ETAPE.musique);
+  assert.equal(ETAPES_ASSISTANT[ETAPE.miseEnScene], "Mise en scène");
   assert.equal(ETAPES_CONCEPTION.length, 9);
   const e = etatInitial();
   assert.deepEqual([e.creativite, e.styleCamera], ["balanced", "aucun"]);
-  assert.equal(etapeValide(5, e, tout), true, "rien à remplir : on peut continuer sans toucher à rien");
-  // etapeMax reaches the staging step as soon as genre and style are set.
-  const pret: EtatAssistant = { ...basculerGenre(etatInitial(), "Drame"), style: { source: "bibliotheque", styleId: "x" } };
-  assert.equal(etapeMax(pret, tout), 5);
+  assert.equal(etapeValide(ETAPE.miseEnScene, e, tout), true, "rien à remplir : on peut continuer sans toucher à rien");
+  assert.equal(etapeValide(ETAPE.musique, e, tout), true, "musique présélectionnée");
+  const pret: EtatAssistant = { ...etatInitial(), style: { source: "bibliotheque", styleId: "x" } };
+  assert.equal(etapeMax(pret, tout), DERNIERE_ETAPE);
 });
 
 test("mise en scène : résumé du ruban (créativité · style) et charge utile", () => {
   const nom = () => null;
-  assert.equal(resumeEtape(5, etatInitial(), nom), "Équilibrée · aucun style");
-  assert.equal(resumeEtape(5, { ...etatInitial(), creativite: "bold", styleCamera: "villeneuve" }, nom), "Audacieuse · Immense et silencieux");
+  assert.equal(resumeEtape(ETAPE.miseEnScene, etatInitial(), nom), "Équilibrée · aucun style");
+  assert.equal(resumeEtape(ETAPE.miseEnScene, { ...etatInitial(), creativite: "bold", styleCamera: "villeneuve" }, nom), "Audacieuse · Immense et silencieux");
   const charge = versCharge({ ...etatInitial(), creativite: "extreme", styleCamera: "wong" });
   assert.equal(charge.creativite, "extreme");
   assert.equal(charge.styleCamera, "wong");
   // The server's validation ignores these keys: it stays strict on the design, which does not carry them.
-  const base: EtatAssistant = { ...basculerGenre(etatInitial(), "Drame"), style: { source: "bibliotheque", styleId: "gouache" }, creativite: "bold", styleCamera: "wong" };
+  const base: EtatAssistant = { ...etatInitial(), style: { source: "bibliotheque", styleId: "gouache" }, creativite: "bold", styleCamera: "wong" };
   assert.ok(validerConception(versCharge(base), [{ id: "gouache" }]).ok);
 });
 
@@ -162,8 +154,8 @@ test("recommandation : la mise en scène suit le style tant qu'elle n'a pas ét�
   assert.equal(suivreRecommandation(avecStyle("ghibli-style", sans)).styleCamera, "aucun");
   // A custom profile is sent to the server like any choice, and the ribbon summarises it.
   assert.equal(versCharge(clay).styleCamera, "claymation");
-  assert.equal(resumeEtape(5, clay, () => null), "Équilibrée · Stop-motion en pâte à modeler");
+  assert.equal(resumeEtape(ETAPE.miseEnScene, clay, () => null), "Équilibrée · Stop-motion en pâte à modeler");
   // The flag stays on the browser side.
   assert.equal("miseEnSceneChoisie" in versCharge(clay), false);
-  assert.ok(validerConception(versCharge({ ...clay, genres: ["Drame"] }), [{ id: "claymation" }]).ok);
+  assert.ok(validerConception(versCharge(clay), [{ id: "claymation" }]).ok);
 });

@@ -1,16 +1,20 @@
 "use client";
 
 import { Fragment, useId, useRef, useState } from "react";
-import { envoyerMessage, relancerAccroche, repondreAuChoix } from "@/app/agents/actions";
+import { envoyerMessage, relancerAccroche, repondreAuChoix, trancherChangement } from "@/app/agents/actions";
 import { EtatTacheAgent } from "@/components/agents/AgentTaskState";
 import { estTacheActive } from "@/lib/agents/agents-display";
-import { estDecider } from "@/lib/agents/choice";
-import { MESSAGE_VALIDER_SEQUENCE, etatSequence } from "@/lib/agents/chat-sequence";
+import { estDecider, messageAutresPalettes } from "@/lib/agents/choice";
+import { etatSequence, messageValiderSequence } from "@/lib/agents/chat-sequence";
 import type { NoteAffichee } from "@/lib/agents/sheet-display";
 import type { Choix, VueConversation } from "@/lib/agents/types";
 import { useDefilementBas } from "@/components/ui/useScrollToBottom";
 import { EnteteScene } from "./Scenes";
 import { ChatSequence } from "./ChatSequence";
+import { ChatChange } from "./ChatChange";
+import { ChatQuestions } from "./ChatQuestions";
+import { traceMessage, type ViaMessage } from "@/lib/agents/chat-trace";
+import { messageDecision } from "@/lib/agents/chat-change";
 import { FilmSynopsis } from "./FilmSynopsis";
 
 /** « Scénario » scene: the interview with the screenwriter. The engine is that of the existing intake interview (notes sheet kept by the
@@ -49,13 +53,13 @@ export function ScenarioScene({ conv, rafraichir }: { conv: VueConversation; raf
     }
   };
 
-  const envoyer = async (impose?: string) => {
+  const envoyer = async (impose?: string, via?: ViaMessage) => {
     const t = (impose ?? texte).trim();
     if (!t || occupe || actif) return;
     setOccupe(true);
     setErreur(null);
     try {
-      const r = await envoyerMessage(conv.uuid, t);
+      const r = await envoyerMessage(conv.uuid, t, impose !== undefined ? via : undefined);
       if (!r.ok) {
         setErreur(r.erreur);
         return;
@@ -64,6 +68,25 @@ export function ScenarioScene({ conv, rafraichir }: { conv: VueConversation; raf
       await rafraichir();
     } catch {
       setErreur("Le message n’a pas pu être envoyé.");
+    } finally {
+      setOccupe(false);
+    }
+  };
+
+  /** A choice on the change card: the server settles the sheet (and the frame) and sends the answer. */
+  const trancher = async (index: number, choix: "garder" | "nouveau") => {
+    if (occupe || actif) return;
+    setOccupe(true);
+    setErreur(null);
+    try {
+      const r = await trancherChangement(conv.uuid, index, choix);
+      if (!r.ok) {
+        setErreur(r.erreur);
+        return;
+      }
+      await rafraichir();
+    } catch {
+      setErreur("Le choix n’a pas pu être envoyé.");
     } finally {
       setOccupe(false);
     }
@@ -103,15 +126,42 @@ export function ScenarioScene({ conv, rafraichir }: { conv: VueConversation; raf
           <div className="cn-fil" role="log" aria-live="polite" aria-label="Conversation avec le scénariste">
             {conv.messages.map((m, i) => (
               <Fragment key={`${m.at}-${i}`}>
-                <p className={`cn-msg ${m.role === "user" ? "is-moi" : "is-agent"}`}>{m.content}</p>
+                {/* A card's button sent this answer: the card's « ✓ » line already says it. */}
+                {m.decision ? null : m.via ? (
+                  <p className="cn-trace">
+                    <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12l5 5L19 8" /></svg>
+                    {traceMessage(m.via, m.content)}
+                  </p>
+                ) : <p className={`cn-msg ${m.role === "user" ? "is-moi" : "is-agent"}`}>{m.content}</p>}
                 {m.sequence ? (
                   <ChatSequence
                     sequence={m.sequence}
                     etat={etatSequence(m.sequence, i === derniereSequence, sequenceNotes)}
                     dureeSecondes={conv.synopsis?.sequence.durationSeconds ?? null}
                     actions={i === conv.messages.length - 1 && !actif && !occupe}
-                    valider={() => void envoyer(MESSAGE_VALIDER_SEQUENCE)}
+                    valider={(fort) => void envoyer(messageValiderSequence(fort), "sequence")}
+                    proposerSuite={(t) => void envoyer(t, "suite")}
                     changer={changerMoment}
+                  />
+                ) : null}
+                {m.changement ? (
+                  <ChatChange
+                    carte={m.changement}
+                    actions={i === conv.messages.length - 1 && !actif && !occupe}
+                    garder={() => void trancher(i, "garder")}
+                    prendre={() => void trancher(i, "nouveau")}
+                    melanger={() => {
+                      setTexte((t) => t || messageDecision(m.changement!, "melange"));
+                      saisie.current?.focus();
+                    }}
+                  />
+                ) : null}
+                {m.questions ? (
+                  <ChatQuestions
+                    key={`q-${m.at}`}
+                    carte={m.questions}
+                    actions={i === conv.messages.length - 1 && !actif && !occupe}
+                    envoyer={(t) => void envoyer(t, "questions")}
                   />
                 ) : null}
                 {m.choix ? (
@@ -120,6 +170,7 @@ export function ScenarioScene({ conv, rafraichir }: { conv: VueConversation; raf
                     choisis={conv.messages[i + 1]?.choisis ?? []}
                     disponibles={i === conv.messages.length - 1 && !actif && !occupe}
                     repondre={(libelles) => void repondre(libelles)}
+                    autres={() => void envoyer(messageAutresPalettes(m.choix!), "autres")}
                   />
                 ) : null}
               </Fragment>
@@ -181,7 +232,8 @@ export function ScenarioScene({ conv, rafraichir }: { conv: VueConversation; raf
 /** Choice cards offered by the screenwriter, under his message. Active only on the last message (`disponibles`); once answered (click or free text),
  * they stay in the thread, frozen: the retained card is highlighted (`choisis`, carried by the user's message). Single choice: a click sends.
  * Multiple choice: you tick, then « Valider » sends a single reply. */
-function CartesChoix({ choix, choisis, disponibles, repondre }: { choix: Choix; choisis: string[]; disponibles: boolean; repondre: (libelles: string[]) => void }) {
+function CartesChoix({ choix, choisis, disponibles, repondre, autres }: { choix: Choix; choisis: string[]; disponibles: boolean; repondre: (libelles: string[]) => void; /** « Propose-m'en d'autres » (palette cards). */ autres?: () => void }) {
+  const palette = choix.options.some((o) => o.couleurs?.length);
   const [coches, setCoches] = useState<string[]>([]);
   const titre = useId();
   const figee = !disponibles;
@@ -202,8 +254,15 @@ function CartesChoix({ choix, choisis, disponibles, repondre }: { choix: Choix; 
           const retenue = figee ? choisis.includes(o.libelle) : choix.multiple ? coches.includes(o.libelle) : false;
           const contenu = (
             <>
+              {o.couleurs?.length ? (
+                <span className="cn-nuancier" role="img" aria-label={`Couleurs : ${o.couleurs.map((c) => c.nom).join(", ")}`}>
+                  {o.couleurs.map((c) => <span key={c.nom} style={{ background: c.hex }} title={c.nom} />)}
+                </span>
+              ) : null}
               <b>{o.libelle}</b>
+              {o.matieres ? <small>{o.matieres}</small> : null}
               {o.description ? <small>{o.description}</small> : null}
+              {o.couleurs?.length ? <small className="cn-nuancier-noms">{o.couleurs.map((c) => c.nom).join(" · ")}</small> : null}
             </>
           );
           return (
@@ -225,12 +284,23 @@ function CartesChoix({ choix, choisis, disponibles, repondre }: { choix: Choix; 
       {choix.multiple && !figee ? (
         <button type="button" className="btn btn-gold cn-choix-valider" disabled={coches.length === 0} onClick={() => repondre(coches)}>Valider</button>
       ) : null}
+      {palette && !figee && autres ? <button type="button" className="btn cn-choix-autres" onClick={autres}>Propose-m’en d’autres</button> : null}
       {!figee ? <p className="cn-choix-pied">Tu peux aussi écrire ta propre réponse ci-dessous.</p> : null}
     </div>
   );
 }
 
-const COURT: Record<string, string> = { arc: "Histoire", fin: "Fin", moments: "Moments", personnages: "Héros", titre: "Titre" };
+const COURT: Record<string, string> = {
+  arc: "Histoire",
+  fin: "Fin",
+  genreTon: "Genre",
+  style: "Style",
+  rythme: "Rythme",
+  dureeEpisodeSecondes: "Durée",
+  moments: "Moments",
+  personnages: "Héros",
+  titre: "Titre",
+};
 
 /** The essentials as a gauge and chips: done (said or left to the screenwriter) or still to settle. The detail is in the Synopsis. */
 function Avancement({ notes, momentsManquants }: { notes: NoteAffichee[]; momentsManquants: number }) {

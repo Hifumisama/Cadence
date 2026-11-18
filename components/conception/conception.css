@@ -141,6 +141,11 @@
 .cn-langue span { color: var(--ink-3); font-size: 13px; }
 .cn-langue:hover { transform: translateY(-3px); border-color: var(--or-soft); }
 .cn-langue[aria-pressed="true"] { border-color: var(--or); color: var(--or-glow); box-shadow: 0 0 30px -8px rgba(201, 162, 75, 0.5); }
+/* Music step: the optional reference (« un peu comme… »). */
+.cn-champ-reference { display: grid; gap: 6px; margin-top: 24px; max-width: 560px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-3); }
+.cn-champ-reference small { letter-spacing: 0.08em; text-transform: none; }
+.cn-champ-reference input { font-family: var(--font-brand); font-size: 20px; letter-spacing: 0; text-transform: none; background: transparent; color: var(--ink); border: 0; border-bottom: 1px solid var(--line-strong); padding: 6px 0; width: 100%; }
+.cn-champ-reference input:focus-visible { outline: none; border-bottom-color: var(--or); }
 .cn-note { margin-top: 20px; font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); }
 
 /* 5. Style : à gauche les filtres et la grille (qui défile dans son cadre, jamais la page), à droite le style choisi, collé. */

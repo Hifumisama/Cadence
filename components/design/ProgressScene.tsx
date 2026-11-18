@@ -8,8 +8,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type 
 import { arreterCreationProjet, reprendreCreationProjet } from "@/app/creation/actions";
 import { SYMBOLE_SOUS_TACHE } from "@/lib/agents/agents-display";
 import type { VueCreation } from "@/lib/agents/creation-view";
-import { luminositeAmbiance, type Conception } from "@/lib/projects/design";
-import { minutesSecondes, teinteAmbiance } from "@/lib/projects/design-ui";
+import type { Conception } from "@/lib/projects/design";
+import { ETAPES_CONCEPTION, ambianceDuGenre, minutesSecondes, resumesCadre } from "@/lib/projects/design-ui";
 import { BoutonGenererImages, useEtatImages } from "@/components/images/ProjectImages";
 import { phraseCompteImages, type EtatImages } from "@/lib/assets/project-images";
 import { AfficheProjet, type StyleAffiche } from "./ClapScene";
@@ -27,7 +27,8 @@ const LIBELLES: Record<VueCreation["etapes"][number]["statut"], string> = {
 /** The first draft of the screenplay as the end screen states it: the first episode's scenes (name and number of clips), and where to read it. */
 export type PremierJet = { scenarioHref: string; nbPlans: number; dureeSecondes: number; scenes: { titre: string; nbPlans: number }[] };
 
-const NOMS_ETAPES = ["Format", "Genre", "Durée", "Langue", "Style", "Mise en scène", "Scénario", "Clap", "Avancée"];
+/** The same nine steps as the design (`ETAPES_CONCEPTION`): the summaries follow them (`resumesCadre`). */
+const NOMS_ETAPES: readonly string[] = ETAPES_CONCEPTION;
 
 /** Scene 8 of the design: the preparation's progress, step by step (the installer, lib/agents/creation.ts). Same data and same
  * polling as the old page; only the presentation changes: the design ribbon, the project's poster, the percentage on one
@@ -39,6 +40,7 @@ export function AvanceeScene({
   initial,
   imagesInitial,
   conception,
+  genre = "",
   style,
   miseEnScene,
   premierJet,
@@ -53,6 +55,8 @@ export function AvanceeScene({
   /** Where the reference images stand (lib/assets/project-images.ts): the final clap says what is really done. */
   imagesInitial: EtatImages;
   conception: Conception | null;
+  /** The film's genre (`genreDuFilm`), empty while undecided. */
+  genre?: string;
   style: StyleAffiche;
 }) {
   const [vue, setVue] = useState<VueCreation | null>(initial);
@@ -95,11 +99,11 @@ export function AvanceeScene({
     });
 
   const ambiance = useMemo(
-    () => (conception ? ({ "--cn-hue": teinteAmbiance(conception.genres), "--cn-lum": luminositeAmbiance(conception.genres) } as CSSProperties) : undefined),
-    [conception],
+    () => (conception ? (ambianceDuGenre(genre) as CSSProperties) : undefined),
+    [conception, genre],
   );
   const resumes = conception
-    ? ["Film", conception.genres.join("/"), minutesSecondes(conception.dureeSecondes), conception.langue, style.nom, miseEnScene, "fait", "fait"]
+    ? [...resumesCadre(conception, style.nom, miseEnScene), "fait", "fait"]
     : [];
 
   const pct = vue && vue.total ? Math.round((vue.faites / vue.total) * 100) : 0;
@@ -129,7 +133,7 @@ export function AvanceeScene({
         />
         <div className="cn-avancee">
           <div className="cn-av-gauche">
-            {conception ? <AfficheProjet conception={conception} style={style} titre={nomProjet === "Sans titre" ? "" : nomProjet} /> : null}
+            {conception ? <AfficheProjet conception={conception} genre={genre} style={style} titre={nomProjet === "Sans titre" ? "" : nomProjet} /> : null}
             <p className="cn-grand-pct" aria-label={`${pct} pour cent`}>{pct} %</p>
             <p className="cn-av-sous">{vue?.statut === "termine" ? "Premier jet complet" : etapeCourante ? `${etapeCourante.statut === "echoue" ? "En échec" : "En cours"} : ${etapeCourante.libelle}` : vue ? "En attente" : "Rien n’est lancé"}</p>
             {vue ? <p className="cn-av-compte">{vue.faites} / {vue.total} étapes</p> : null}

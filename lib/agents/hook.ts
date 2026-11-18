@@ -2,7 +2,7 @@
  * different leads (to take, to mix, or to throw away) for whoever has no idea, without imposing anything on whoever has one. Written in code, without an
  * LLM call: it is there from the opening, and the random draw guarantees three distinct genres. Pure (the draw is injectable). */
 
-import type { Conception } from "../projects/design";
+import { intentionMusiqueTexte, type Conception } from "../projects/design";
 
 type Piste = { genre: string; idee: string };
 
@@ -49,15 +49,17 @@ export const MARQUE_PROJET_CONCU = "[Projet conçu par l'utilisateur]";
 
 const dureeEnTexte = (s: number): string => (s < 60 ? `${s} s` : `${Math.floor(s / 60)} min${s % 60 ? ` ${String(s % 60).padStart(2, "0")}` : ""}`);
 
-/** The skill input: a single message listing the choices already made (genres, tone, duration, language, style). Pure. */
+/** The skill input: a single message listing the choices already made (the frame: duration, language, style, music; the genre only for a
+ * project designed before 2026-11-18, when the form still asked it). Pure. */
 export function entreeAccroche(c: Conception, style: { nom: string; clause: string }): { role: "user"; content: string }[] {
   const lignes = [
     MARQUE_PROJET_CONCU,
     `Format : film`,
-    `Genre : ${c.genres.length ? c.genres.join(", ") : "non arrêté"}`,
+    ...(c.genres.length ? [`Genre : ${c.genres.join(", ")}`] : ["Genre : à trouver avec l'utilisateur, dans l'entretien"]),
     `Durée : ${dureeEnTexte(c.dureeSecondes)}`,
     `Langue des dialogues : ${c.langue}`,
     `Style visuel : « ${style.nom || "style libre"} »${style.clause.trim() ? ` : ${style.clause.trim()}` : ""}`,
+    ...(c.musique ? [`Musique : ${intentionMusiqueTexte(c.musique)}`] : []),
   ];
   return [{ role: "user", content: lignes.join("\n") }];
 }

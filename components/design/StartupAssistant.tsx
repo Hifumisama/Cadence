@@ -8,8 +8,8 @@ import { lireConversationVue } from "@/app/agents/lecture";
 import { estTacheActive } from "@/lib/agents/agents-display";
 import type { VueConversation } from "@/lib/agents/types";
 import type { Conception } from "@/lib/projects/design";
-import { ETAPES_CONCEPTION, minutesSecondes, teinteAmbiance } from "@/lib/projects/design-ui";
-import { luminositeAmbiance } from "@/lib/projects/design";
+import { ETAPES_CONCEPTION, ambianceDuGenre, resumesCadre } from "@/lib/projects/design-ui";
+import { genreDuFilm } from "@/lib/projects/design";
 import { lireAfficheClap, preparerAfficheClap } from "@/app/affiches/clap-actions";
 import { ClapScene, type AfficheEtat, type StyleAffiche } from "./ClapScene";
 import { RubanConception } from "./DesignRibbon";
@@ -22,10 +22,6 @@ import { ScenarioScene } from "./ScreenplayScene";
 const ETAPES = ETAPES_CONCEPTION;
 const SCENARIO = 6;
 const CLAP = 7;
-
-function resumesFaits(c: Conception, nomStyle: string, miseEnScene: string): string[] {
-  return ["Film", c.genres.join("/"), minutesSecondes(c.dureeSecondes), c.langue, nomStyle, miseEnScene];
-}
 
 export function DemarrageAssistant({
   projectId,
@@ -102,11 +98,10 @@ export function DemarrageAssistant({
     return () => clearInterval(t);
   }, [afficheEnCours, projectId]);
 
-  const resumes = useMemo(() => resumesFaits(conception, style.nom, miseEnScene), [conception, style.nom, miseEnScene]);
-  const ambiance = useMemo(
-    () => ({ "--cn-hue": teinteAmbiance(conception.genres), "--cn-lum": luminositeAmbiance(conception.genres) }) as CSSProperties,
-    [conception.genres],
-  );
+  const resumes = useMemo(() => resumesCadre(conception, style.nom, miseEnScene), [conception, style.nom, miseEnScene]);
+  // The genre is decided in the interview: the room's light follows it as soon as the notes have it.
+  const genre = genreDuFilm(conception, conv.notes.find((n) => n.cle === "genreTon")?.texte);
+  const ambiance = useMemo(() => ambianceDuGenre(genre) as CSSProperties, [genre]);
 
   return (
     <div className="cn-salle" style={ambiance}>
@@ -122,7 +117,7 @@ export function DemarrageAssistant({
 
       <div className={`cn-scene${recule ? " is-recule" : ""}`} key={etape}>
         {etape === SCENARIO ? <ScenarioScene conv={conv} rafraichir={rafraichir} /> : null}
-        {etape === CLAP ? <ClapScene projectId={projectId} nomProjet={nomProjet} conception={conception} style={style} miseEnScene={miseEnScene} estimation={estimation} notes={conv.notes} synopsis={conv.synopsis} pret={pret} affiche={affiche} reessayer={() => preparer(true)} apresTitre={() => preparer(false)} /> : null}
+        {etape === CLAP ? <ClapScene projectId={projectId} nomProjet={nomProjet} conception={conception} genre={genre} style={style} miseEnScene={miseEnScene} estimation={estimation} notes={conv.notes} synopsis={conv.synopsis} pret={pret} affiche={affiche} reessayer={() => preparer(true)} apresTitre={() => preparer(false)} /> : null}
       </div>
 
       <div className="cn-barre" role="group" aria-label="Avancer dans la conception">

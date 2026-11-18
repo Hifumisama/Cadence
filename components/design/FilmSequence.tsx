@@ -63,7 +63,7 @@ function Moments({ moments }: { moments: MomentView[] }) {
             <span className="fs-num" aria-hidden="true">{String(m.number).padStart(2, "0")}</span>
             <span className="fs-corps">
               {t ? <span className="fs-temps">{t}</span> : null}
-              <span className="fs-texte">{m.text}</span>
+              <span className={`fs-texte${m.strong ? " is-fort" : ""}`}>{m.text}{m.strong ? <span className="fs-fort"> · temps fort</span> : null}</span>
             </span>
           </li>
         );

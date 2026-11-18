@@ -45,7 +45,7 @@ export function SceneMiseEnScene({ etat, maj, demos = {} }: PropsScene & { demos
   return (
     <>
       <EnteteScene
-        acte="Acte 06"
+        acte="Acte 05"
         titre={
           <>
             Quelle <em>mise en scène</em> ?

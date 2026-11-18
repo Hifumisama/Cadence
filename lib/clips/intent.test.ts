@@ -114,3 +114,11 @@ test("normaliserGuillemetsRepliques : une réplique tapée avec \" devient « �
   // The converted line is read as a dialogue line by the parsers.
   assert.deepEqual(repliquesPerdues("MAYA : « On y va. »", normaliserGuillemetsRepliques('MAYA : "On y va."')), []);
 });
+
+test("sansConsigneAuteur : un plan fait seulement de la consigne de l'auteur la montre comme récit (projet 264, plan 12)", () => {
+  const titre = "Consigne de l'auteur : Le titre du film apparaît à l'écran, les lettres se formant par des coups de pinceau.";
+  assert.equal(sansConsigneAuteur(titre), "Le titre du film apparaît à l'écran, les lettres se formant par des coups de pinceau.");
+  assert.equal(intentAffichee(titre), "Le titre du film apparaît à l'écran, les lettres se formant par des coups de pinceau.");
+  // With a narrative, the instruction stays hidden as before.
+  assert.equal(sansConsigneAuteur("Mai court.\n\nConsigne de l'auteur : en plan large."), "Mai court.");
+});

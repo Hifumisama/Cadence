@@ -19,6 +19,7 @@ import {
   genresTexte,
   luminositeAmbiance,
   informationsFormat,
+  verrousDeConception,
   plansEstimes,
   resoudreStyle,
   styleDesEditions,
@@ -61,7 +62,6 @@ test("validerConception : les valeurs hors liste sont refusées, jamais corrigé
     assert.ok(!r.ok, JSON.stringify(extra));
     if (!r.ok) assert.match(r.erreurs.join(" "), motif);
   };
-  refuse({ genres: [] }, /Genres/);
   refuse({ genres: ["Drame", "Thriller", "Action"] }, /Genres/);
   refuse({ genres: ["Drame", "Drame"] }, /Genres/);
   refuse({ genres: ["Inconnu"] }, /Genres/);
@@ -124,8 +124,37 @@ test("ficheDepuisConception : tout est fourni, il ne reste à trancher que l'arc
   assert.equal(ficheComplete(fiche, 5), false, "la fiche n'est pas complète sans l'arc, la fin, le héros et les moments");
 });
 
-test("informationsFormat : un projet est un film", () => {
+test("informationsFormat : un projet est un film, avec la musique voulue quand le projet en a une", () => {
   assert.match(informationsFormat(), /un film/);
+  assert.doesNotMatch(informationsFormat(), /Musique/);
+  assert.match(informationsFormat({ musique: { intention: "presente", reference: "Daft Punk" } }), /Musique voulue : présente.*Daft Punk/);
+  assert.match(informationsFormat({ musique: { intention: "aucune" } }), /ne pas en proposer/);
+});
+
+test("conception sans genre (2026-11-18) : le genre se décide dans l'entretien, la musique est validée", () => {
+  const c = valide({ genres: [], musique: { intention: "discrete", reference: "  un western  " } });
+  assert.deepEqual([c.genres, c.musique], [[], { intention: "discrete", reference: "un western" }]);
+  for (const musique of [{ intention: "forte" }, { intention: "presente", reference: "x".repeat(201) }]) {
+    const r = validerConception({ ...base, musique }, BIBLIO);
+    assert.ok(!r.ok && r.erreurs.some((e) => /Musique/.test(e)), JSON.stringify(musique));
+  }
+  const r = resoudreStyle(c, BIBLIO);
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  const fiche = ficheDepuisConception(c, r.style);
+  assert.equal("genreTon" in fiche.contenu, false, "pas de genre dans la fiche : c'est à l'entretien de le trancher");
+  assert.ok(entreeNotes([], fiche).aTrancher.includes("genreTon"));
+  assert.equal("musique" in fiche.contenu, false, "discrète : le contenu de la musique se déduit dans l'entretien");
+  const sans = ficheDepuisConception({ ...c, musique: { intention: "aucune" } }, r.style);
+  assert.equal(sans.contenu.musique, "N/A");
+  assert.equal(sans.statuts.musique, "fourni");
+});
+
+test("verrousDeConception : le cadre (et la musique quand il n'y en a pas) ; rien pour un projet sans conception", () => {
+  const c = valide({});
+  assert.deepEqual(verrousDeConception(c), ["style", "langueDialogues", "dureeEpisodeSecondes", "rythme"]);
+  assert.ok(verrousDeConception({ ...c, musique: { intention: "aucune" } }).includes("musique"));
+  assert.deepEqual(verrousDeConception(null), []);
 });
 
 test("styleDesImages : le prompt long quand le projet en a un, sinon la clause", () => {

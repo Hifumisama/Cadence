@@ -28,7 +28,7 @@
       "description": "(French) Your gray areas that only you see (an ambiguity, a point to specify, a contradiction), in short phrases, the most important first, without what the user just decided. The application adds by itself what it finds unsaid. May be empty."
     },
     "choix": {
-      "description": "(French labels) Optional, usually omitted. Clickable answer cards shown under your reponse: { \"question\": optional short question, \"multiple\": false (true only for a list of characters, places or taboos), \"options\": 2 to 4 items, each { \"libelle\": short label, \"description\": optional short line }, one of them labelled \"Je te laisse décider\" }. See the skill for when to offer them."
+      "description": "(French labels) Optional, usually omitted. Clickable answer cards shown under your reponse: { \"question\": optional short question, \"multiple\": false (true only for a list of characters, places or taboos), \"options\": 2 to 4 items, each { \"libelle\": short label, \"description\": optional short line, and for a PALETTE card (an outfit, the look of a place) \"couleurs\": 2 to 5 { \"nom\": French colour name, \"hex\": \"#rrggbb\" } and \"matieres\": the materials in a few words }, one of them labelled \"Je te laisse décider\" }. See the skill for when to offer them."
     },
     "sequence": {
       "type": "object",
@@ -54,6 +54,51 @@
         }
       },
       "description": "Optional, usually omitted. The sequence you propose or show again, displayed as a card under your reponse with a « Valider la séquence » button. Whenever you propose or revise the sequence, it goes HERE, never as a list in reponse. See the skill."
+    },
+    "questions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sujet",
+        "questions"
+      ],
+      "properties": {
+        "sujet": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60,
+          "description": "(French) The one subject of these questions, as a short title (« La fin », « La tenue de Mia »)."
+        },
+        "questions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "question"
+            ],
+            "properties": {
+              "question": {
+                "type": "string",
+                "minLength": 1,
+                "description": "(French) One short question, without number."
+              },
+              "reponses": {
+                "type": "array",
+                "maxItems": 4,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "description": "(French) 0 to 4 quick answers, two to five words each (« Oui », « Non », « Un objet », « Je te laisse décider »). Never « Autre »: the free field is always there. Omit for an open question."
+              }
+            }
+          }
+        }
+      },
+      "description": "Optional. The questions of this turn, ONE subject, up to three, shown as a card with quick answers and a free field each, and one « Répondre » button. Whenever you ask questions, they go HERE, never numbered in reponse. Usually omitted with `sequence` or `choix`. See the skill."
     }
   }
 }

@@ -1,3 +1,4 @@
+import { normaliserNuancier } from "./palette";
 /** Screenwriter's choice cards (`choix` in the output of `conversation-agent`). Pure: used by the worker (reading the output),
  * the service (checking the reply) and the screen. A malformed output is NEVER an error: `normaliserChoix` returns null, and the turn
  * is shown with its text alone. */
@@ -39,7 +40,10 @@ export function normaliserChoix(v: unknown): Choix | null {
     if (!libelle || libelle.length > MAX_LIBELLE) return null;
     if (options.some((x) => x.libelle.toLowerCase() === libelle.toLowerCase())) return null;
     const description = texte((o as { description?: unknown }).description, MAX_DESCRIPTION);
-    options.push(description ? { libelle, description } : { libelle });
+    // A palette card (2026-11-18): real colours (named, with hex) and the materials, shown as swatches.
+    const couleurs = normaliserNuancier((o as { couleurs?: unknown }).couleurs);
+    const matieres = texte((o as { matieres?: unknown }).matieres, MAX_DESCRIPTION);
+    options.push({ libelle, ...(description ? { description } : {}), ...(couleurs.length >= 2 ? { couleurs } : {}), ...(matieres && couleurs.length >= 2 ? { matieres } : {}) });
   }
   if (!options.some((o) => estDecider(o.libelle))) return null;
 
@@ -58,7 +62,15 @@ export function selectionValide(choix: Choix, libelles: string[]): boolean {
 
 /** The text sent to the screenwriter for a card reply: the label, or the ticked labels, in option order. */
 export function formulerReponse(choix: Choix, libelles: string[]): string {
-  return choix.options.map((o) => o.libelle).filter((l) => libelles.includes(l)).join(", ");
+  return choix.options
+    .filter((o) => libelles.includes(o.libelle))
+    .map((o) => (o.couleurs?.length ? `${o.libelle} (couleurs : ${o.couleurs.map((c) => `${c.nom} ${c.hex}`).join(", ")}${o.matieres ? ` ; matières : ${o.matieres}` : ""})` : o.libelle))
+    .join(", ");
+}
+
+/** The message « Propose-m'en d'autres » sends under palette cards. */
+export function messageAutresPalettes(choix: Choix): string {
+  return `Propose-m'en d'autres${choix.question ? ` pour « ${choix.question.replace(/\s*\?$/, "")} »` : ""} : trois autres palettes, différentes de celles-ci.`;
 }
 
 /** The choice of the agent's LAST message, if no message follows it: the only case where the cards still reply. */

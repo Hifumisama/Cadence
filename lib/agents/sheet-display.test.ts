@@ -3,25 +3,30 @@ import assert from "node:assert/strict";
 import { ORDRE_NOTES, notesPourAffichage, resumerSection, synopsisPourAffichage } from "./sheet-display";
 import { FICHE_VIDE, type Fiche } from "./sheet";
 
-test("fiche vide : quatre sujets requis, tous absents, rien d'autre", () => {
+test("fiche vide : tous les essentiels, absents, rien d'autre", () => {
   const n = notesPourAffichage(FICHE_VIDE);
   assert.deepEqual(n.map((x) => [x.cle, x.statut, x.texte, x.requis]), [
     ["arc", "absent", "", true],
     ["fin", "absent", "", true],
+    ["genreTon", "absent", "", true],
+    ["style", "absent", "", true],
+    ["rythme", "absent", "", true],
+    ["dureeEpisodeSecondes", "absent", "", true],
     ["personnages", "absent", "", true],
     ["moments", "absent", "", true],
   ]);
 });
 
-test("ce que la conception a posé n'est pas une note de l'entretien", () => {
+test("le cadre posé par la conception apparaît parmi les essentiels, déjà tranché ; la langue n'est pas une note", () => {
   const f: Fiche = {
     contenu: { genreTon: "Drame", style: { nom: "G", clause: "c" }, rythme: "mesure", dureeEpisodeSecondes: 120, langueDialogues: "Français", arc: "Une cartographe retrouve une carte." },
     statuts: { genreTon: "fourni", style: "fourni", rythme: "fourni", dureeEpisodeSecondes: "fourni", langueDialogues: "fourni", arc: "fourni" },
   };
   const n = notesPourAffichage(f);
-  assert.deepEqual(n.map((x) => x.cle), ["arc", "fin", "personnages", "moments"]);
+  assert.deepEqual(n.map((x) => x.cle), ["arc", "fin", "genreTon", "style", "rythme", "dureeEpisodeSecondes", "personnages", "moments"]);
   assert.equal(n[0]!.texte, "Une cartographe retrouve une carte.");
   assert.equal(n[0]!.statut, "fourni");
+  assert.deepEqual(n.filter((x) => ["genreTon", "style", "rythme", "dureeEpisodeSecondes"].includes(x.cle)).map((x) => x.statut), ["fourni", "fourni", "fourni", "fourni"]);
 });
 
 test("la fin : un fait (dite, ou laissée au scénariste), jamais un texte inventé", () => {
@@ -43,10 +48,11 @@ test("personnages, lieux et autres sections en lignes lisibles, dans l'ordre de 
     statuts: { personnages: "fourni", lieux: "deduit" },
   };
   const n = notesPourAffichage(f);
-  assert.deepEqual(n.map((x) => x.cle), ["arc", "fin", "univers", "personnages", "lieux", "moments"]);
-  assert.equal(n[3]!.texte, "Maya : héroïne, la trentaine, manteau trop grand.\nLe marchand : mentor.");
-  assert.deepEqual([n[4]!.statut, n[4]!.requis, n[4]!.texte], ["deduit", false, "Le port : brumeux."]);
-  assert.equal(n[2]!.statut, "deduit", "sans statut connu : supposée");
+  assert.deepEqual(n.map((x) => x.cle), ["arc", "fin", "genreTon", "style", "rythme", "dureeEpisodeSecondes", "univers", "personnages", "lieux", "moments"]);
+  const de = (cle: string) => n.find((x) => x.cle === cle)!;
+  assert.equal(de("personnages").texte, "Maya : héroïne, la trentaine, manteau trop grand.\nLe marchand : mentor.");
+  assert.deepEqual([de("lieux").statut, de("lieux").requis, de("lieux").texte], ["deduit", false, "Le port : brumeux."]);
+  assert.equal(de("univers").statut, "deduit", "sans statut connu : supposée");
 });
 
 test("resumerSection : valeurs vides et formes inattendues", () => {
@@ -57,7 +63,7 @@ test("resumerSection : valeurs vides et formes inattendues", () => {
 });
 
 test("ordre de lecture : titre, histoire, fin, univers, personnages, lieux, effets, moments, épisodes ; l'inconnu à la fin", () => {
-  assert.deepEqual([...ORDRE_NOTES], ["titre", "arc", "fin", "univers", "personnages", "lieux", "elements", "moments", "episodes"]);
+  assert.deepEqual([...ORDRE_NOTES], ["titre", "arc", "fin", "genreTon", "style", "rythme", "dureeEpisodeSecondes", "univers", "personnages", "lieux", "elements", "moments", "episodes"]);
   const f: Fiche = {
     contenu: {
       episodes: [{ titre: "Un", resume: "r" }],
@@ -72,7 +78,7 @@ test("ordre de lecture : titre, histoire, fin, univers, personnages, lieux, effe
     },
     statuts: {},
   };
-  assert.deepEqual(notesPourAffichage(f).map((x) => x.cle), ["titre", "arc", "fin", "univers", "personnages", "lieux", "elements", "moments", "episodes", "autre"]);
+  assert.deepEqual(notesPourAffichage(f).map((x) => x.cle), ["titre", "arc", "fin", "genreTon", "style", "rythme", "dureeEpisodeSecondes", "univers", "personnages", "lieux", "elements", "moments", "episodes", "autre"]);
 });
 
 test("synopsis : toute la fiche, choix de la conception compris ; titre provisoire tu", () => {

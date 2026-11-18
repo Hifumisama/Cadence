@@ -74,7 +74,7 @@ export function SceneStyle({ etat, maj, styles }: PropsScene & { styles: StyleVu
 
   return (
     <>
-      <EnteteScene acte="Acte 05" titre={<>Quel <em>style graphique</em> pour ce film ?</>} />
+      <EnteteScene acte="Acte 04" titre={<>Quel <em>style graphique</em> pour ce film ?</>} />
 
       <div className="cn-style-mise">
         <div className="cn-style-gauche">

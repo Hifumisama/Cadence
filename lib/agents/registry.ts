@@ -64,13 +64,18 @@ export function descriptionPersonnage(p: BriefContenu["personnages"][number]): s
   return [age, [role, trait].filter(Boolean).join(" : "), tenue].filter(Boolean).join(". ");
 }
 
-const net = (s: string | undefined): string => (s ?? "").trim().replace(/[.\s]+$/, "");
+import { normaliserNuancier, normaliserPieces, nuancierEnTexte, piecesEnTexte, sansHex } from "./palette";
+
+/** A brief text field, without trailing punctuation nor hex values (the swatches' values never go into a prompt). */
+const net = (s: string | undefined): string => sansHex(s ?? "").replace(/[.\s]+$/, "");
 
 /** The brief's costume (enriched interview, 2026-11-08) as one canonical description sentence; "" without a costume. The evolution (continuity) is not
  * in it: the character's sheet shows its reference costume. */
 function descriptionTenue(t: BriefContenu["personnages"][number]["tenue"]): string {
   if (!t) return "";
-  const corps = [net(t.coupe), net(t.couleurs), net(t.matieres)].filter(Boolean).join(", ");
+  // The pieces (data, 2026-11-18) say each garment with its colour and material: they replace the cut/colours/materials phrases.
+  const pieces = piecesEnTexte(normaliserPieces(t.pieces));
+  const corps = pieces || [net(t.coupe), net(t.couleurs) || nuancierEnTexte(normaliserNuancier(t.nuancier)), net(t.matieres)].filter(Boolean).join(", ");
   const parties = [corps ? `Tenue : ${corps}` : "", net(t.accessoires) ? `accessoires : ${net(t.accessoires)}` : "", net(t.signeDistinctif) ? `signe distinctif : ${net(t.signeDistinctif)}` : ""];
   return parties.filter(Boolean).join(" ; ");
 }
@@ -78,7 +83,7 @@ function descriptionTenue(t: BriefContenu["personnages"][number]["tenue"]): stri
 /** A place's canonical description: its description, then its look (light, materials, palette, ambiance) when the interview noted it. */
 function descriptionLieu(l: BriefContenu["lieux"][number]): string {
   const a = l.aspect;
-  const aspect = a ? [net(a.lumiere), net(a.matieres), net(a.palette), net(a.ambiance)].filter(Boolean).join(", ") : "";
+  const aspect = a ? [net(a.lumiere), net(a.matieres), net(a.palette) || nuancierEnTexte(normaliserNuancier(a.nuancier)), net(a.ambiance)].filter(Boolean).join(", ") : "";
   if (!aspect) return l.description ?? "";
   return [net(l.description), aspect].filter(Boolean).join(". ");
 }

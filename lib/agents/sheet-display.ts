@@ -1,3 +1,4 @@
+import { normaliserNuancier, normaliserPieces, piecesEnTexte, type CouleurNommee } from "./palette";
 import { REQUIS, titreManquant, valeurVide, type Fiche, type StatutFiche } from "./sheet";
 import { buildSequence, type SequenceView } from "./sequence-display";
 
@@ -32,18 +33,20 @@ const LIBELLES: Record<string, string> = {
 
 /** Reading order of the sheet: what the film is (title, story, ending, universe), who is in it, where, then how it unfolds. A section
  * not listed here comes after, in the order of the sheet. */
-export const ORDRE_NOTES = ["titre", "arc", "fin", "univers", "personnages", "lieux", "elements", "moments", "episodes"] as const;
+export const ORDRE_NOTES = ["titre", "arc", "fin", "genreTon", "style", "rythme", "dureeEpisodeSecondes", "univers", "personnages", "lieux", "elements", "moments", "episodes"] as const;
 
 /** What the design has already settled: never displayed as an interview note. */
-const CHOISI_A_LA_CONCEPTION = new Set(["genreTon", "style", "rythme", "dureeEpisodeSecondes", "langueDialogues"]);
+/** Chosen in the design form and not an essential: never listed among the notes. */
+const CHOISI_A_LA_CONCEPTION = new Set(["langueDialogues"]);
 const SANS_AFFICHAGE = new Set(["inventions", "questionsOuvertes", "notes", "source"]);
-const REQUIS_AFFICHES = new Set(["arc", "fin", "personnages", "moments"]);
+/** Every essential is shown (2026-11-18): the genre is decided in the interview, and the frame (style, rhythm, duration) shows as settled. */
+const REQUIS_AFFICHES = new Set<string>(REQUIS.map((r) => r.cle));
 
 const chaine = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
 const objet = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 
 /** `detail`: who or what it is, one sentence; `extra`: what gets drawn on top (outfit, look of a place), a second, quieter line. */
-export type EntreeSynopsis = { nom: string; detail: string; extra?: string };
+export type EntreeSynopsis = { nom: string; detail: string; extra?: string; /** Real swatches (outfit, place's look: lib/agents/palette.ts). */ nuancier?: CouleurNommee[] };
 
 /** Fragments written by the notes model (« Une trentaine d'années. », « Homme de taille moyenne ») joined into one readable sentence. */
 export function phrase(parties: string[]): string {
@@ -59,13 +62,20 @@ function entree(cle: string, x: unknown): EntreeSynopsis {
   switch (cle) {
     case "personnages": {
       const t = objet(o.tenue);
-      const tenue = phrase([chaine(t.coupe) || chaine(t.couleurs), chaine(t.accessoires), chaine(t.signeDistinctif)]);
-      return { nom: chaine(o.nom) || "Sans nom", detail: phrase([chaine(o.role), chaine(o.age), chaine(o.apparence)]), ...(tenue ? { extra: `Tenue : ${tenue.charAt(0).toLowerCase()}${tenue.slice(1)}` } : {}) };
+      const tenue = phrase([piecesEnTexte(normaliserPieces(t.pieces)) || chaine(t.coupe) || chaine(t.couleurs), chaine(t.accessoires), chaine(t.signeDistinctif)]);
+      const nuancier = normaliserNuancier(t.nuancier);
+      return {
+        nom: chaine(o.nom) || "Sans nom",
+        detail: phrase([chaine(o.role), chaine(o.age), chaine(o.apparence)]),
+        ...(tenue ? { extra: `Tenue : ${tenue.charAt(0).toLowerCase()}${tenue.slice(1)}` } : {}),
+        ...(nuancier.length ? { nuancier } : {}),
+      };
     }
     case "lieux": {
       const a = objet(o.aspect);
       const aspect = phrase([chaine(a.lumiere), chaine(a.ambiance)]);
-      return { nom: chaine(o.nom), detail: phrase([chaine(o.description)]), ...(aspect ? { extra: aspect } : {}) };
+      const nuancier = normaliserNuancier(a.nuancier);
+      return { nom: chaine(o.nom), detail: phrase([chaine(o.description)]), ...(aspect ? { extra: aspect } : {}), ...(nuancier.length ? { nuancier } : {}) };
     }
     case "elements":
       return { nom: chaine(o.nom), detail: phrase([chaine(o.description), chaine(o.couleur), chaine(o.ampleur)]) };
@@ -76,7 +86,7 @@ function entree(cle: string, x: unknown): EntreeSynopsis {
   }
 }
 
-const entrees = (cle: string, valeur: unknown): EntreeSynopsis[] =>
+export const entrees = (cle: string, valeur: unknown): EntreeSynopsis[] =>
   Array.isArray(valeur) ? valeur.map((x) => entree(cle, x)).filter((e) => e.nom || e.detail) : [];
 
 /** The readable text of a brief section. */

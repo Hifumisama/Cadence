@@ -1,3 +1,6 @@
+import { questionsPourLlm, type QuestionsCarte } from "./chat-questions";
+import { SECONDES_PAR_MOMENT, momentsRequis } from "./sheet";
+
 /** The sequence the screenwriter proposes IN the chat (2026-11-18, mock-up « Maquettes entretien »): a card under its message, with
  * « Valider la séquence ». The moments travel in their own field of the turn (`sequence`), never in the text, so the card is the only list shown;
  * once the user validates, the notes take that exact list (one source, no more diverging lists). The models still read it: the conversation
@@ -27,16 +30,45 @@ export function normaliserSequence(v: unknown): SequenceProposee | null {
 }
 
 /** A message as the models read it: its text, then the proposed sequence as a numbered list (the notes copy it on validation). */
-export function contenuPourLlm(m: { content: string; sequence?: SequenceProposee | null }): string {
-  if (!m.sequence?.moments.length) return m.content;
-  const liste = m.sequence.moments.map((x, i) => `${i + 1}. ${x}${m.sequence!.tempsFort === i + 1 ? " (temps fort)" : ""}`).join("\n");
-  return `${m.content}\n\nSéquence proposée :\n${liste}`;
+export function contenuPourLlm(m: { content: string; sequence?: SequenceProposee | null; questions?: QuestionsCarte | null }): string {
+  let texte = m.content;
+  if (m.sequence?.moments.length) {
+    const liste = m.sequence.moments.map((x, i) => `${i + 1}. ${x}${m.sequence!.tempsFort === i + 1 ? " (temps fort)" : ""}`).join("\n");
+    texte += `\n\nSéquence proposée :\n${liste}`;
+  }
+  // The grouped questions (lib/agents/chat-questions.ts) are shown as a card: the models read them here.
+  if (m.questions?.questions.length) texte += `\n\n${questionsPourLlm(m.questions)}`;
+  return texte;
 }
 
-/** The message the « Valider la séquence » button sends. */
+/** The message the « Valider la séquence » button sends (without a strong moment). */
 export const MESSAGE_VALIDER_SEQUENCE = "Je valide la séquence telle quelle.";
 
-const norme = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
+/** The validation message, with the strong moment the user kept on the card (the AI's, or the one they clicked). */
+export function messageValiderSequence(tempsFort: number | null): string {
+  return tempsFort ? `Je valide la séquence telle quelle (temps fort : moment ${tempsFort}).` : MESSAGE_VALIDER_SEQUENCE;
+}
+
+/** The mark the strong moment carries in the sheet's `moments` (then the brief, the treatment, the scenes: scenario-scene keeps it in ONE fast plan). */
+export const MARQUE_TEMPS_FORT = " (temps fort)";
+const MARQUE_RE = /\s*\(temps fort\)\s*$/i;
+export const sansMarqueTempsFort = (m: string): string => m.replace(MARQUE_RE, "");
+export const estTempsFort = (m: string): boolean => MARQUE_RE.test(m);
+
+/** The validated sequence, decided by the CODE (2026-11-18): when the user's last message is the card's validation, the moments are exactly those
+ * of the last card, the strong moment marked. Null otherwise (the notes model handles the free answers). */
+export function sequenceValidee(messages: readonly { role: string; content: string; sequence?: SequenceProposee | null }[]): string[] | null {
+  const dernier = messages[messages.length - 1];
+  if (!dernier || dernier.role !== "user") return null;
+  const m = /^je valide la s[ée]quence telle quelle(?:\s*\(temps fort\s*:\s*moment\s*(\d+)\))?\.?$/i.exec(dernier.content.trim());
+  if (!m) return null;
+  const carte = [...messages].reverse().find((x) => x.role === "assistant" && x.sequence?.moments.length)?.sequence;
+  if (!carte) return null;
+  const rang = m[1] ? Number(m[1]) : carte.tempsFort;
+  return carte.moments.map((x, i) => (rang === i + 1 ? `${sansMarqueTempsFort(x)}${MARQUE_TEMPS_FORT}` : sansMarqueTempsFort(x)));
+}
+
+const norme = (s: string) => sansMarqueTempsFort(s).normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ").trim();
 
 /** The card's state: `validee` when the notes hold this very list as settled, `remplacee` when a later card replaced it, else `proposee`. */
 export function etatSequence(
@@ -47,4 +79,25 @@ export function etatSequence(
   const memes = notes.moments.length === sequence.moments.length && notes.moments.every((m, i) => norme(m) === norme(sequence.moments[i]!));
   if (notes.tranche && memes) return "validee";
   return derniere ? "proposee" : "remplacee";
+}
+
+/** The material gauge under the sequence card (2026-11-18, mock-up C7): how many seconds the moments cover (one moment per ~10 s, the rule
+ * that also holds the interview open: `momentsRequis`) against the target duration. Null when the duration is unknown. */
+export type Matiere = { couvertes: number; visees: number; cases: number; pleines: number; manquants: number };
+export function matiere(nbMoments: number, dureeSecondes: unknown): Matiere | null {
+  const requis = momentsRequis(dureeSecondes);
+  if (!requis) return null;
+  const visees = dureeSecondes as number;
+  return {
+    couvertes: nbMoments * SECONDES_PAR_MOMENT,
+    visees,
+    cases: Math.max(requis, nbMoments),
+    pleines: nbMoments,
+    manquants: Math.max(0, requis - nbMoments),
+  };
+}
+
+/** The message « Propose-moi la suite » sends. */
+export function messageProposerSuite(m: Matiere): string {
+  return `Propose-moi la suite : il manque ${m.manquants} moment${m.manquants > 1 ? "s" : ""} (environ ${m.manquants * SECONDES_PAR_MOMENT} s) pour tenir la durée. Garde les moments déjà là et ajoute la suite.`;
 }

@@ -10,7 +10,7 @@ const base: DonneesAffiche = {
     { nom: "Idrissi", reconnaissable: "costume clair", age: "55 ans", apparence: "costume clair" },
   ],
   lieux: "la médina, le riad",
-  genres: ["Aventure", "Thriller"],
+  genre: "Aventure + Thriller",
   styleImage: "A moody noir look.",
   clauseStyle: "Noir.",
 };
@@ -19,12 +19,11 @@ const { clauseStyle: _c, ...nourrit } = base;
 test("signature de l'affiche : stable, et seul ce qui nourrit l'image la change", () => {
   const s = signatureAffiche(nourrit);
   assert.equal(signatureAffiche({ ...nourrit }), s, "stable");
-  assert.equal(signatureAffiche({ ...nourrit, genres: ["Thriller", "Aventure"] }), s, "l'ordre des genres ne compte pas");
   assert.equal(signatureAffiche({ ...nourrit, arc: `  ${nourrit.arc}  ` }), s, "les espaces ne comptent pas");
   assert.notEqual(signatureAffiche({ ...nourrit, arc: `${nourrit.arc} Elle garde la boîte.` }), s, "l'histoire");
   assert.notEqual(signatureAffiche({ ...nourrit, personnages: [{ ...nourrit.personnages[0]!, age: "45 ans" }, nourrit.personnages[1]!] }), s, "le héros");
   assert.notEqual(signatureAffiche({ ...nourrit, lieux: "le désert" }), s, "les lieux");
-  assert.notEqual(signatureAffiche({ ...nourrit, genres: ["Comédie"] }), s, "le genre");
+  assert.notEqual(signatureAffiche({ ...nourrit, genre: "Comédie" }), s, "le genre");
   assert.notEqual(signatureAffiche({ ...nourrit, styleImage: "A watercolour look." }), s, "le style");
   assert.notEqual(signatureAffiche({ ...nourrit, titre: "La Nuit des Brumes" }), s, "le titre (il est écrit dans l'image)");
   assert.equal(signatureAffiche({ ...nourrit, titre: "  La Nuit des Brumes " }), signatureAffiche({ ...nourrit, titre: "La Nuit des Brumes" }), "les espaces du titre ne comptent pas");

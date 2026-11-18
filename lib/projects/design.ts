@@ -1,9 +1,10 @@
-import type { Fiche } from "../agents/sheet";
+import { SECTIONS_CADRE, type Fiche } from "../agents/sheet";
 import { RYTHMES_BRIEF, type RythmeBrief } from "../agents/types";
 import type { StyleBibliotheque } from "../styles/library";
 
-/** A project's design: what the user chooses BEFORE the interview with the screenwriter (genre, tone,
- * duration, rhythm, language, style). Everything is almost deterministic: the agent no longer has to ask for it. Pure: validation,
+/** A project's design: what the user chooses BEFORE the interview with the screenwriter: the FRAME of the film (duration, language,
+ * style, staging, music intention). Since 2026-11-18 the genre is no longer chosen here: the story is decided in the interview, and the
+ * frame has a single source, this form (projects created before keep their genres). Everything is almost deterministic: the agent no longer has to ask for it. Pure: validation,
  * derived values (tone text, number of clips, resolved style) and pre-filling of the interview sheet.
  * Stored as is in `conceptions.contenu`; the brief receives the derived values (see `ficheDepuisConception`). */
 
@@ -101,7 +102,17 @@ type StyleConception =
   | { source: "bibliotheque"; styleId: string }
   | { source: "libre"; nom: string; promptImage: string; clause: string; image?: string };
 
+/** The music intention (2026-11-18): « aucune » sets N/A on every clip whatever the creativity; the two others only set how present the
+ * score is, its content is deduced in the interview (brief section `musique`). */
+export const INTENTIONS_MUSIQUE = ["aucune", "discrete", "presente"] as const;
+export type IntentionMusique = (typeof INTENTIONS_MUSIQUE)[number];
+export const INTENTION_MUSIQUE_PAR_DEFAUT: IntentionMusique = "discrete";
+export const LIBELLES_INTENTION_MUSIQUE: Record<IntentionMusique, string> = { aucune: "Aucune", discrete: "Discrète", presente: "Présente" };
+export const REFERENCE_MUSIQUE_MAX = 200;
+export type MusiqueConception = { intention: IntentionMusique; /** « un peu comme… »: free text, optional. */ reference?: string };
+
 export type Conception = {
+  /** Only for projects designed before 2026-11-18 (0 to 2): new projects decide the genre in the interview. */
   genres: string[];
   dureeSecondes: number;
   rythme: RythmeBrief;
@@ -111,6 +122,8 @@ export type Conception = {
   langue: string;
   langueChoisie: boolean;
   style: StyleConception;
+  /** Absent for projects designed before 2026-11-18 (their music follows the creativity, as before). */
+  musique?: MusiqueConception;
 };
 
 /** The style as the project uses it: the name and the short clause (video, brief), the long prompt (images). */
@@ -134,6 +147,28 @@ export function genresTexte(c: Pick<Conception, "genres">): string {
   return c.genres.join(" + ");
 }
 
+/** The film's genre as the screens show it: the interview's (the sheet's or brief's `genreTon`) when there is one, otherwise the genres of a
+ * project designed before 2026-11-18. Empty while nothing is decided. Pure. */
+export function genreDuFilm(c: Pick<Conception, "genres"> | null, genreTon?: unknown): string {
+  const dit = typeof genreTon === "string" ? genreTon.replace(/\s+/g, " ").trim() : "";
+  return dit || (c ? genresTexte(c) : "");
+}
+
+const sansAccents = (t: string): string => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+/** The listed genres named in a free text (« une comédie dramatique » → Comédie, Drame), for the ambient light. Pure. */
+export function genresReconnus(texte: string): string[] {
+  const t = ` ${sansAccents(texte).replace(/[^a-z]+/g, " ")} `;
+  const formes: Record<string, string[]> = {
+    Comédie: ["comedie", "sitcom", "humour", "comique", "burlesque"],
+    Drame: ["drame", "dramatique"],
+    Horreur: ["horreur", "epouvante"],
+    "Science-fiction": ["science fiction", "sf", "sci fi", "cyberpunk", "space opera"],
+    Épique: ["epique", "epopee"],
+  };
+  return GENRES.map((g) => g.nom).filter((nom) => [sansAccents(nom).replace(/[^a-z]+/g, " "), ...(formes[nom] ?? [])].some((f) => t.includes(` ${f}`)));
+}
+
 /** Number of clips for a duration and a rhythm: bounds (longest clips → shortest) and average value. */
 export function plansEstimes(dureeSecondes: number, rythme: RythmeBrief): { min: number; max: number; moyen: number } {
   const { min, max } = PLAGES_RYTHME[rythme];
@@ -154,8 +189,17 @@ export function validerConception(brut: unknown, bibliotheque: readonly Pick<Sty
 
   const genres = Array.isArray(o.genres) ? o.genres : [];
   const nomsGenres = GENRES.map((g) => g.nom);
-  if (genres.length < 1 || genres.length > GENRES_MAX || genres.some((g) => typeof g !== "string" || !nomsGenres.includes(g)) || new Set(genres).size !== genres.length) {
-    erreurs.push(`Genres : de 1 à ${GENRES_MAX} genres de la liste, sans doublon.`);
+  if (genres.length > GENRES_MAX || genres.some((g) => typeof g !== "string" || !nomsGenres.includes(g)) || new Set(genres).size !== genres.length) {
+    erreurs.push(`Genres : au plus ${GENRES_MAX} genres de la liste, sans doublon.`);
+  }
+
+  let musique: MusiqueConception | undefined;
+  if (o.musique !== undefined) {
+    const m = objet(o.musique);
+    const reference = texte(m.reference);
+    if (!(INTENTIONS_MUSIQUE as readonly unknown[]).includes(m.intention)) erreurs.push("Musique : aucune, discrète ou présente.");
+    else if (reference.length > REFERENCE_MUSIQUE_MAX) erreurs.push(`Musique : la référence fait au plus ${REFERENCE_MUSIQUE_MAX} caractères.`);
+    else musique = { intention: m.intention as IntentionMusique, ...(reference && m.intention !== "aucune" ? { reference } : {}) };
   }
 
   const dureeSecondes = o.dureeSecondes ?? DUREE_PAR_DEFAUT_SECONDES;
@@ -196,6 +240,7 @@ export function validerConception(brut: unknown, bibliotheque: readonly Pick<Sty
       langue: langue as string,
       langueChoisie: o.langueChoisie === true,
       style,
+      ...(musique ? { musique } : {}),
     },
   };
 }
@@ -219,7 +264,10 @@ export function resoudreStyle(c: Pick<Conception, "style">, bibliotheque: readon
  * The sheet contains ONLY the style's name and clause: the long prompt and the image stay out of the model's view. */
 export function ficheDepuisConception(c: Conception, style: StyleResolu): Fiche {
   const contenu: Record<string, unknown> = {
-    genreTon: genresTexte(c),
+    // A project designed before 2026-11-18 chose its genres in the form; a new one decides it in the interview.
+    ...(c.genres.length ? { genreTon: genresTexte(c) } : {}),
+    // « Aucune »: the brief says it, and the code sets N/A on every clip (lib/h3ir/music.ts).
+    ...(c.musique?.intention === "aucune" ? { musique: MUSIQUE_AUCUNE } : {}),
     style: { nom: style.nom, clause: style.clause },
     langueDialogues: c.langue,
     dureeEpisodeSecondes: c.dureeSecondes,
@@ -229,14 +277,32 @@ export function ficheDepuisConception(c: Conception, style: StyleResolu): Fiche 
   return { contenu, statuts };
 }
 
+/** The brief's `musique` when the user wants none. */
+export const MUSIQUE_AUCUNE = "N/A";
+
+/** The sections the interview cannot write for a designed project: the frame, and the music when the user wants none. */
+export function verrousDeConception(c: Conception | null): string[] {
+  if (!c) return [];
+  return [...SECTIONS_CADRE, ...(c.musique?.intention === "aucune" ? ["musique"] : [])];
+}
+
 /** What the clap screen shows as « par défaut » (the duration and the rhythm, the language left untouched). */
 export function valeursParDefaut(c: Conception): { duree: boolean; langue: boolean } {
   return { duree: !c.dureeChoisie, langue: !c.langueChoisie };
 }
 
 /** What the conversation agent knows in addition to the brief: a project is a film (not a section of the brief). */
-export function informationsFormat(): string {
-  return "Format : un film (un seul bloc, une seule histoire).";
+export function informationsFormat(c?: Pick<Conception, "musique"> | null): string {
+  const lignes = ["Format : un film (un seul bloc, une seule histoire)."];
+  const m = c?.musique;
+  if (m) lignes.push(`Musique voulue : ${intentionMusiqueTexte(m)}.`);
+  return lignes.join("\n");
+}
+
+/** The music intention in words, for the agents (« discrète, un peu comme : … »). */
+export function intentionMusiqueTexte(m: MusiqueConception): string {
+  const base = m.intention === "aucune" ? "aucune (le film n'a pas de musique, ne pas en proposer)" : m.intention === "discrete" ? "discrète (en fond, sous les bruitages)" : "présente (elle porte le film)";
+  return m.reference ? `${base}, un peu comme : ${m.reference}` : base;
 }
 
 /** The style that IMAGE generations of a project receive: the long prompt of the style when the project has one (it comes from the

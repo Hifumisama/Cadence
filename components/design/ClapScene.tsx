@@ -19,8 +19,17 @@ export type StyleAffiche = { nom: string; image: string | null; poster?: string 
 /** The poster's state as seen from the clap (see app/affiches/clap-actions.ts). */
 export type AfficheEtat = { etat: "en_cours" | "prete" | "echec" | "indisponible" | "attend_heros"; src: string | null; heros?: string };
 
-export function AfficheProjet({ conception, style, titre, affiche, reessayer }: { conception: Conception; style: StyleAffiche; titre: string; affiche?: AfficheEtat | null; reessayer?: () => void }) {
-  const genres = conception.genres.join(" et ").toLowerCase();
+/** The poster's tagline: the interview's genre is a sentence (« Aventure dynamique et poétique, avec une héroïne… »), the poster keeps its
+ * first words only (up to the first comma or period, at most 6 words). */
+function accrochePoster(genre: string): string {
+  const tete = genre.replace(/ \+ /g, " et ").split(/[,.;:(]/)[0]!.trim();
+  const mots = tete.split(/\s+/).filter(Boolean);
+  if (!mots.length) return "Un film";
+  return `Un film ${mots.slice(0, 6).join(" ").toLowerCase()}${mots.length > 6 ? "…" : ""}`;
+}
+
+export function AfficheProjet({ conception, genre, style, titre, affiche, reessayer }: { conception: Conception; /** The film's genre (`genreDuFilm`), empty while undecided. */ genre: string; style: StyleAffiche; titre: string; affiche?: AfficheEtat | null; reessayer?: () => void }) {
+  const accroche = accrochePoster(genre);
   const reelle = affiche?.src ?? style.poster ?? null;
   const enCours = affiche?.etat === "en_cours";
   // A poster whose title is written into the image (suffix -titre) does not get the title a second time on top.
@@ -43,7 +52,7 @@ export function AfficheProjet({ conception, style, titre, affiche, reessayer }: 
       <div className="cn-poster-texte">
         <div className="cn-poster-tete">
           <p className="cn-poster-haut">CADENCE PRÉSENTE</p>
-          <p className="cn-poster-accroche">Un film {genres}</p>
+          <p className="cn-poster-accroche">{accroche}</p>
         </div>
         <div className="cn-poster-pied">
           {titreDansImage ? null : <p className="cn-poster-titre">{titre.trim() || "Titre à venir"}</p>}
@@ -75,6 +84,7 @@ export function ClapScene({
   projectId,
   nomProjet,
   conception,
+  genre,
   style,
   notes,
   synopsis = null,
@@ -88,6 +98,8 @@ export function ClapScene({
   projectId: number;
   nomProjet: string;
   conception: Conception;
+  /** The film's genre (`genreDuFilm`: the interview's, live), empty while undecided. */
+  genre: string;
   style: StyleAffiche;
   /** The project's staging in a few words (lib/h3ir/settings.ts, `resumeMiseEnScene`), shown on the board; it stays editable in the Brief. */
   miseEnScene?: string;
@@ -156,7 +168,7 @@ export function ClapScene({
     <>
       <EnteteScene acte="Acte 08" titre={<>Clap, on <em>tourne</em>.</>} sous="Tout ce que nous avons récolté, sur une seule planche. Relis, donne un titre, et on lance la préparation." />
       <div className="cn-clap-layout">
-        <AfficheProjet conception={conception} style={style} titre={titre} affiche={affiche} reessayer={reessayer} />
+        <AfficheProjet conception={conception} genre={genre} style={style} titre={titre} affiche={affiche} reessayer={reessayer} />
         <div style={{ minWidth: 0 }}>
           <label className="cn-champ-titre">
             Titre
@@ -166,7 +178,7 @@ export function ClapScene({
             <div className="cn-claps-haut" />
             <dl className="cn-claps-grille">
               <Cellule cle="Format" valeur="Film" />
-              <Cellule cle="Genre" valeur={conception.genres.join(" + ")} />
+              <Cellule cle="Genre" valeur={genre || "—"} />
               <Cellule cle="Durée" valeur={minutesSecondes(conception.dureeSecondes)} defaut={defauts.duree} />
               <Cellule cle="Plans estimés" valeur={`≈ ${plans.min} à ${plans.max} plans`} defaut={defauts.duree} />
               <Cellule cle="Dialogues" valeur={conception.langue} defaut={defauts.langue} />

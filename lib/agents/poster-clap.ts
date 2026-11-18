@@ -4,7 +4,7 @@ import { agentConversations, agentRuns, assetGenerationSources, assetGenerations
 import { TYPE_AFFICHE, avecTitreDansImage, codeAffiche, formatAfficheParDefaut, promptAffiche } from "../posters/posters";
 import { nouvelleSeed } from "../assets/asset-generation";
 import { VARIANTE_AFFICHE } from "../llm/variants";
-import { styleDesEditions, styleDesImages } from "../projects/design";
+import { genreDuFilm, styleDesEditions, styleDesImages } from "../projects/design";
 import { lirePersonnagePrincipal } from "./poster";
 import { lireConception } from "../projects/design-db";
 import type { Db } from "./appliers/common";
@@ -29,7 +29,8 @@ export type DonneesAffiche = {
   /** All the characters, as the sheet describes them (the first is the hero). */
   personnages: Pick<PersonnageBrief, "nom" | "age" | "apparence" | "gestuelle" | "reconnaissable">[];
   lieux: string;
-  genres: string[];
+  /** The film's genre (`genreDuFilm`: the interview's, or the form's for a project designed before 2026-11-18). */
+  genre: string;
   /** The style's long prompt (it changes if the style changes) and its short clause. */
   styleImage: string;
   clauseStyle: string;
@@ -55,7 +56,7 @@ export function signatureAffiche(d: Omit<DonneesAffiche, "clauseStyle">): string
     arc: net(d.arc),
     personnages: d.personnages.map((p) => [net(p.nom), net(p.age), net(p.apparence), net(p.gestuelle), net(p.reconnaissable)]),
     lieux: net(d.lieux),
-    genres: [...d.genres].sort(),
+    genre: net(d.genre),
     style: createHash("sha1").update(d.styleImage).digest("hex"),
     // The hero's image counts: when it arrives (or is replaced), the poster is made from it.
     heros: d.heros?.aImage ? `${d.heros.code}:${d.heros.fichier ?? ""}` : null,
@@ -83,7 +84,7 @@ export function entreeAfficheClap(d: DonneesAffiche): Record<string, unknown> {
     cible: "projet",
     titre: d.titre,
     resume: [d.arc, d.lieux ? `Lieux : ${d.lieux}` : "", autres.length ? `Autres personnages : ${autres.join(" ; ")}` : ""].map(net).filter(Boolean).join("\n"),
-    genreTon: d.genres.join(" + "),
+    genreTon: d.genre,
     clauseStyleDuProjet: d.clauseStyle,
     // The title is written into the image ("Title lettering" line added by the skill, and re-applied by the code on return) as long as it exists.
     titreDansImage: net(d.titre) !== "",
@@ -126,7 +127,7 @@ export async function donneesAffiche(db: Db, projectId: number): Promise<Donnees
     arc,
     personnages,
     lieux,
-    genres: conception.genres,
+    genre: genreDuFilm(conception, (fiche.contenu as { genreTon?: unknown }).genreTon),
     styleImage: styleDesImages({ clauseStyle: projet.clauseStyle, stylePromptImage: projet.stylePromptImage }) || style?.clause || "",
     clauseStyle: projet.clauseStyle,
     heros: principal ? { id: principal.id, code: principal.code, nom: principal.nom, description: principal.description, fichier: principal.fichier, aImage: principal.aImage } : null,
@@ -157,7 +158,7 @@ export async function etatAfficheClap(db: Db, projectId: number, signature: stri
 }
 
 /** Creates the project's poster asset if it does not exist (the same as "Affiche" on the project page), and returns its identifier. */
-async function assurerAssetAffiche(db: Db, projectId: number, d: Pick<DonneesAffiche, "titre" | "arc" | "genres">): Promise<number> {
+async function assurerAssetAffiche(db: Db, projectId: number, d: Pick<DonneesAffiche, "titre" | "arc" | "genre">): Promise<number> {
   const code = codeAffiche("projects", projectId);
   const [existant] = await db.select({ id: assets.id }).from(assets).where(and(eq(assets.projectId, projectId), eq(assets.code, code)));
   if (existant) return existant.id;
@@ -168,7 +169,7 @@ async function assurerAssetAffiche(db: Db, projectId: number, d: Pick<DonneesAff
       code,
       type: TYPE_AFFICHE,
       description: `Affiche : ${d.titre || "projet"}`,
-      promptGeneration: promptAffiche({ cible: "projects", titre: d.titre, resume: d.arc, genreTon: d.genres.join(" + "), titreDansImage: net(d.titre) !== "" }),
+      promptGeneration: promptAffiche({ cible: "projects", titre: d.titre, resume: d.arc, genreTon: d.genre, titreDansImage: net(d.titre) !== "" }),
     })
     .onConflictDoNothing();
   const [cree] = await db.select({ id: assets.id }).from(assets).where(and(eq(assets.projectId, projectId), eq(assets.code, code)));

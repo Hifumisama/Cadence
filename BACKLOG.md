@@ -54,6 +54,50 @@ Nettoyage fait (sauvegardes du NAS supprimées, script retiré du dépôt). Rest
       - **Détecteur corrigé :** les pronoms ne comptaient jamais, et il fallait le nom complet (« Tifa » pour « Tifa Lockhart »).
       - **5.3, scénariste qui creuse :** section `moments` (1 pour 10 s, validés ou délégués par l'utilisateur, plafond de 20 messages), proposée par le scénariste, transmise au traitement puis aux scènes ; plus de « statique » comme qualité d'un personnage. À tester en rejouant l'entretien (T9).
     - phase 6 : rejouer le projet complet.
+  - **Refonte de la conception (2026-11-18)**, plan en 6 étapes. Cause : sur le projet 262, l'entretien avait changé le genre alors que la barre d'étapes affichait l'ancien.
+    - **Étape 1, faite (non commitée, à juger en T18) : le cadre a une seule source.**
+      - Le formulaire ne pose que le cadre : Durée, Langue, Style, Mise en scène, et une nouvelle étape Musique (aucune / discrète / présente, avec une référence facultative).
+      - Le genre se trouve dans l'entretien. Il est relu de la fiche par l'affiche, le clap et la lumière (`genreDuFilm`).
+      - **Garde-fou :** les notes n'écrivent plus `style`, `langueDialogues`, `dureeEpisodeSecondes` ni `rythme` (`SECTIONS_CADRE`, `verrousDeConception`), et `demandesSurLeCadre` relève ce que le modèle a voulu changer, pour l'étape 2.
+      - **Musique :** « aucune » met N/A sur chaque plan, quelle que soit la créativité ; « présente » n'est plus mise sous les bruitages (`sectionMusique`).
+      - **Projets existants :** ils gardent leur genre, qui reste figé à la main dans le Brief.
+    - **Étape 2, faite (non commitée, à juger en T19) : carte « changement de direction ».**
+      - Le code construit la carte (`lib/agents/chat-change.ts`) à partir des changements de l'histoire (`changementsDeFiche`) et des demandes sur le cadre (durée, langue) citées dans le dernier message (`pointsCadre`).
+      - La carte voyage avec la tâche du tour et se stocke sur le message.
+      - « Garder l'ancien » remet l'histoire d'avant, dépendances comprises ; « Prendre le nouveau » écrit le cadre dans la conception, et le ruban suit ; « Un mélange… » prépare la réponse. Le choix part ensuite comme un message ordinaire.
+      - Le style n'est pas modifiable par la carte : il se change depuis le Brief.
+      - Essai réel sur le projet de test 263 « Le Gâteau Raté » : conforme.
+      - **À surveiller :** une fois, la page ne s'est pas rafraîchie seule à la fin d'un tour.
+      - **Retours du premier essai, corrigés :**
+        - le message envoyé par un bouton de la carte n'apparaît plus en bulle ; seule la ligne « ✓ » de la carte reste, et les modèles lisent toujours le texte ;
+        - la carte dit exactement ce qui change : « Mia (personnage) · tenue », « moment 3 » (`pointsDetailles`). Avant, sur le projet 264, elle affichait « La jeune femme → La jeune femme » ;
+        - « L'essentiel » montre tous les essentiels : histoire, fin, genre, style, rythme, durée, héros, moments ;
+        - le ruban de la page Création et l'accroche de l'affiche (les premiers mots du genre) suivent le nouveau formulaire.
+    - **Étape 3, codée (non commitée, à juger en T20, pas encore essayée en vrai) : questions groupées.**
+      - Champ `questions` dans la sortie du scénariste : un sujet, trois questions au plus, 0 à 4 réponses rapides chacune (`lib/agents/chat-questions.ts`).
+      - Carte `ChatQuestions` : réponses rapides et un champ « Autre » toujours présent ; « Répondre » envoie « 1. … 2. … ».
+      - Les modèles relisent les questions dans l'historique (`contenuPourLlm`).
+    - **Étapes 4, 5 et 6, faites (non commitées, à juger en T21 à T23).** Codées dans un worktree pendant les compilations du 264, puis ramenées.
+      - **5, temps fort :** une étoile par moment sur la carte de séquence. « Valider » envoie le temps fort choisi, et le CODE reprend alors exactement la liste de la carte, le temps fort marqué « (temps fort) » (`sequenceValidee`). Cette marque suit jusqu'au traitement puis aux scènes (règle 9 de `scenario-scene`), et le Synopsis la montre en or.
+      - **6, jauge de matière** sous la séquence proposée : 10 s par moment, sur la durée visée ; cases en pointillés pour ce qui manque, et « Propose-moi la suite ».
+      - **4, palette :**
+        - `tenue.pieces` et `tenue.nuancier`, `aspect.nuancier` dans les schémas du brief et des notes (`lib/agents/palette.ts`) ;
+        - cartes de choix « palette » avec de vraies pastilles et « Propose-m'en d'autres » ;
+        - le prompt d'un personnage est composé à partir des pièces ;
+        - les valeurs hex ne passent jamais dans un prompt (`sansHex`) ;
+        - pastilles dans le Synopsis.
+      - **Essai réel sur le 263 :** temps fort déplacé sur le moment 9, puis validé : la fiche le marque. Palette proposée avec vraies couleurs ; choisie : tenue enregistrée en 2 pièces + nuancier.
+      - **Pas encore vu en vrai :** la carte de questions (le scénariste a posé une question ouverte à ces tours).
+    - **Retours du test sur le projet 265 « La lettre au vent », corrigés :**
+      - **Fin de l'entretien.** Les réponses données dans la carte de questions ne nommaient pas leur sujet (« Des plis bien marqués »), donc ne prouvaient pas le détail : chaque ligne porte maintenant le sujet (« La lettre — … »). Et « on peut s'arrêter là » clôt l'entretien dès que l'essentiel est tranché (`arretDemande`).
+      - **Brief coupé net.** La 10ᵉ réponse, « Propose-m'en d'autres », a rendu la fiche complète, et le code a annoncé « briefing prêt » à la place de la réponse du scénariste. Désormais, une question ou une demande au scénariste (`demandeAuScenariste`) reçoit d'abord sa réponse, et l'état « prêt » suit quand même.
+      - **Messages des cartes.** Une séquence validée, des réponses aux questions, une palette choisie, « Propose-m'en d'autres » ou « Propose-moi la suite » s'affichent en ligne discrète « ✓ … » au lieu d'une bulle (`via`, `lib/agents/chat-trace.ts`) ; les modèles lisent toujours le texte complet.
+    - **Projet 264, plan 12 vide à l'écran :** sa description tenait en une ligne « Consigne de l'auteur : … », que l'affichage masque. Corrigé : si le plan n'a que la consigne, elle sert de récit, à l'écran comme pour les références (`sansConsigneAuteur`). Les skills de scénario écrivent toujours le récit d'abord.
+    - **Reste :**
+      - 4, palette structurée (tenues, puis décors) ;
+      - 5, temps fort cliquable sur la carte de séquence ;
+      - 6, jauge de matière avec « Propose-moi la suite ».
+    - **Reportés :** « Et si… », la carte musique (chantier YuE2), la vignette d'ambiance.
   - **Vu à l'essai GPU de l'affiche :** titre mal orthographié par Qwen (« Pieé ») et décor absent, puisque seule l'image du héros est donnée en source. Pistes : passer le décor principal en 2ᵉ source, et poser le titre par l'app au lieu de le faire écrire par le modèle.
   - `npm run lint` est cassé depuis longtemps : `next lint` n'existe plus et il n'y a pas de configuration ESLint.
 
@@ -84,8 +128,24 @@ Lot rapide fait : onglets Assets/Tournage inversés, bouton « Retour au clap »
 - **Recréation des docs** : brouillon de 6 pages courtes préparé (6 pages dans docs/, squelettes sourcés). À trancher avant : règle « une seule tâche GPU à la fois » contredite dans le code, lequel de VID_REF2VA ou de la chaîne en trois étapes est actif, « plan » ou « clip » dans les vues.
 - **Tests e2e** (chantier différé).
 
-## Futurs lointains : ne pas lancer sans demande
-Storyboard (animatic), musique d'épisode, latents/chaîne de plans, banc de skills, bouton « vérifier le GPU » dans l'interface.
+## Feuille de route : chantiers futurs (ne pas lancer sans demande)
+Chacun se cadre avec l'utilisateur avant de coder (risque classé à ce moment-là).
+
+- **Chantier musique avec YuE2.**
+  - Partition ABC et skill agentique `yue2-music`.
+  - Montage figé, puis une musique calée sur les durées des plans.
+  - On y rattache la **carte musique** de l'entretien (maquette C5), reportée le 2026-11-18.
+  - Les poids sont sous licence CC BY-NC : acceptés tant qu'il n'y a pas d'usage commercial.
+- **Films longs découpés en séquences** d'environ 1 minute.
+  - Pour les films de 10 minutes et plus : la jauge de matière et « Propose-moi la suite » s'appliqueraient par séquence.
+  - À cadrer : comment l'entretien enchaîne les séquences, et ce que le traitement en fait.
+- **« Et si… »** (maquette C6) : le scénariste propose des enrichissements à cocher (public, décor qui réagit…), ajoutés comme si l'utilisateur les avait dits. Reporté le 2026-11-18.
+- **Vignette d'ambiance** (maquette C8) : une image brouillon d'un lieu pendant l'entretien, pour vérifier qu'on voit la même chose. Coûte du GPU, et touche au storyboard.
+- **Storyboard (animatic)** : une image par plan ou par prise, une animatic bon marché, la vue Lecture du scénario.
+- **Densité de découpage par plan** donnée par le scénario (banc T15 : le nombre de prises doit suivre l'intensité).
+- **Latents et chaîne de plans** (sur la machine distante).
+- **Banc de skills** : des scènes types, un banc par skill, un audit de pertinence.
+- **Bouton « vérifier le GPU »** dans l'interface.
 
 ## Fait (2026-11-12 et 13)
 Reset CSS condensé · Assets rangés par projet (260 images, local) · Docs retirée · `lib/` par domaines · noms de fichiers et commentaires en anglais · plan-h3 retiré · scripts jetables retirés · knip + CI · `.claude/` et `CLAUDE.md` refaits · robustesse (boucle vidéo, upload d'asset, délais ComfyUI) · notifications navigateur retirées · manuel du montage en popup · voix retirées · classes CSS mortes retirées · `service.ts` et `requests-db.ts` scindés · tests sur base jetable · propositions simplifiées.

@@ -1,3 +1,4 @@
+import { carteVue } from "./chat-change";
 /**
  * READS OF THE AGENT SYSTEM — what the interface (popup) polls. Server side only
  * (database access). Writes: app/agents/actions.ts. Types: lib/agents/types.ts.
@@ -93,6 +94,10 @@ async function versVueConversation(c: typeof agentConversations.$inferSelect): P
       ...(m.choix ? { choix: m.choix } : {}),
       ...(m.choisis ? { choisis: m.choisis } : {}),
       ...(m.sequence ? { sequence: m.sequence } : {}),
+      ...(m.questions ? { questions: m.questions } : {}),
+      ...(m.changement ? { changement: carteVue(m.changement) } : {}),
+      ...(m.decision ? { decision: m.decision } : {}),
+      ...(m.via ? { via: m.via } : {}),
     })),
     consigne: c.consigne,
     briefPret: c.briefPret,

@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { assets, briefs, episodes, jobs, planPromptSections, planPromptVersions, planRefs, plans } from "../../../db/schema";
-import { musiqueDePlan } from "../../h3ir/music";
+import { sectionMusique } from "../../h3ir/music";
+import { lireConception } from "../../projects/design-db";
 import { horsAffiches } from "../../assets/assets-visible";
 import { conserverConsigneAuteur } from "../../clips/intent";
 import { assemblerPrompt } from "../../clips/prompt";
@@ -105,12 +106,13 @@ export const applicateurFiche: Applicateur = {
 /** The write itself, inside the application transaction. Only what `apres` carries changes. */
 async function ecrireFiche(tx: Tx, projectId: number, p: { id: number; statut: string }, apres: ReturnType<typeof lireApresFiche>): Promise<void> {
   let sections = Object.entries(apres.sections ?? {}).filter(([k]) => estSectionFiche(k)) as [string, string][];
-  // Open H3 IR invents a different score per clip: the brief's one replaces it, so that linked clips carry one continuous piece. A compiled
-  // section left empty or « N/A » (creativity « Sobre »: no music) stays as it is.
+  // Open H3 IR invents a different score per clip: the brief's one replaces it, so that linked clips carry one continuous piece; the music
+  // intention of the design sets how present it is, and « aucune » sets N/A whatever the creativity (lib/h3ir/music.ts, `sectionMusique`).
   if (apres.moteur === "h3ir") {
     const [brief] = await tx.select({ contenu: briefs.contenu }).from(briefs).where(eq(briefs.projectId, projectId));
-    const musique = musiqueDePlan((brief?.contenu as { musique?: unknown } | undefined)?.musique);
-    if (musique) sections = sections.map(([k, v]) => (k === "non_diegetic_music" && v.trim() && !/^n\/?a\.?$/i.test(v.trim()) ? [k, musique] : [k, v]));
+    const musiqueBrief = (brief?.contenu as { musique?: unknown } | undefined)?.musique;
+    const intention = (await lireConception(tx, projectId))?.musique?.intention;
+    sections = sections.map(([k, v]) => (k === "non_diegetic_music" ? [k, sectionMusique(v, musiqueBrief, intention)] : [k, v]));
   }
   // Open H3 IR sheet: the prompt it replaces stays in the prompt history (one can return to it from the « Prompt » drawer).
   const [derniere] = apres.moteur === "h3ir" ? await tx.select({ texte: planPromptVersions.texte }).from(planPromptVersions).where(eq(planPromptVersions.planId, p.id)).orderBy(desc(planPromptVersions.id)).limit(1) : [];

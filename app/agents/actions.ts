@@ -52,6 +52,7 @@ import { revalidatePath } from "next/cache";
 import * as service from "@/lib/agents/service-conversation";
 import { PORTEES, type CibleDemandee, type Profondeur, type Portee, type Resultat } from "@/lib/agents/types";
 import { z } from "zod";
+import { VIAS, type ViaMessage } from "@/lib/agents/chat-trace";
 import { idSchema, texteSchema, uuidSchema, verifier } from "@/lib/validation/args";
 
 const cibleSchema = z.object({ id: idSchema.optional(), uuid: uuidSchema.optional(), code: z.string().max(255).optional() });
@@ -90,10 +91,10 @@ export async function relancerAccroche(conversationUuid: string): Promise<Result
 
 /** Complete depth: adds the user's message and starts a conversation turn
  * (task). Refused if a turn is already running on this conversation. */
-export async function envoyerMessage(conversationUuid: string, texte: string): Promise<Resultat<{ runUuid: string }>> {
-  const v = verifier(z.tuple([uuidSchema, texteSchema()]), [conversationUuid, texte]);
+export async function envoyerMessage(conversationUuid: string, texte: string, via?: ViaMessage): Promise<Resultat<{ runUuid: string }>> {
+  const v = verifier(z.tuple([uuidSchema, texteSchema(), z.enum(VIAS).optional()]), [conversationUuid, texte, via]);
   if (!v.ok) return v;
-  return rafraichir(await service.envoyerMessage(conversationUuid, texte));
+  return rafraichir(await service.envoyerMessage(conversationUuid, texte, undefined, undefined, via));
 }
 
 /** Reply through a screenwriter choice card (selected labels): the text sent is formulated server-side. */
@@ -101,6 +102,13 @@ export async function repondreAuChoix(conversationUuid: string, libelles: string
   const v = verifier(z.tuple([uuidSchema, z.array(texteSchema(1000)).max(50)]), [conversationUuid, libelles]);
   if (!v.ok) return v;
   return rafraichir(await service.repondreAuChoix(conversationUuid, libelles));
+}
+
+/** Choice on a « changement de direction » card (keep the old version, or take the new one). */
+export async function trancherChangement(conversationUuid: string, indexMessage: number, choix: "garder" | "nouveau"): Promise<Resultat<{ runUuid: string }>> {
+  const v = verifier(z.tuple([uuidSchema, z.number().int().min(0), z.enum(["garder", "nouveau"])]), [conversationUuid, indexMessage, choix]);
+  if (!v.ok) return v;
+  return rafraichir(await service.trancherChangement(conversationUuid, indexMessage, choix));
 }
 
 // --- Brief ------------------------------------------------------------------

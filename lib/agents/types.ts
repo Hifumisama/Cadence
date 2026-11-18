@@ -1,5 +1,9 @@
 import type { NoteAffichee, SynopsisFilm } from "./sheet-display";
 import type { SequenceProposee } from "./chat-sequence";
+import type { CarteChangement } from "./chat-change";
+import type { QuestionsCarte } from "./chat-questions";
+import type { CouleurNommee, PieceTenue } from "./palette";
+import type { ViaMessage } from "./chat-trace";
 /** Agent system — types shared by the server, the worker and the interface
  * (conversation → brief → proposal → review → application). No database, disk
  * or Next access here: this file is importable everywhere, including by client components.
@@ -71,12 +75,28 @@ export type CibleDemandee = { id?: number; uuid?: string; code?: string };
 // ---------------------------------------------------------------------------
 
 /** A choice card proposed by the screenwriter (validated by lib/agents/choice.ts). `multiple` is true only for a list. */
-export type OptionChoix = { libelle: string; description?: string };
+/** `couleurs` and `matieres`: a palette card (an outfit, a place's look), shown with real swatches. */
+export type OptionChoix = { libelle: string; description?: string; couleurs?: CouleurNommee[]; matieres?: string };
 export type Choix = { question?: string; multiple: boolean; options: OptionChoix[] };
 
 /** `choix`: cards proposed with an agent message. `choisis`: labels kept, carried by the user message
  * that answers with a card (absent when they wrote their answer). */
-export type MessageConversation = { role: "user" | "assistant"; content: string; at: string; choix?: Choix; choisis?: string[]; sequence?: SequenceProposee };
+export type MessageConversation = {
+  role: "user" | "assistant";
+  content: string;
+  at: string;
+  choix?: Choix;
+  choisis?: string[];
+  sequence?: SequenceProposee;
+  /** The grouped questions card (lib/agents/chat-questions.ts). */
+  questions?: QuestionsCarte;
+  /** The « changement de direction » card under a screenwriter's message (lib/agents/chat-change.ts); the view drops what only the server needs. */
+  changement?: CarteChangement;
+  /** A user message sent by a change card's button: the models read its text, the screen shows only the card's « ✓ » line. */
+  decision?: "garder" | "nouveau";
+  /** A user message sent by another card (sequence, questions, choice…): shown as a discreet « ✓ » line (lib/agents/chat-trace.ts). */
+  via?: ViaMessage;
+};
 
 /** The queue task (agent_runs) linked to a step: a conversation turn, the
  * brief generation or a proposal. Null when nothing is running. */
@@ -132,6 +152,9 @@ type TenueBrief = {
   signeDistinctif?: string;
   /** Costume continuity: does it change over the film, and when. */
   evolution?: string;
+  /** The outfit as data (2026-11-18, lib/agents/palette.ts): piece by piece, and its colour chart (named colours, hex for the screen). */
+  pieces?: PieceTenue[];
+  nuancier?: CouleurNommee[];
   statut?: StatutDetailBrief;
 };
 
@@ -139,7 +162,7 @@ type LieuBrief = {
   nom: string;
   description: string;
   /** The place's look (optional): light and time of day, materials, palette, ambiance. */
-  aspect?: { lumiere?: string; matieres?: string; palette?: string; ambiance?: string; statut?: StatutDetailBrief };
+  aspect?: { lumiere?: string; matieres?: string; palette?: string; ambiance?: string; /** Named colours with hex (lib/agents/palette.ts). */ nuancier?: CouleurNommee[]; statut?: StatutDetailBrief };
   statut?: string;
 };
 
