@@ -52,6 +52,12 @@ test("statut du plan après annulation : dernière réussite, sinon brouillon", 
   assert.equal(statutPlanApresAnnulation([{ statut: "termine", activerUpscale: false }, { statut: "termine", activerUpscale: true }]), "previsualise");
 });
 
+test("statut du plan après annulation : sans réussite, un plan dont la fiche est écrite reste prêt à tourner (projet 264)", () => {
+  assert.equal(statutPlanApresAnnulation([], true), "en_attente");
+  assert.equal(statutPlanApresAnnulation([{ statut: "echoue", activerUpscale: false }], true), "en_attente");
+  assert.equal(statutPlanApresAnnulation([{ statut: "termine", activerUpscale: false }], true), "previsualise", "une réussite passe avant");
+});
+
 const H = 3600 * 1000;
 const maintenant = new Date(Date.UTC(2026, 9, 2, 12, 0));
 const il_y_a = (heures: number) => new Date(maintenant.getTime() - heures * H);

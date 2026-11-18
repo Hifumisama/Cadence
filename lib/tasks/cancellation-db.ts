@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, isNull, ne, notInArray, or, sql } from "drizzle-orm";
 import { db } from "../../db";
-import { agentRuns, assetGenerations, jobs, plans, propositions } from "../../db/schema";
+import { agentRuns, assetGenerations, jobs, planPromptSections, plans, propositions } from "../../db/schema";
 import { ERREUR_ANNULEE, statutPlanApresAnnulation } from "./cancellation";
 import { annulerEnAttenteDesLots, annulerLot } from "../agents/batches";
 import { balayerEssaisSansTache } from "../agents/asset-attempt";
@@ -192,7 +192,13 @@ async function restaurerStatutPlan(planId: number): Promise<void> {
     .from(jobs)
     .where(and(eq(jobs.planId, planId), ne(jobs.erreur, ERREUR_ANNULEE)))
     .orderBy(desc(jobs.id));
-  const statut = statutPlanApresAnnulation(precedents);
+  // The sheet is written when the clip has its prompt sections (Open H3 IR) or a sheet description.
+  const [fiche] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(planPromptSections)
+    .where(eq(planPromptSections.planId, planId));
+  const [plan] = await db.select({ ficheDescription: plans.ficheDescription }).from(plans).where(eq(plans.id, planId));
+  const statut = statutPlanApresAnnulation(precedents, (fiche?.n ?? 0) > 0 || !!plan?.ficheDescription?.trim());
   await db
     .update(plans)
     .set({ statut, updatedAt: new Date() })

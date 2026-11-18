@@ -55,13 +55,16 @@ export function gestePourAnnuler(etat: EtatDansLaFile): GestePourAnnuler {
 }
 
 /** Status of the clip when its video job is cancelled: it goes back to the state of its
- * last success (a final render « termine », a preview « previsualise », as the worker sets them), otherwise « brouillon ». `precedents` =
- * the other jobs of the clip, from most recent to oldest. */
+ * last success (a final render « termine », a preview « previsualise », as the worker sets them). Without one, a clip whose sheet is written goes
+ * back to « en_attente » (what writing the sheet sets: lib/agents/appliers/sheet.ts), never to « brouillon » (2026-11-18, project 264: cancelling
+ * the first previews put all twelve clips back to draft, and the screenplay asked to write their sheets again). `precedents` = the other jobs of
+ * the clip, from most recent to oldest. */
 export function statutPlanApresAnnulation(
   precedents: { statut: string; activerUpscale: boolean }[],
-): "termine" | "previsualise" | "brouillon" {
+  aUneFiche = false,
+): "termine" | "previsualise" | "en_attente" | "brouillon" {
   const dernier = precedents.find((j) => j.statut === "termine");
-  if (!dernier) return "brouillon";
+  if (!dernier) return aUneFiche ? "en_attente" : "brouillon";
   return dernier.activerUpscale ? "termine" : "previsualise";
 }
 
