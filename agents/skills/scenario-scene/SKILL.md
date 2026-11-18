@@ -20,7 +20,7 @@ You write **one scene** of an episode: its plans and lines. It is **narrative**:
 - The **brief** (`briefExtrait`): style, characters (age, appearance, gestures), places, dialogue language, **rhythm** (`rythme`). `briefExtrait.notes` apply like the rest. The **episode** (title, summary, `briefEpisode`) and the **registry**: reuse its names.
 - **`traitementEpisode`**: every scene of the episode, in order (title, intention). It tells you where your scene stands in the story; it is **not yours to write**.
 - **`parolesDeLAuteur`**, the author's own messages word for word, and `scene.momentsDeLAuteur`, what they said about **your** scene.
-- **`scene.moments`** (when present): the film's moments the treatment gave **your** scene, in order. **Each one is shown** by a plan, as a visible action (a change happens while the character acts, never as a still pose); none is skipped, and none of another scene's moments is told here.
+- **`scene.moments`** (when present): the film's moments the treatment gave **your** scene, in order. **Each one is shown** by a plan, as a visible action (a change happens while the character acts, never as a still pose); none is skipped, and none of another scene's moments is told here. **Invent no event outside them**: you choose how a moment is shown (its gestures, its texture), never a new turn of the story. In the **last scene of the episode**, the last plan ends **on the last moment**: no epilogue, no departure, no aftermath the author did not validate.
 - **`scene`**: your scene. `titre`, `fonction`, `ambiance` (held over the whole scene), `intention` (what it tells), `etatEntree` (where it starts), `etatSortie` (where it must end), `dureeCibleSecondes` (the screen time it has), `position` in the episode.
 - **`scenePrecedente`** (title and `etatSortie`) and **`sceneSuivante`** (title and `etatEntree`), or null. Another call is writing them: trust these states.
 - A `consigne` and possibly a `retourUtilisateur` that corrects a previous proposal: apply it.
@@ -45,6 +45,20 @@ A plan is **one video generation call** of **4 to 10 seconds**, which may hold s
 5. **Write the generated duration**, not the duration seen on screen.
 6. **The description** is the plan's **intent**: what happens, **why the plan exists** and, if someone speaks, **the lines** (see "The lines"). It is the only text the video prompt step reads to turn "the first decision we see her make" into observable events, so write it precise and complete (see "What a description holds"). A plan without intention is empty.
 7. **Each description stands alone.** No framing, sound or camera movement of your own (decided per cut, in the video prompt), except the author's explicit directions (see "The author's words"); light only when it changes during the plan (see below); no reference to another plan ("like the previous one": it goes out of sync when a plan moves; order is the array's); no asset list (name the characters, places and objects that matter, with the registry's names).
+
+### Movement, in every genre
+
+The video model animates what you write: a character told as still stays still, and the camera then moves around her to hide that nothing happens. Every genre (a dance, a drama, a ritual, a transformation), not only fights:
+
+1. **Every plan opens on a movement already under way**: a turn, a step, a gesture, a fall, an object thrown. Never on a character standing, posing, waiting or looking.
+2. **No pose held longer than 2 seconds.** Never « reste immobile », « figée », « se fige », « se tient », « attend », « pose » as a beat. A held moment is the texture of a movement (the breath, the hand tightening, the hair lifting), never its absence.
+3. **No empty plan.** A plan always has a character acting. A place without anyone, smoke settling, a fade to black: only inside the very last plan of the episode, after its action, and 2 seconds at most.
+4. **Never « Ce plan… ».** Tell what happens; why it matters is one short clause (see "What a description holds", point 5).
+5. **An effect never replaces the action.** During a transformation, a spell, a fire, the character keeps acting (she dances, fights, reaches out, resists) while it happens to her: the effect is a change among the others, not a pause.
+6. **A dance, a ritual, a performance is choreographed like a fight**: name 2 to 4 distinct movements per plan (a spin, a leap, a back bend, an arm thrown toward the flames, a slide to the knees, a kick, a lift of the skirt, a stamp), each with its texture, and never « elle danse » alone.
+7. **Vary the movements from plan to plan.** Two consecutive plans never rest on the same main gesture (two plans of swaying hips, two plans of spinning on the spot): each plan brings movements the previous one did not have, in amplitude, direction, level (on the ground, standing, in the air) and speed. Repetition reads on screen as a loop.
+8. **Two plans never share a sentence.** Each plan tells its own changes.
+9. **The strong moment holds in one plan, and it is fast.** The climax of the film or of the scene (a transformation, a burst, a reveal) happens **inside a single plan**, in a few seconds, spectacular, while the character acts; the plan before shows its first visible sign, the plan after its consequences. Never spread it slowly over several plans: spread out, it loses all its force.
 
 ### What a description holds
 
@@ -76,7 +90,7 @@ A description never refers to another plan, so **`liaison` is the plan's only li
 - **`suite`**: the plan takes up **where the previous one ends**: same place, same moment or a few seconds later, the same people where the previous plan's last beat left them. Its render continues the previous one without a cut.
 - **`coupe`**: a **clean cut**: another place, another moment, another point of view, a reaction elsewhere. Nothing of the previous plan's end has to be reproduced.
 
-Decide it from the story, not from the scene: a new scene is usually a `coupe`, but a scene can also cut inside itself (a cutaway, an insert) and a plan can follow another across two scenes of one action. The **first plan of the episode is a `coupe`**. When unsure, `coupe`. `suite` is the exception and needs a reason: one continuous action in the same framing that runs past the 10-second limit of a plan (a movement, a fall, a long take cut for length). A shot/reverse shot, a change of angle, a cutaway or a new moment is a `coupe`, even inside one scene: only a `suite` is rendered as the continuation of the previous plan, and a chain of `suite` plans forces every following plan to be rendered again when one changes.
+Decide it from the story, not from the scene: a new scene is usually a `coupe`, but a scene can also cut inside itself (a cutaway, an insert) and a plan can follow another across two scenes of one action. The **first plan of the episode is a `coupe`**. When unsure, `coupe`. **Do not be afraid to cut**: when the action changes (a new moment, a jump in time, another subject, another place), the plan is a `coupe`, even in the middle of a scene. A cut lets you show more, and each plan can then be redone alone. `suite` is the exception and needs a reason: one continuous action in the same framing that runs past the 10-second limit of a plan (a movement, a fall, a long take cut for length). A shot/reverse shot, a change of angle, a cutaway or a new moment is a `coupe`, even inside one scene: only a `suite` is rendered as the continuation of the previous plan, and a chain of `suite` plans forces every following plan to be rendered again when one changes.
 
 ## Grouping, and cutting better
 
@@ -87,7 +101,7 @@ Decide it from the story, not from the scene: a new scene is usually a `coupe`, 
 Where a first cut goes wrong:
 
 1. **Over-cutting.** Consecutive 3–5 s plans in one place are almost always one 8–10 s plan. Reread each pair of consecutive plans: if they fit in 10 s without changing place or time, merge them.
-2. **Static plan without intention.** If nothing changes in the image, give it an intention (a wait, a held tension: say so) or blend it into a neighbour.
+2. **Static plan.** If nothing changes in the image, give it a change (see "Movement, in every genre") or blend it into a neighbour. A held tension is played through movement, never through stillness.
 3. **Static dialogue.** Cover it with internal cuts (shot/reverse shot, the listener's reaction, what the speech provokes). An exchange that fits in 10 s is ONE plan, not one per line, and a single viewpoint lacks drama.
 4. **Continuity.** Think of the physical sequence of plans (exits and entrances, light that changes for no reason) without storing it.
 5. **A populated place and the same place empty are two places for generation.** Say so in the description: it will be two assets.
@@ -139,6 +153,7 @@ The brief's style and notes apply: you do not redefine them. Stay faithful to th
 - The first plan starts in `etatEntree` and its `liaison` fits the previous scene; the last plan ends in `etatSortie`.
 - Every beat of `scene.momentsDeLAuteur` has its plan; framing, sound and voice-over directions are in a `Consigne de l'auteur :` sentence; no line is invented that they did not ask for (or it is in `inventions`).
 - Every description is a precise intent: the start only on the first plan of a scene or after a `coupe` (positions relative to landmarks, never to the camera; none after a `suite`), the beats in order, what changes, the end as its last beat, why it matters; no `État en fin de plan :` line; no event is done twice.
+- Every plan opens on a movement; no pose held, no empty plan, no « Ce plan… »; a dance names its distinct movements, and two consecutive plans do not rest on the same gesture; the strong moment fits in one fast plan; a change of action is a `coupe`; no event outside `scene.moments`, and the last scene ends on the last moment.
 - Every plan followed by a `suite` ends in a movement in progress (one sharp gesture), not at rest; in a clash, every character acts in each beat, strong actions carry their scale in a stylised style, and nothing crosses a solid limit.
 - Every plan has a description with an intention, an integer duration from 4 to 10 within the rhythm's range, and a `liaison` (`suite` or `coupe`).
 - The scene's total is close to `dureeCibleSecondes`; montages are one plan; a tipping point is set up.

@@ -19,7 +19,7 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../../db";
 import { agentConversations, agentRuns, assets, briefs, episodes, plans, propositionChangements, propositions } from "../../db/schema";
 import { briefVide, construireSections, sansClesAbandonnees } from "./brief";
-import { notesPourAffichage } from "./sheet-display";
+import { notesPourAffichage, synopsisPourAffichage } from "./sheet-display";
 import { ficheCourante } from "./sheet-db";
 import { diagnosticIteration } from "./iteration-clip";
 import { compter, ecrasementsAConfirmer, estBloque, grouper } from "./checking";
@@ -92,11 +92,14 @@ async function versVueConversation(c: typeof agentConversations.$inferSelect): P
       at: m.at,
       ...(m.choix ? { choix: m.choix } : {}),
       ...(m.choisis ? { choisis: m.choisis } : {}),
+      ...(m.sequence ? { sequence: m.sequence } : {}),
     })),
     consigne: c.consigne,
     briefPret: c.briefPret,
     resteADefinir: ((c.resteADefinir as unknown[]) ?? []).filter((x): x is string => typeof x === "string"),
-    notes: c.portee === "projet" && c.profondeur === "complete" ? notesPourAffichage(await ficheCourante(db, c)) : [],
+    ...(c.portee === "projet" && c.profondeur === "complete"
+      ? await ficheCourante(db, c).then((f) => ({ notes: notesPourAffichage(f), synopsis: synopsisPourAffichage(f) }))
+      : { notes: [], synopsis: null }),
     propositionUuid,
     tache: await etatTache(run?.id ?? null),
     createdAt: c.createdAt.toISOString(),

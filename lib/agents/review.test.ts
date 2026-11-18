@@ -29,7 +29,7 @@ const vue = construireVue({
 });
 const entree: EntreeRelecture = {
   plans: plansDonnes.map((p, i) => ({ plan: `P${String(i + 1).padStart(2, "0")}`, scene: p.sceneId === 1 ? "Le départ" : "Le duel", titre: p.titre, liaison: p.liaison, dureeSecondes: p.duree, description: p.description })),
-  dureeCibleSecondes: 48,
+  dureeCibleSecondes: 40,
 };
 const sortie = (corrections: SortieRelecture["corrections"], constats: SortieRelecture["constats"] = []): SortieRelecture => ({ constats, corrections, notes: "" });
 
@@ -115,7 +115,7 @@ test("trop de corrections, deux gestes sur un plan, un plan modifié puis coupé
 });
 
 test("la durée totale ne sort pas de la tolérance du brief à cause de la relecture", () => {
-  // 6 clips × 8 s = 48 s for 48 s targeted (±20 %: 39–57). Cutting two clips without compensating drops to 32 s.
+  // 6 clips × 8 s = 48 s for 40 s targeted (floor 40, ceiling 48). Cutting two clips without compensating drops to 32 s, under the floor.
   const deuxCoupes = sortie([
     { type: "couper_plan", plan: "P04", critere: "doublon", motif: "m" },
     { type: "couper_plan", plan: "P05", critere: "doublon", motif: "m" },

@@ -18,8 +18,8 @@ test("les skills d'écriture du scénario ne demandent plus de genre de scène",
   }
 });
 
-test("avertissementDuree : silencieux dans ±20 %, sinon une info chiffrée", () => {
-  assert.equal(avertissementDuree(100, 120), null);
+test("avertissementDuree : silencieux de la cible à +20 %, sinon une info chiffrée", () => {
+  assert.match(avertissementDuree(100, 120)!.texte, /−17 %/);
   assert.equal(avertissementDuree(120, 120), null);
   assert.equal(avertissementDuree(144, 120), null);
   assert.equal(avertissementDuree(120, null), null);

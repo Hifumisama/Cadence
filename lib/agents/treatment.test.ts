@@ -28,8 +28,13 @@ test("durées des scènes : aucune scène sous un plan minimal, même avec un po
 });
 
 test("ajustement d'une scène : dans la tolérance, les durées du modèle restent", () => {
-  assert.deepEqual(ajusterDureesScene([8, 10, 7], 26), [8, 10, 7]);
-  assert.deepEqual(ajusterDureesScene([8, 10, 7], 24), [8, 10, 7]);
+  assert.deepEqual(ajusterDureesScene([8, 10, 7], 25), [8, 10, 7]);
+  assert.deepEqual(ajusterDureesScene([8, 10, 7], 23), [8, 10, 7]);
+});
+
+test("ajustement d'une scène : la cible est un plancher, une scène un peu courte est rallongée", () => {
+  const r = ajusterDureesScene([8, 10, 7], 26);
+  assert.equal(somme(r), 26);
 });
 
 test("ajustement d'une scène : trop long, on ramène à la cible, entiers de 4 à 10", () => {

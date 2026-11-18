@@ -74,7 +74,8 @@ export function ajusterDureesScene(durees: number[], cibleSecondes: number): num
   const borne = (x: number) => Math.min(DUREE_PLAN_MAX, Math.max(DUREE_PLAN_MIN, Math.round(x)));
   const actuelle = durees.map(borne);
   const total = actuelle.reduce((a, b) => a + b, 0);
-  if (Math.abs(total - cibleSecondes) / cibleSecondes <= ECART_SCENE_TOLERE) return actuelle;
+  // The target is a floor (lib/agents/conversion.ts, bornesDuree): a scene may run a little long, never short.
+  if (total >= cibleSecondes && (total - cibleSecondes) / cibleSecondes <= ECART_SCENE_TOLERE) return actuelle;
   const facteur = cibleSecondes / total;
   const res = actuelle.map((d) => borne(d * facteur));
   let ecart = Math.round(cibleSecondes) - res.reduce((a, b) => a + b, 0);

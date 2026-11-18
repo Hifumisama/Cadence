@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { notesPourAffichage, resumerSection } from "./sheet-display";
+import { ORDRE_NOTES, notesPourAffichage, resumerSection, synopsisPourAffichage } from "./sheet-display";
 import { FICHE_VIDE, type Fiche } from "./sheet";
 
 test("fiche vide : quatre sujets requis, tous absents, rien d'autre", () => {
@@ -31,7 +31,7 @@ test("la fin : un fait (dite, ou laissée au scénariste), jamais un texte inven
   assert.match(deleguee.texte, /Laissée au scénariste/);
 });
 
-test("personnages, lieux et autres sections en lignes lisibles ; les notes complémentaires suivent les sujets", () => {
+test("personnages, lieux et autres sections en lignes lisibles, dans l'ordre de lecture", () => {
   const f: Fiche = {
     contenu: {
       personnages: [{ nom: "Maya", role: "héroïne", age: "la trentaine", apparence: "manteau trop grand" }, { nom: "Le marchand", role: "mentor" }],
@@ -43,10 +43,10 @@ test("personnages, lieux et autres sections en lignes lisibles ; les notes compl
     statuts: { personnages: "fourni", lieux: "deduit" },
   };
   const n = notesPourAffichage(f);
-  assert.deepEqual(n.map((x) => x.cle), ["arc", "fin", "personnages", "moments", "lieux", "univers"]);
-  assert.equal(n[2]!.texte, "Maya : héroïne, la trentaine, manteau trop grand\nLe marchand : mentor");
-  assert.deepEqual([n[4]!.statut, n[4]!.requis, n[4]!.texte], ["deduit", false, "Le port : brumeux"]);
-  assert.equal(n[5]!.statut, "deduit", "sans statut connu : supposée");
+  assert.deepEqual(n.map((x) => x.cle), ["arc", "fin", "univers", "personnages", "lieux", "moments"]);
+  assert.equal(n[3]!.texte, "Maya : héroïne, la trentaine, manteau trop grand.\nLe marchand : mentor.");
+  assert.deepEqual([n[4]!.statut, n[4]!.requis, n[4]!.texte], ["deduit", false, "Le port : brumeux."]);
+  assert.equal(n[2]!.statut, "deduit", "sans statut connu : supposée");
 });
 
 test("resumerSection : valeurs vides et formes inattendues", () => {
@@ -54,4 +54,52 @@ test("resumerSection : valeurs vides et formes inattendues", () => {
   assert.equal(resumerSection("lieux", []), "");
   assert.equal(resumerSection("lieux", 3), "");
   assert.equal(resumerSection("inventions",["a", " b "]), "a\nb");
+});
+
+test("ordre de lecture : titre, histoire, fin, univers, personnages, lieux, effets, moments, épisodes ; l'inconnu à la fin", () => {
+  assert.deepEqual([...ORDRE_NOTES], ["titre", "arc", "fin", "univers", "personnages", "lieux", "elements", "moments", "episodes"]);
+  const f: Fiche = {
+    contenu: {
+      episodes: [{ titre: "Un", resume: "r" }],
+      autre: "x",
+      moments: ["Maya court sur le quai."],
+      elements: [{ nom: "La carte", description: "qui brille" }],
+      lieux: [{ nom: "Le port" }],
+      personnages: [{ nom: "Maya" }],
+      univers: "u",
+      arc: "a",
+      titre: "La carte",
+    },
+    statuts: {},
+  };
+  assert.deepEqual(notesPourAffichage(f).map((x) => x.cle), ["titre", "arc", "fin", "univers", "personnages", "lieux", "elements", "moments", "episodes", "autre"]);
+});
+
+test("synopsis : toute la fiche, choix de la conception compris ; titre provisoire tu", () => {
+  const f: Fiche = {
+    contenu: {
+      titre: "Sans titre",
+      arc: " Une cartographe retrouve une carte. ",
+      genreTon: "Drame",
+      style: { nom: "Gravure", clause: "c" },
+      dureeEpisodeSecondes: 30,
+      langueDialogues: "Français",
+      personnages: [{ nom: "Maya", role: "héroïne", tenue: { couleurs: "bleu" } }],
+      lieux: [{ nom: "Le port", aspect: { lumiere: "aube" } }],
+      moments: ["Maya court.", "Elle saute.", "Elle tombe."],
+    },
+    statuts: { fin: "delegue", moments: "fourni" },
+  };
+  const s = synopsisPourAffichage(f);
+  assert.equal(s.titre, "");
+  assert.equal(s.arc, "Une cartographe retrouve une carte.");
+  assert.equal(s.fin, "Laissée au scénariste.");
+  assert.deepEqual([s.genreTon, s.dureeSecondes, s.style, s.langue], ["Drame", 30, "Gravure", "Français"]);
+  assert.deepEqual(s.personnages, [{ nom: "Maya", detail: "héroïne.", extra: "Tenue : bleu." }]);
+  assert.deepEqual(s.lieux, [{ nom: "Le port", detail: "", extra: "aube." }]);
+  assert.deepEqual([s.elements, s.episodes], [[], []]);
+  assert.equal(s.sequence.moments.length, 3);
+  assert.equal(s.sequence.status, "fourni");
+  assert.equal(synopsisPourAffichage({ contenu: { titre: "La carte" }, statuts: {} }).titre, "La carte");
+  assert.equal(synopsisPourAffichage({ contenu: { dureeEpisodeSecondes: "60" }, statuts: {} }).dureeSecondes, null);
 });

@@ -1,4 +1,5 @@
-import type { NoteAffichee } from "./sheet-display";
+import type { NoteAffichee, SynopsisFilm } from "./sheet-display";
+import type { SequenceProposee } from "./chat-sequence";
 /** Agent system — types shared by the server, the worker and the interface
  * (conversation → brief → proposal → review → application). No database, disk
  * or Next access here: this file is importable everywhere, including by client components.
@@ -75,7 +76,7 @@ export type Choix = { question?: string; multiple: boolean; options: OptionChoix
 
 /** `choix`: cards proposed with an agent message. `choisis`: labels kept, carried by the user message
  * that answers with a card (absent when they wrote their answer). */
-export type MessageConversation = { role: "user" | "assistant"; content: string; at: string; choix?: Choix; choisis?: string[] };
+export type MessageConversation = { role: "user" | "assistant"; content: string; at: string; choix?: Choix; choisis?: string[]; sequence?: SequenceProposee };
 
 /** The queue task (agent_runs) linked to a step: a conversation turn, the
  * brief generation or a proposal. Null when nothing is running. */
@@ -172,6 +173,8 @@ export type BriefContenu = {
   dureeEpisodeSecondes?: number;
   /** General pace (slow → fast): it sets the clips' duration and cut density. */
   rythme?: RythmeBrief;
+  /** The film's score (English, concrete: instruments, tempo, character), set by the code on every clip's non-diegetic music (lib/h3ir/music.ts). */
+  musique?: string;
   /** A pre-existing work or universe whose names, looks and rules are respected; empty for an original project. */
   univers?: string;
   episodes: { titre: string; resume: string; portee?: string }[];
@@ -197,6 +200,7 @@ export const SECTIONS_BRIEF = [
   { cle: "rythme", libelle: "Rythme (lent, mesure, soutenu, rapide, variable)", groupe: "Univers" },
   { cle: "univers", libelle: "Univers ou œuvre de référence", groupe: "Univers" },
   { cle: "style", libelle: "Style et clause de style", groupe: "Style" },
+  { cle: "musique", libelle: "Musique du film", groupe: "Style" },
   { cle: "episodes", libelle: "Épisodes", groupe: "Épisodes" },
   { cle: "personnages", libelle: "Personnages", groupe: "Personnages" },
   { cle: "lieux", libelle: "Lieux", groupe: "Lieux" },
@@ -254,6 +258,8 @@ export type VueConversation = {
   resteADefinir: string[];
   /** The interview's notes sheet, formatted for the screen (interview subjects first); empty outside the intake interview. */
   notes: NoteAffichee[];
+  /** The whole notes sheet as a film synopsis (« Synopsis du film » popup); null outside the intake interview. */
+  synopsis: SynopsisFilm | null;
   propositionUuid: string | null;
   /** Task running or the last unseen one (turn, brief); null otherwise. */
   tache: EtatTache | null;

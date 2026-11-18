@@ -5,7 +5,8 @@ import { horsAffiches } from "../../lib/assets/assets-visible";
 import { sortieVersBrief } from "../../lib/agents/brief";
 import { ecrireBrouillon } from "../../lib/agents/brief-db";
 import { entreeTour, messageBriefPret } from "../../lib/agents/brief-input";
-import { appliquerNotes, detailsAPreciser, ficheComplete, manquesEssentiels, manquesFiche } from "../../lib/agents/sheet";
+import { contenuPourLlm, normaliserSequence } from "../../lib/agents/chat-sequence";
+import { appliquerNotes, changementsDeFiche, detailsAPreciser, ficheComplete, manquesEssentiels, manquesFiche } from "../../lib/agents/sheet";
 import { ficheCourante, enregistrerFiche } from "../../lib/agents/sheet-db";
 import { informationsFormat } from "../../lib/projects/design";
 import { lireConception } from "../../lib/projects/design-db";
@@ -96,13 +97,15 @@ async function postNotes(tx: Tx, run: RunAgent, sortie: unknown) {
   if (run.conversationId == null) return;
   const [conv] = await tx.select().from(agentConversations).where(eq(agentConversations.id, run.conversationId));
   if (!conv) return; // conversation overwritten in the meantime
-  const messages = ((conv.messages as { role: "user" | "assistant"; content: string }[]) ?? []).map((m) => ({ role: m.role, content: m.content }));
+  const messages = ((conv.messages as MessageConversation[]) ?? []).map((m) => ({ role: m.role, content: contenuPourLlm(m) }));
   const utilisateur = messages.filter((m) => m.role === "user").map((m) => m.content);
   const avant = await ficheCourante(tx, conv);
   // The whole conversation (the agent's questions included) bounds the delegations: « je te laisse décider » only counts for the question asked.
   const fiche = appliquerNotes(avant, sortie, utilisateur, messages);
   const complete = await enregistrerFiche(tx, conv, fiche, utilisateur);
-  if (complete && !ficheComplete(avant, utilisateur.slice(0, -1))) {
+  // A settled point the user just changed: the screenwriter says it and asks which direction to keep, before anything is announced.
+  const changements = changementsDeFiche(avant, fiche, sortie, utilisateur);
+  if (complete && changements.length === 0 && !ficheComplete(avant, utilisateur.slice(0, -1))) {
     // The sheet has just become complete: it is the CODE that announces it (summary, assumptions, « étape suivante » button), without an agent
     // turn. If the user carries on, the agent resumes to refine (« complète » note of entreeTour).
     const messagesStockes = [...((conv.messages as unknown[]) ?? []), { role: "assistant", content: messageBriefPret(fiche), at: new Date().toISOString() }];
@@ -111,7 +114,7 @@ async function postNotes(tx: Tx, run: RunAgent, sortie: unknown) {
   }
   await creerRun(tx, {
     skill: "conversation-agent",
-    entree: entreeTour(messages, fiche, { manques: manquesEssentiels(fiche), details: detailsAPreciser(fiche).map((d) => d.libelle), complete }, await formatDuProjet(tx, conv.projectId)),
+    entree: entreeTour(messages, fiche, { manques: manquesEssentiels(fiche), details: detailsAPreciser(fiche).map((d) => d.libelle), complete }, await formatDuProjet(tx, conv.projectId), changements),
     but: "tour",
     projectId: conv.projectId,
     conversationId: conv.id,
@@ -126,13 +129,15 @@ async function formatDuProjet(tx: Tx, projectId: number): Promise<string | undef
 
 const majuscule = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
-async function postTour(tx: Tx, run: RunAgent, sortie: { reponse: string; resteADefinir?: string[]; choix?: unknown }) {
+async function postTour(tx: Tx, run: RunAgent, sortie: { reponse: string; resteADefinir?: string[]; choix?: unknown; sequence?: unknown }) {
   if (run.conversationId == null) return;
   const [conv] = await tx.select().from(agentConversations).where(eq(agentConversations.id, run.conversationId));
   if (!conv) return; // conversation overwritten in the meantime: the turn is lost, without error
   // Choice cards: optional, validated here; an invalid shape is ignored and the message stays text only.
   const choix = normaliserChoix(sortie.choix);
-  const message: MessageConversation = { role: "assistant", content: sortie.reponse, at: new Date().toISOString(), ...(choix ? { choix } : {}) };
+  // The proposed sequence: its own card under the message (lib/agents/chat-sequence.ts); malformed, it is dropped.
+  const sequence = normaliserSequence(sortie.sequence);
+  const message: MessageConversation = { role: "assistant", content: sortie.reponse, at: new Date().toISOString(), ...(choix ? { choix } : {}), ...(sequence ? { sequence } : {}) };
   const messages = [...((conv.messages as unknown[]) ?? []), message];
   const utilisateur = messages
     .filter((m) => (m as { role?: string }).role === "user")

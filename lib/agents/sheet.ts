@@ -29,6 +29,7 @@ export const SECTIONS_PATCHABLES = [
   "langueDialogues",
   "dureeEpisodeSecondes",
   "rythme",
+  "musique",
   "univers",
   "episodes",
   "personnages",
@@ -357,11 +358,16 @@ export function appliquerNotes(fiche: Fiche, sortie: unknown, messagesUtilisateu
   for (const p of delegationsBornees(nommees, themesDe, contexte)) if (verifiees.get(p.cible) !== "fourni") verifiees.set(p.cible, p.statut);
 
   const statuts = { ...fiche.statuts };
+  // The tone or the heart the user had settled moves in this patch: the moments rewritten to follow it are the agent's new version, to be
+  // validated again (project 261: the tone turned joyful, the old melancholic sequence stayed « validée »).
+  const directionChangee = ["genreTon", "arc"].some(
+    (k) => touchees.has(k) && tranche(fiche, k) && !valeurVide(fiche.contenu[k]) && JSON.stringify(fiche.contenu[k]) !== JSON.stringify(contenu[k]),
+  );
   for (const cle of touchees) {
     const prouve = verifiees.get(cle);
     // New moments added without proof (a sequence proposed by the agent, not yet approved) are not the user's: the section goes back to
-    // "déduit" until they validate it. A reworded list of the same length keeps its status.
-    const momentsAjoutes = cle === "moments" && momentsDeFiche(contenu).length > momentsDeFiche(fiche.contenu).length;
+    // "déduit" until they validate it. A reworded list of the same length keeps its status, unless the direction just changed.
+    const momentsAjoutes = cle === "moments" && (directionChangee || momentsDeFiche(contenu).length > momentsDeFiche(fiche.contenu).length);
     if (prouve) statuts[cle] = prouve;
     else statuts[cle] = !momentsAjoutes && (statuts[cle] === "fourni" || statuts[cle] === "delegue") ? statuts[cle]! : "deduit"; // enriching a said section does not make it assumed
   }
@@ -386,6 +392,41 @@ export function appliquerNotes(fiche: Fiche, sortie: unknown, messagesUtilisateu
   }
   const avecDetails = Object.keys(details).length > 0;
   return { contenu: avecDetails ? estampillerDetails(contenu, details) : contenu, statuts, ...(avecDetails ? { details } : {}) };
+}
+
+/** A change of direction (user request 2026-11-18, project 261: the tone moved from melancholic to « joyeux, la mort danse avec toi » and
+ * the moments and the place were never revised; a change request was once taken for a validation). */
+export type ChangementFiche = { cle: string; libelle: string; avant: string; apres: string };
+
+/** Sections whose change carries others with it: what must be revised when they move. */
+export const DEPENDANCES_CHANGEMENT: Record<string, string[]> = {
+  genreTon: ["moments", "musique", "lieux"],
+  lieux: ["moments"],
+  arc: ["moments"],
+  personnages: ["moments"],
+};
+
+const enTexte = (v: unknown): string => (typeof v === "string" ? v : JSON.stringify(v ?? ""));
+
+/** The sections the user had settled (said or delegated) and that THIS message changes: the content differs, and a source of the patch
+ * quotes the last user message on that section. A rewording by the notes model alone (no quote of the new message) is not a change. Pure. */
+export function changementsDeFiche(avant: Fiche, apres: Fiche, sortie: unknown, messagesUtilisateur: string[]): ChangementFiche[] {
+  const dernier = messagesUtilisateur.length ? [normaliser(messagesUtilisateur[messagesUtilisateur.length - 1]!)] : [];
+  if (!dernier.length) return [];
+  const citees = new Set<string>();
+  for (const s of Array.isArray(objet(sortie).sources) ? (objet(sortie).sources as unknown[]) : []) {
+    const { section, origine, citation } = objet(s);
+    if (typeof section === "string" && origine === "dit" && citationVerifiee(citation, dernier)) citees.add(section);
+  }
+  const res: ChangementFiche[] = [];
+  for (const cle of SECTIONS_PATCHABLES) {
+    if (SECTIONS_INFORMATIVES.includes(cle) || cle === "titre") continue;
+    const regle = avant.statuts[cle] === "fourni" || avant.statuts[cle] === "delegue";
+    if (!regle || !citees.has(cle) || valeurVide(avant.contenu[cle]) || enTexte(avant.contenu[cle]) === enTexte(apres.contenu[cle])) continue;
+    const libelle = REQUIS.find((r) => r.cle === cle)?.libelle.replace(/ \(.*\)$/, "") ?? cle;
+    res.push({ cle, libelle, avant: enTexte(avant.contenu[cle]), apres: enTexte(apres.contenu[cle]) });
+  }
+  return res;
 }
 
 /** Copies each detail's status into the brief sub-object it qualifies (`personnages[].tenue.statut`, `lieux[].aspect.statut`,

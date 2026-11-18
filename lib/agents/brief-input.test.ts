@@ -91,7 +91,7 @@ test("tour : les moments manquent, le cœur est connu : le scénariste propose l
   const e = entreeTour(conv, f, { manques, complete: false })[2]!.content;
   assert.match(e, /pas encore dit : les moments du film \(3 sur 12\)/);
   assert.match(e, /Les moments du film manquent \(3 notés ; il en faut au moins 12/);
-  assert.match(e, /propose toi-même la suite complète, en liste numérotée/);
+  assert.match(e, /propose toi-même la suite complète dans le champ « sequence »/);
   assert.match(e, /demande-lui de la valider ou de la changer/);
   const tranche = /Déjà tranché par l'utilisateur, à ne JAMAIS redemander : ([^.]*)\./.exec(e)?.[1] ?? "";
   assert.ok(tranche.includes("le cœur de l'histoire") && !tranche.includes("moments"), "une suite trop courte n'est pas « déjà tranchée »");

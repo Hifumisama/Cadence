@@ -1,4 +1,5 @@
 import { type Portee, type CibleDemandee, PORTEES, type Profondeur, type MessageConversation, type Resultat, type StatutChamp } from "./types";
+import { contenuPourLlm } from "./chat-sequence";
 import { db } from "../../db";
 import { projects, episodes, plans, assets, agentConversations, agentRuns, propositions, briefs } from "../../db/schema";
 import { eq, and, isNull, inArray } from "drizzle-orm";
@@ -192,7 +193,7 @@ export async function envoyerMessage(conversationUuid: string, texte: string, ch
     // agent's turn, with the updated sheet and what is still to ask (worker/agents/postProcessing.ts, postNotes).
     return creerRun(tx, {
       skill: "notes-entretien",
-      entree: entreeNotes(messages.map((m) => ({ role: m.role, content: m.content })), await ficheCourante(tx, conv)),
+      entree: entreeNotes(messages.map((m) => ({ role: m.role, content: contenuPourLlm(m) })), await ficheCourante(tx, conv)),
       but: "tour",
       projectId: conv.projectId,
       conversationId: conv.id,

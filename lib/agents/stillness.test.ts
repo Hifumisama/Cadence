@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import fixture from "./fixtures/stillness-259.json";
 import { controleurPourSkill } from "../llm/checks";
-import { constatsImmobilite, finitAuRepos, nomsPersonnagesDeLEntree, phrasesPartagees, planImmobile, planVide, signesImmobilite } from "./stillness";
+import { constatsImmobilite, finitAuRepos, nomsPersonnagesDeLEntree, phrasesPartagees, planImmobile, planVide, signesImmobilite, gestesRepetes } from "./stillness";
 
 // Project 259 (2026-11-16): a sensual dance that turns into hell. ~50 s out of 100 were a character standing still or an empty set.
 const plans = fixture.plans;
@@ -84,4 +84,17 @@ test("planVide : un personnage est présent par son prénom, par le premier mot 
   assert.equal(planVide("Les deux soldats chargent, boucliers levés.", noms), false);
   assert.equal(planVide("Elle tourne sur elle-même, la tache noire monte sur sa robe.", ["La Danseuse"]), false);
   assert.equal(planVide("La fumée verte retombe sur la scène vide.", ["La Danseuse"]), true);
+});
+
+test("gestesRepetes : un plan qui ne fait que reprendre les gestes du précédent", () => {
+  const plans = [
+    { plan: "P1", description: "Elle ondule des hanches puis tourne sur elle-même au centre de la scène." },
+    { plan: "P2", description: "Elle tournoie encore, se balance d'un pied sur l'autre." },
+    { plan: "P3", description: "Elle bondit vers les bougies et glisse au sol sur un genou." },
+    { plan: "P4", description: "Elle tourne la tête vers la porte." },
+  ];
+  const r = gestesRepetes(plans);
+  assert.deepEqual(r.map((x) => [x.a, x.b]), [["P1", "P2"]]);
+  assert.deepEqual(r[0]!.familles.sort(), ["ondulation", "rotation"]);
+  assert.match(constatsImmobilite(plans.slice(0, 2), ["Lola"]).map((c) => c.message).join("|"), /reprend les gestes de P1/);
 });

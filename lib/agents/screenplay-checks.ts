@@ -1,4 +1,4 @@
-import { ECART_DUREE_TOLERE } from "./conversion";
+import { bornesDuree } from "./conversion";
 import { aUnEtatDeFin, recitDe } from "../clips/intent";
 
 /** Checks the total duration of an episode screenplay (skill `scenario-episode`). The model does not add up reliably
@@ -24,8 +24,7 @@ export function controlerDureeScenario(sortie: SortieScenario, cibleSecondes: nu
   if (!cibleSecondes || cibleSecondes <= 0) return [];
   const { secondes, nbPlans } = dureeTotaleScenario(sortie);
   if (nbPlans === 0) return [];
-  const bas = Math.ceil(cibleSecondes * (1 - ECART_DUREE_TOLERE));
-  const haut = Math.floor(cibleSecondes * (1 + ECART_DUREE_TOLERE));
+  const { bas, haut } = bornesDuree(cibleSecondes);
   if (secondes >= bas && secondes <= haut) return [];
   const moyenne = secondes / nbPlans;
   const consigne =

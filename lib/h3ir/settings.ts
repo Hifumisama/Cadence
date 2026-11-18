@@ -23,9 +23,9 @@ export const LIBELLE_CREATIVITE: Record<Creativite, string> = {
 /** What each level does, in one sentence for the interface. */
 export const AIDE_CREATIVITE: Record<Creativite, string> = {
   restrained: "N'ajoute rien : ni musique, ni paroles, ni texte à l'écran.",
-  balanced: "Ajoute de la musique et soigne le cadrage et l'ambiance.",
+  balanced: "Recommandée. Ajoute de la musique et soigne le cadrage et l'ambiance.",
   bold: "Se permet aussi des paroles, du texte à l'écran et une caméra plus appuyée (sans garantie : sur une scène muette, elle ressemble souvent à « équilibrée »).",
-  extreme: "Pousse chaque choix au maximum : caméra ample et rapide, contrastes durs.",
+  extreme: "Pousse chaque choix au maximum : caméra ample et rapide, contrastes durs. À réserver à une scène ou un plan très fort ou très dense, pas au projet entier.",
 };
 
 /** One of the 7 bundled `director` profiles (directors). */

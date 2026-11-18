@@ -129,6 +129,33 @@ export function phrasesPartagees(plans: { plan: string; description: string }[])
   return paires;
 }
 
+/** Families of movement, to see a plan that only repeats its predecessor's gestures (project 261, 2026-11-17: « on est bloqué sur du
+ * dandinage et de la rotation simple »). A turn of the head is not a rotation: only the body turning counts. */
+const FAMILLES_GESTE: { nom: string; re: RegExp }[] = [
+  { nom: "ondulation", re: mot("ondul\\p{L}*|se\\s+balanc\\p{L}*|balancement|dandin\\p{L}*|se\\s+dandin\\p{L}*|déhanch\\p{L}*|roul\\p{L}*\\s+(?:des|les|ses)\\s+hanches") },
+  { nom: "rotation", re: mot("tourn\\p{L}*\\s+sur\\s+(?:elle|lui|eux|elles)(?:-même)?s?|(?:elle|il|elles|ils)\\s+tournoi\\p{L}*|pivot\\p{L}*|virevolt\\p{L}*|pirouett\\p{L}*|vrille\\p{L}*") },
+  { nom: "saut", re: mot("saut\\p{L}*|bond\\p{L}*|s['’]élanc\\p{L}*|bondit") },
+  { nom: "bras", re: mot("(?:lève|lèvent|lance|lancent|tend|tendent|ouvre|ouvrent|écarte|écartent)\\s+(?:les|ses|leurs)\\s+bras|bras\\s+(?:levés|tendus|ouverts)") },
+  { nom: "sol", re: mot("à\\s+genoux|s['’]agenouill\\p{L}*|genou\\s+à\\s+terre|gliss\\p{L}*\\s+au\\s+sol|roul\\p{L}*\\s+au\\s+sol|s['’]allong\\p{L}*") },
+  { nom: "cambrure", re: mot("cambr\\p{L}*|se\\s+renvers\\p{L}*|se\\s+penche\\s+en\\s+arrière") },
+  { nom: "jambe", re: mot("coup\\s+de\\s+pied|lance\\s+la\\s+jambe|jambe\\s+tendue|fouett\\p{L}*\\s+l['’]air\\s+de\\s+la\\s+jambe|frapp\\p{L}*\\s+du\\s+pied|tap\\p{L}*\\s+du\\s+pied") },
+];
+
+const famillesDe = (description: string): Set<string> => new Set(FAMILLES_GESTE.filter((f) => f.re.test(description)).map((f) => f.nom));
+
+/** Consecutive plans where the second brings no family of movement the first did not already have. Plans without any recognised
+ * gesture are left alone (the list is short: silence is not a verdict). Pure. */
+export function gestesRepetes(plans: { plan: string; description: string }[]): { a: string; b: string; familles: string[] }[] {
+  const res: { a: string; b: string; familles: string[] }[] = [];
+  for (let i = 1; i < plans.length; i++) {
+    const fa = famillesDe(plans[i - 1]!.description);
+    const fb = famillesDe(plans[i]!.description);
+    if (fb.size === 0 || ![...fb].every((f) => fa.has(f))) continue;
+    res.push({ a: plans[i - 1]!.plan, b: plans[i]!.plan, familles: [...fb] });
+  }
+  return res;
+}
+
 const extrait = (t: string, n = 90) => (t.length > n ? `${t.slice(0, n - 1).trimEnd()}…` : t);
 
 /** The French findings, phrased as instructions the model can act on: still plans, empty plans, plans sharing sentences.
@@ -148,6 +175,12 @@ export function constatsImmobilite(plans: { plan: string; description: string }[
         message: `${p.plan} : le personnage reste ${s[0]!.marqueur === "figé" ? "figé" : "immobile"} pendant le plan (« ${extrait(s[0]!.phrase)} »${s.length > 1 ? `, et ${s.length - 1} autre${s.length > 2 ? "s" : ""} phrase${s.length > 2 ? "s" : ""} du même ordre` : ""}) ; à l'écran c'est une image fixe. Donne-lui une action continue (un geste qui dure, un déplacement, une réaction du corps) ou fonds ce temps dans le plan voisin.`,
       });
     }
+  }
+  for (const r of gestesRepetes(plans)) {
+    constats.push({
+      plan: r.b,
+      message: `${r.b} reprend les gestes de ${r.a} (${r.familles.join(", ")}) sans en apporter de nouveau : à l'écran, ça tourne en boucle. Donne à ${r.b} des mouvements que ${r.a} n'a pas (en amplitude, en direction, au sol ou en l'air : un saut, une glissade au sol, un pied frappé, une cambrure, un coup de jambe…).`,
+    });
   }
   for (const d of phrasesPartagees(plans)) {
     constats.push({

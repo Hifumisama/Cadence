@@ -103,3 +103,142 @@
 }
 
 .cn-clap-layout .aff-zoom { width: 100%; }
+/* Fiche de notes : en-tête avec le bouton « Synopsis du film ». */
+.cn-fiche-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.cn-fiche-tete h2 { margin: 0; }
+.cn-clap-synopsis { margin-top: 14px; }
+
+/* Séquence des moments du film (FilmSequence) : cartes numérotées, repère de temps approximatif, vue « Par actes » / « Plans directs ». */
+.fs { display: grid; gap: 10px; min-width: 0; }
+.fs-tete { display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
+.fs-resume { margin: 0; font-size: 12.5px; color: var(--ink-3); }
+.fs-statut.is-fourni, .fs-statut.is-delegue { color: var(--or); }
+.fs-statut.is-deduit { font-style: italic; }
+.fs-bascule { display: inline-flex; border: 1px solid var(--line-strong); }
+.fs-bascule button { appearance: none; font: inherit; font-size: 12.5px; padding: 5px 12px; background: transparent; color: var(--ink-3); border: 0; cursor: pointer; }
+.fs-bascule button + button { border-left: 1px solid var(--line-strong); }
+.fs-bascule button[aria-pressed="true"] { background: var(--surface-3); color: var(--ink); }
+.fs-bascule button:focus-visible { outline: 2px solid var(--or-glow); outline-offset: 1px; }
+.fs-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.fs-liste li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 9px 12px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink-2); }
+.fs-num { font-family: var(--font-mono), monospace; font-size: 12px; color: var(--ink-4); }
+.fs-corps { display: grid; gap: 2px; min-width: 0; }
+.fs-temps { font-family: var(--font-mono), monospace; font-size: 11.5px; color: var(--ink-4); }
+.fs-texte { font-size: 14px; line-height: 1.45; color: var(--ink-2); overflow-wrap: anywhere; }
+.fs-acte { display: grid; gap: 6px; }
+.fs-acte h4 { margin: 4px 0 0; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-4); font-weight: 500; }
+.fs-note, .fs-vide { margin: 0; font-size: 12.5px; color: var(--ink-4); }
+.fs.is-compact { gap: 6px; margin-top: 4px; }
+/* Inside the notes sheet, the `.cn-notes li` / `li span` rules must not reach the sequence: three classes outweigh them. */
+.fs.is-compact .fs-liste li { padding: 6px 8px; gap: 8px; border: 1px solid var(--line); background: var(--surface-2); transition: none; }
+.fs.is-compact .fs-resume span { font-size: inherit; white-space: normal; }
+.fs.is-compact .fs-statut.is-fourni, .fs.is-compact .fs-statut.is-delegue { color: var(--or); }
+.fs.is-compact .fs-statut.is-deduit { color: var(--ink-3); }
+.fs.is-compact .fs-num { font-size: 12px; color: var(--ink-4); white-space: normal; }
+.fs.is-compact .fs-corps { white-space: normal; }
+.fs.is-compact .fs-temps { font-size: 11.5px; color: var(--ink-4); }
+.fs.is-compact .fs-texte { font-size: 13px; color: var(--ink-2); white-space: normal; }
+
+/* Synopsis du film (FilmSynopsis) : une fiche de film en grande fenêtre (maquette 2026-11-18), lisible jusqu'à la largeur d'un téléphone. */
+.fsy-ouvrir { width: 100%; min-height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 10px; border-color: var(--or-soft); color: var(--or-glow); font-weight: 600; }
+dialog.fsy { width: min(1080px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--line-strong); border-radius: 16px; background: #16161c; color: var(--ink-2); overflow: hidden; }
+dialog.fsy[open] { display: flex; flex-direction: column; }
+dialog.fsy::backdrop { background: rgba(8, 8, 11, 0.82); }
+.fsy-tete { display: flex; align-items: flex-start; gap: 24px; padding: 26px 30px 20px; border-bottom: 1px solid var(--line); }
+.fsy-entete { flex: 1 1 auto; min-width: 0; display: grid; gap: 10px; }
+.fsy-sur { margin: 0; font-family: var(--font-mono), monospace; font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-4); }
+dialog.fsy h2 { margin: 0; font-family: var(--font-brand), Georgia, serif; font-size: 34px; line-height: 1.15; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--ink); }
+.fsy-pitch { margin: 0; max-width: 68ch; font-size: 17px; line-height: 1.55; color: var(--ink-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.fsy-etiquettes { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.fsy-etiquettes li { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); }
+.fsy-etiquettes li.is-manque { background: transparent; border: 1px dashed var(--or-soft); color: var(--or-glow); }
+.fsy-fermer { flex: 0 0 auto; width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid var(--line-strong); background: transparent; color: var(--ink-2); cursor: pointer; }
+.fsy-fermer:hover { color: var(--ink); border-color: var(--ink-4); }
+.fsy-fermer:focus-visible { outline: 2px solid var(--or-glow); outline-offset: 2px; }
+.fsy-corps { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); }
+.fsy-colonne { padding: 20px 28px 26px; display: grid; gap: 4px; align-content: start; min-width: 0; }
+.fsy-sequence { border-right: 1px solid var(--line); gap: 12px; }
+.fsy-sequence h3, .fsy-bloc h3 { margin: 0 0 10px; font-size: 15px; font-weight: 600; color: var(--ink); letter-spacing: 0; text-transform: none; }
+.fsy-sequence h3 { margin: 0; }
+.fsy-bloc { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.fsy-bloc:first-child { padding-top: 0; }
+.fsy-bloc:last-child { border-bottom: 0; }
+.fsy-texte { margin: 0; font-size: 14px; line-height: 1.55; color: var(--ink-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.fsy-discret { margin: 0; font-size: 13px; color: var(--ink-3); }
+.fsy-entrees { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.fsy-entrees li { display: grid; gap: 2px; font-size: 14px; line-height: 1.45; }
+.fsy-entrees b { font-weight: 600; color: var(--ink); }
+.fsy-entrees span { color: var(--ink-3); overflow-wrap: anywhere; }
+.fsy-extra { font-size: 13px; color: var(--ink-4); }
+/* La séquence dans le Synopsis : une liste légère, par actes (libellé et plage de temps à gauche, moments à droite). */
+.fsy .fs-liste { gap: 8px; }
+.fsy .fs-liste li { padding: 0; border: 0; background: none; gap: 10px; }
+.fsy .fs-acte { grid-template-columns: 92px minmax(0, 1fr); gap: 14px; padding: 4px 0; }
+.fsy .fs-acte h4 { margin: 2px 0 0; display: grid; gap: 2px; color: var(--ink-2); font-size: 12px; }
+.fsy .fs-acte h4 small { font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--ink-4); font-variant-numeric: tabular-nums; }
+.fsy .fs-acte .fs-liste { border-left: 2px solid var(--line-strong); padding-left: 14px; }
+.fsy .fs-acte .fs-temps { display: none; }
+.fsy .fs-texte { color: var(--ink); }
+.fsy-reste { margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.6; color: var(--ink-2); }
+
+@media (max-width: 760px) {
+  dialog.fsy { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); }
+  .fsy-tete { padding: 16px 16px 14px; gap: 12px; }
+  dialog.fsy h2 { font-size: 24px; }
+  .fsy-pitch { font-size: 15px; }
+  .fsy-corps { grid-template-columns: 1fr; }
+  .fsy-sequence { border-right: 0; border-bottom: 1px solid var(--line); }
+  .fsy-colonne { padding: 16px; }
+}
+
+/* Rail de l'entretien (maquette 2026-11-18) : le Synopsis, la jauge de l'essentiel, ce qui reste à creuser. Le détail est dans le Synopsis. */
+.cn-entretien { grid-template-columns: minmax(0, 1fr) 300px; }
+.cn-rail { position: sticky; top: 72px; display: grid; gap: 22px; padding: 20px 18px; border-left: 1px solid var(--line); background: rgba(22, 22, 28, 0.92); }
+.cn-rail-bloc { display: grid; gap: 10px; }
+.cn-rail-titre { margin: 0; font-size: 13px; color: var(--ink-3); }
+.cn-rail-ligne { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }
+.cn-jauge { height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+.cn-jauge span { display: block; height: 100%; background: var(--or); transition: width 0.5s var(--cn-ease); }
+.cn-pastilles { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.cn-pastilles li { font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px dashed var(--or-soft); color: var(--or-glow); }
+.cn-pastilles li.is-fait { border: 0; background: var(--surface-2); color: var(--ink-2); }
+.cn-rail-reste { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.cn-rail-reste li { padding: 10px 12px; border-radius: 8px; background: var(--surface); font-size: 14px; line-height: 1.45; color: var(--ink-2); overflow-wrap: anywhere; }
+.cn-rail .cn-pret, .cn-rail .cn-fiche-pied { margin: 0; }
+@media (max-width: 900px) {
+  .cn-entretien { grid-template-columns: 1fr; }
+  .cn-rail { position: static; border-left: 0; border-top: 1px solid var(--line); }
+}
+
+/* Séquence proposée dans le chat (ChatSequence) : une carte sous le message du scénariste. */
+.cs { flex: 0 0 auto; align-self: stretch; max-width: 720px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--surface); overflow: hidden; animation: cn-entre 0.45s var(--cn-ease) both; }
+.cs.is-validee, .cs.is-remplacee { border-color: var(--line); }
+.cs-tete { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.cs-tete.is-bouton { width: 100%; min-height: 52px; appearance: none; border: 0; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.cs-tete.is-bouton:focus-visible { outline: 2px solid var(--or-glow); outline-offset: -2px; }
+.cs-tete b { font-size: 14px; font-weight: 600; color: var(--ink); }
+.cs.is-remplacee .cs-tete b { color: var(--ink-3); font-weight: 500; }
+.cs-coche { color: var(--or); flex: 0 0 auto; }
+.cs-meta { font-size: 12px; color: var(--ink-3); }
+.cs-espace { flex: 1 1 auto; }
+.cs-pastille { font-size: 12px; color: var(--or); border: 1px solid var(--or-soft); border-radius: 999px; padding: 2px 10px; }
+.cs-barre { display: flex; gap: 2px; height: 6px; }
+.cs-barre span { flex: 1 1 0; background: var(--line-strong); }
+.cs-barre span.is-fort { background: var(--or); }
+.cs-liste { list-style: none; margin: 0; padding: 6px 0; }
+.cs-liste li { display: grid; grid-template-columns: 28px 76px minmax(0, 1fr); gap: 10px; align-items: baseline; padding: 8px 16px; }
+.cs-num, .cs-temps { font-size: 12.5px; color: var(--ink-4); font-variant-numeric: tabular-nums; }
+.cs-texte { font-size: 14px; line-height: 1.5; color: var(--ink); overflow-wrap: anywhere; }
+.cs-liste li.is-fort .cs-texte { color: var(--or-glow); }
+.cs-fort-label { font-size: 12px; color: var(--or); }
+.cs-pied { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); }
+.cs-note { margin-left: auto; }
+.cs-pied .cs-valider { background: var(--or); border-color: var(--or); color: #121217; font-weight: 600; }
+.cs-pied .cs-valider:hover:not(:disabled) { background: var(--or-glow); border-color: var(--or-glow); }
+.cs-pied .cs-valider:disabled { opacity: 0.5; }
+@media (max-width: 600px) {
+  .cs-liste li { grid-template-columns: 24px minmax(0, 1fr); }
+  .cs-temps { grid-column: 2; grid-row: 2; }
+  .cs-pied .btn { flex: 1 1 100%; min-height: 44px; }
+  .cs-note { margin-left: 0; }
+}

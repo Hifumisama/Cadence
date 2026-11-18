@@ -93,7 +93,7 @@ const CLES_LIGNES: CleSectionBrief[] = ["moments", "inventions", "questionsOuver
 
 export function typeEdition(cle: string): TypeEdition {
   if (cle === "style") return "style"; // name + clause: two fields, not raw JSON
-  if (cle === "notes" || cle === "univers") return "libre"; // free text, may be empty
+  if (cle === "notes" || cle === "univers" || cle === "musique") return "libre"; // free text, may be empty
   if ((CLES_NOMBRE as string[]).includes(cle)) return "nombre";
   if ((CLES_TEXTE as string[]).includes(cle)) return "texte";
   if ((CLES_LIGNES as string[]).includes(cle)) return "lignes";

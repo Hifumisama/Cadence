@@ -138,14 +138,22 @@ export type EpisodeCourant = {
 
 const norme = (s: string) => s.trim().toLowerCase();
 
-/** Tolerated gap between the screenplay's total duration and the brief's target duration before warning. */
-export const ECART_DUREE_TOLERE = 0.2;
+/** The brief's duration is a FLOOR (user decision 2026-11-17: « 2 minutes » means at least 120 s; project 261 gave 94 s): nothing under it,
+ * up to +20 % above it. */
+export const ECART_DUREE_PLAFOND = 0.2;
 
-/** "Total duration" warning: a whole episode's screenplay deviates from the brief's target duration. Pure. */
+/** The accepted total for a target duration: from the target itself to +20 %. Pure. */
+export const bornesDuree = (cibleSecondes: number): { bas: number; haut: number } => ({
+  bas: Math.ceil(cibleSecondes),
+  haut: Math.floor(cibleSecondes * (1 + ECART_DUREE_PLAFOND)),
+});
+
+/** "Total duration" warning: a whole episode's screenplay is shorter than the brief's target, or more than 20 % longer. Pure. */
 export function avertissementDuree(totalSecondes: number, cibleSecondes: number | null | undefined): Avertissement | null {
   if (!cibleSecondes || cibleSecondes <= 0 || totalSecondes <= 0) return null;
   const ecart = (totalSecondes - cibleSecondes) / cibleSecondes;
-  if (Math.abs(ecart) <= ECART_DUREE_TOLERE) return null;
+  const { bas, haut } = bornesDuree(cibleSecondes);
+  if (totalSecondes >= bas && totalSecondes <= haut) return null;
   const pct = Math.round(Math.abs(ecart) * 100);
   return {
     type: "info",

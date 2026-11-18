@@ -109,6 +109,10 @@
           ],
           "description": "General cadence of the episode: lent (contemplative, long plans), mesure, soutenu, rapide (lively montage, dense cuts) or variable (alternates by scene). It sets plan duration and cut density downstream."
         },
+        "musique": {
+          "type": "string",
+          "description": "(English) The film's score, the same on every clip: named instruments, tempo (BPM or a precise word), meter if it matters, and character, in one or two sentences derived from the tone (a joyful tone gives a joyful score). Concrete, never mood words alone (« melancholic and emotional » tells the model nothing it can play). Never a start, an end, a fade or a pause: the code adds that. Music heard by the characters (a band in the scene) is not here."
+        },
         "univers": {
           "type": "string",
           "description": "(French) If the project takes up a pre-existing work or universe: which, and how to respect it (names, appearances, rules). Absent for an original project."
@@ -388,6 +392,7 @@
               "langueDialogues",
               "dureeEpisodeSecondes",
               "rythme",
+              "musique",
               "univers",
               "episodes",
               "personnages",

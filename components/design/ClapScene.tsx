@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { lancerCreationProjet } from "@/app/creation/actions";
 import { modifierNomProjet } from "@/app/projects/actions";
-import type { NoteAffichee } from "@/lib/agents/sheet-display";
+import type { NoteAffichee, SynopsisFilm } from "@/lib/agents/sheet-display";
+import { FilmSynopsis } from "./FilmSynopsis";
 import { plansEstimes, valeursParDefaut, type Conception } from "@/lib/projects/design";
 import { minutesSecondes } from "@/lib/projects/design-ui";
 import { urlMiniature } from "@/lib/thumbnails";
@@ -76,6 +77,7 @@ export function ClapScene({
   conception,
   style,
   notes,
+  synopsis = null,
   pret,
   affiche,
   reessayer,
@@ -92,6 +94,8 @@ export function ClapScene({
   /** The usual duration of a preparation (the last finished ones): said under the launch button. */
   estimation?: { nb: number; bas: number; median: number; haut: number } | null;
   notes: NoteAffichee[];
+  /** The whole sheet, for the « Synopsis du film » popup (sequence of moments included). */
+  synopsis?: SynopsisFilm | null;
   /** The interview has what it takes to launch the preparation (the screenwriter has the essentials, or the user has spoken). */
   pret: boolean;
   affiche?: AfficheEtat | null;
@@ -173,6 +177,7 @@ export function ClapScene({
               {extras.map((n) => <Cellule key={n.cle} cle={n.libelle} valeur={n.texte} large />)}
             </dl>
           </div>
+          {synopsis ? <div className="cn-clap-synopsis"><FilmSynopsis synopsis={synopsis} /></div> : null}
           <div className="cn-lancer">
             <button type="button" className="btn btn-gold cn-clap" disabled={!pret || envoi || afficheAttendue} onClick={() => void lancer()}>{envoi ? "Lancement…" : afficheAttendue ? "L’affiche se tourne…" : "Action ! Lancer la préparation"}</button>
             {estimation ? (

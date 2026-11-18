@@ -37,7 +37,19 @@ Nettoyage fait (sauvegardes du NAS supprimées, script retiré du dépôt). Rest
     - **Le skill `notes-entretien`** : règles 13 et 14.
     - **Limite :** les cheveux, la voix et la gestuelle n'ont pas de statut par champ et ne sont donc pas encore signalés.
   - **Reste :**
-    - phase 5 : scénariste, scénario et durée plancher, via le banc avec réflexion. En cours, non commitée :
+    - phase 5 : scénariste, scénario et durée plancher, via le banc avec réflexion. Les points 5.1 et 5.3 sont commités (45ff79b). Faits ensuite (2026-11-17 et 18, non commités, à juger en T16 et T17) :
+      - **Bancs jugés.** T12 : le film 261 rejoué est « mieux ». T13 : la créativité « extreme » donne la caméra cache-misère ; « Équilibrée » devient « Recommandée », extreme est réservé à une scène forte. T14 : une seule description de musique sur des plans liés donne un seul morceau continu, grâce au latent. T15 : on ne fixe pas le nombre de prises, il se règle selon l'intensité.
+      - **Musique du film :** section `musique` du brief (entretien), posée par le code sur la `non_diegetic_music` de chaque plan compilé (`lib/h3ir/music.ts`). Elle n'a ni début ni fin et reste sous les bruitages ; « Sobre », sans musique, est respecté.
+      - **Scénario :** règles de mouvement du banc C, variété des gestes d'un plan à l'autre (avec un contrôle par le code, `gestesRepetes`), coupe quand l'action change, temps fort en un seul plan rapide, aucun événement hors des moments, film qui finit sur le dernier moment (aussi dans la relecture).
+      - **Durée plancher :** de la cible à +20 % (`bornesDuree`), dans le contrôle du scénario, l'ajustement des scènes et la relecture.
+      - **Scénariste :**
+        - il repère un changement de direction (`changementsDeFiche`), le dit et demande quoi garder ;
+        - un changement de ton ou de cœur remet la séquence à valider ;
+        - un sujet par message, avec ses questions groupées et numérotées ;
+        - il demande comment montrer le temps fort et propose figurants ou public ;
+        - un élément de décor reste dans le lieu.
+      - **Interface de l'entretien :** fiche de notes remise dans un ordre lisible, carte de la séquence (« Par actes » en trois tiers indicatifs, ou « Plans directs »), popup « Synopsis du film ».
+      - **Plus tard :** le scénario pourrait donner une densité de découpage par plan ; le composant de séquence n'apparaît pas encore dans le chat.
       - **5.1, banc mouvement** (`essais/mouvement/`), 4 versions de la bascule du 259 jugées à l'aveugle. Classement de l'utilisateur : règles + réflexion > calibré > actuel > règles sans réflexion. « Même C bouge peu » : la fiche disait « statique ». Rendu de C dans la scène « Banc · bascule · C » du 259, à juger (T10).
       - **Détecteur corrigé :** les pronoms ne comptaient jamais, et il fallait le nom complet (« Tifa » pour « Tifa Lockhart »).
       - **5.3, scénariste qui creuse :** section `moments` (1 pour 10 s, validés ou délégués par l'utilisateur, plafond de 20 messages), proposée par le scénariste, transmise au traitement puis aux scènes ; plus de « statique » comme qualité d'un personnage. À tester en rejouant l'entretien (T9).

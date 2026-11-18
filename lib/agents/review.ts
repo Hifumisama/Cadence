@@ -2,7 +2,7 @@ import { differenceMots } from "../clips/diff-words";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../clips/clip-checks";
 import { estLiaison } from "../clips/clip-link";
 import type { ChangementBrut } from "./changes";
-import { ECART_DUREE_TOLERE } from "./conversion";
+import { bornesDuree } from "./conversion";
 import { validerOperations } from "./view-operations/operations";
 import { operationsVersChangements } from "./view-operations/operations-to-changes";
 import type { Operation, OperationBrute } from "./view-operations/types";
@@ -180,9 +180,9 @@ export function problemesDeRelecture(sortie: SortieRelecture, entree: EntreeRele
       else if (c.type === "duree_plan" && c.plan && Number.isInteger(c.secondes)) apresTotal += c.secondes! - (duree.get(c.plan) ?? c.secondes!);
       else if (c.type === "ajouter_plan" && Number.isInteger(c.secondes)) apresTotal += c.secondes!;
     }
-    const bas = Math.ceil(cible * (1 - ECART_DUREE_TOLERE));
-    const haut = Math.floor(cible * (1 + ECART_DUREE_TOLERE));
-    if (avantTotal >= bas && avantTotal <= haut && (apresTotal < bas || apresTotal > haut)) {
+    const { bas, haut } = bornesDuree(cible);
+    // Never below the floor because of the review; and a review that brings a short episode closer to it is welcome.
+    if ((avantTotal >= bas && avantTotal <= haut && (apresTotal < bas || apresTotal > haut)) || (avantTotal < bas && apresTotal < avantTotal)) {
       dit(-1, `Tes corrections font passer l'épisode de ${avantTotal} s à ${apresTotal} s, hors de ${bas}–${haut} s visées au brief. Compense (durée d'un plan voisin) ou renonce à une suppression/un ajout.`);
     }
   }

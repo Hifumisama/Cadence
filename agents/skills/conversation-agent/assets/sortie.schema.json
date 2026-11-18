@@ -29,6 +29,31 @@
     },
     "choix": {
       "description": "(French labels) Optional, usually omitted. Clickable answer cards shown under your reponse: { \"question\": optional short question, \"multiple\": false (true only for a list of characters, places or taboos), \"options\": 2 to 4 items, each { \"libelle\": short label, \"description\": optional short line }, one of them labelled \"Je te laisse décider\" }. See the skill for when to offer them."
+    },
+    "sequence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "moments"
+      ],
+      "properties": {
+        "moments": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 40,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "(French) The film's moments in order, the WHOLE list, one short sentence each (who does what, where, with a visible action), without numbers: the application numbers them."
+        },
+        "tempsFort": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based rank of the strong moment (the transformation, the burst, the reveal), highlighted on the card. Omit if there is none yet."
+        }
+      },
+      "description": "Optional, usually omitted. The sequence you propose or show again, displayed as a card under your reponse with a « Valider la séquence » button. Whenever you propose or revise the sequence, it goes HERE, never as a list in reponse. See the skill."
     }
   }
 }

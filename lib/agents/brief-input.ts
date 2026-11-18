@@ -2,7 +2,7 @@
  * the agent reads it to dig into what is missing; the user's brief comes out of it, without a writing call. Pure (used by the
  * service and by the worker). */
 
-import { REQUIS, fichePourAgent, libelleDetail, momentsDeFiche, momentsRequis, momentsTranches, premierMessageGrosBloc, suppositions, type Fiche } from "./sheet";
+import { DEPENDANCES_CHANGEMENT, REQUIS, fichePourAgent, libelleDetail, momentsDeFiche, momentsRequis, momentsTranches, premierMessageGrosBloc, suppositions, type ChangementFiche, type Fiche } from "./sheet";
 import { SECTIONS_BRIEF } from "./types";
 
 export type MessageLlm = { role: "user" | "assistant"; content: string };
@@ -25,11 +25,12 @@ export type RappelFiche = { manques: string[]; details?: string[]; complete: boo
 /** Messages of one `conversation-agent` turn: the conversation, with the code's notes attached to the LAST user message (the sheet
  * as it stands after this message, what is still to ask). The stored conversation is never modified:
  * these are only call contexts. The gaps are a REMINDER, not a questionnaire: the agent leads freely. */
-export function entreeTour(messages: MessageLlm[], fiche: Fiche, rappel: RappelFiche, format?: string): MessageLlm[] {
+export function entreeTour(messages: MessageLlm[], fiche: Fiche, rappel: RappelFiche, format?: string, changements: ChangementFiche[] = []): MessageLlm[] {
   const tous = messagesPourLlm(messages);
   const dernier = tous[tous.length - 1];
   if (!dernier || dernier.role !== "user") return tous;
   let contenu = `${dernier.content}\n\n${MARQUE_FICHE} (tenue par l'application d'après la conversation : ce que tu sais déjà)]\n${brouillonEnTexte(fichePourAgent(fiche))}`;
+  if (changements.length) contenu += `\n\n${noteChangements(changements)}`;
   // The moments are settled only when there are enough of them: a validated but too short sequence is still to dig into.
   const tranches = REQUIS.filter((r) => (r.cle === "moments" ? momentsTranches(fiche) : fiche.statuts[r.cle] === "fourni" || fiche.statuts[r.cle] === "delegue")).map((r) => r.libelle.replace(/ \(.*\)$/, ""));
   const dejaDit = tranches.length ? ` Déjà tranché par l'utilisateur, à ne JAMAIS redemander : ${tranches.join(" ; ")}.` : "";
@@ -44,7 +45,7 @@ export function entreeTour(messages: MessageLlm[], fiche: Fiche, rappel: RappelF
   const utilisateur = messages.filter((m) => m.role === "user").map((m) => m.content);
   const premierBloc =
     utilisateur.length === 1 && premierMessageGrosBloc(utilisateur)
-      ? " Son premier message est un gros bloc : réagis à un détail, résume en UNE phrase ce qui est acquis, puis pose UNE seule question ciblée."
+      ? " Son premier message est un gros bloc : réagis à un détail, résume en UNE phrase ce qui est acquis, puis pose les questions d'UN seul sujet, regroupées et numérotées."
       : "";
   const details = rappel.details ?? [];
   // The film's moments (2026-11-17): once the heart is known, the screenwriter proposes the missing sequence itself and has it validated.
@@ -54,7 +55,7 @@ export function entreeTour(messages: MessageLlm[], fiche: Fiche, rappel: RappelF
   const notes = momentsDeFiche(fiche.contenu).length;
   const consigneMoments =
     momentsManquent && coeurConnu
-      ? ` Les moments du film manquent (${notes} noté${notes > 1 ? "s" : ""}${vises ? ` ; il en faut au moins ${vises} pour la durée, un moment distinct toutes les dix secondes environ` : ""}) : la durée est un plancher, il faut assez de matière pour la remplir. Si le reste de son message le permet, propose toi-même la suite complète, en liste numérotée, une ligne par moment (qui fait quoi, où, avec une action visible ; jamais une pose : une transformation arrive PENDANT que le personnage agit), en gardant à leur place ceux qu'il a déjà dits, puis demande-lui de la valider ou de la changer, et creuse ensuite les parties minces. Jamais « statique », « immobile » ou « figé » comme qualité d'un personnage.`
+      ? ` Les moments du film manquent (${notes} noté${notes > 1 ? "s" : ""}${vises ? ` ; il en faut au moins ${vises} pour la durée, un moment distinct toutes les dix secondes environ` : ""}) : la durée est un plancher, il faut assez de matière pour la remplir. Si le reste de son message le permet, propose toi-même la suite complète dans le champ « sequence » (jamais en liste dans ta réponse), une phrase par moment (qui fait quoi, où, avec une action visible ; jamais une pose : une transformation arrive PENDANT que le personnage agit), en gardant à leur place ceux qu'il a déjà dits, puis demande-lui de la valider ou de la changer, et creuse ensuite les parties minces. Jamais « statique », « immobile » ou « figé » comme qualité d'un personnage.`
       : "";
   if (rappel.complete) {
     const supposees = suppositions(fiche).map((k) => libelleSupposition(fiche, k));
@@ -64,7 +65,7 @@ export function entreeTour(messages: MessageLlm[], fiche: Fiche, rappel: RappelF
   } else if (rappel.manques.length > 0) {
     contenu += `
 
-[État de l'entretien : l'utilisateur n'a pas encore dit : ${rappel.manques.join(" ; ")}. Ce n'est pas un programme : réagis d'abord à ce qu'il vient de dire, puis choisis dans cette liste, dans l'ordre que tu veux, l'angle qui se raccroche le mieux à son message (ou propose-lui toi-même si c'est ce qu'il demande ou s'il te laisse décider : alors ne repose pas la question). Une seule question de fond par message ; les points pratiques se regroupent.${consigneMoments}${premierBloc}${dejaDit}${dejaPropose} Avant de questionner, relis la conversation : ce qu'il a déjà dit (même au passage, même dans un message plus haut) ou ce que tu as déjà demandé ne se redemande pas.${formatDit} ${interdit}]`;
+[État de l'entretien : l'utilisateur n'a pas encore dit : ${rappel.manques.join(" ; ")}. Ce n'est pas un programme : réagis d'abord à ce qu'il vient de dire, puis choisis dans cette liste, dans l'ordre que tu veux, l'angle qui se raccroche le mieux à son message (ou propose-lui toi-même si c'est ce qu'il demande ou s'il te laisse décider : alors ne repose pas la question). Un seul sujet par message, ses questions regroupées et numérotées (trois au plus) pour qu'il puisse y répondre d'un coup ; les points pratiques se regroupent aussi.${consigneMoments}${premierBloc}${dejaDit}${dejaPropose} Avant de questionner, relis la conversation : ce qu'il a déjà dit (même au passage, même dans un message plus haut) ou ce que tu as déjà demandé ne se redemande pas.${formatDit} ${interdit}]`;
   } else if (details.length > 0) {
     contenu += `
 
@@ -75,6 +76,16 @@ export function entreeTour(messages: MessageLlm[], fiche: Fiche, rappel: RappelF
 [État de l'entretien : tout ce qui se demande est noté, mais l'entretien est encore jeune. Réagis à ce qu'il vient de dire et creuse un point mince ou supposé avec une question de fond (un moment clé, ce qu'on doit ressentir), une seule.${premierBloc}${dejaDit}${formatDit} ${interdit}]`;
   }
   return [...tous.slice(0, -1), { role: "user", content: contenu }];
+}
+
+const court = (t: string, n = 160) => (t.length > n ? `${t.slice(0, n - 1).trimEnd()}…` : t);
+
+/** The note that makes the screenwriter SAY a change and ask which direction to keep, then name what follows from it. Pure. */
+export function noteChangements(changements: ChangementFiche[]): string {
+  const lignes = changements.map((c) => `${libelleSection(c.cle)} (avant : « ${court(c.avant)} » ; maintenant : « ${court(c.apres)} »)`);
+  const dependantes = [...new Set(changements.flatMap((c) => DEPENDANCES_CHANGEMENT[c.cle] ?? []))].filter((k) => !changements.some((c) => c.cle === k));
+  const libelles = dependantes.map((k) => libelleSection(k).toLowerCase());
+  return `[Changement de direction : son dernier message modifie ce qui était tranché : ${lignes.join(" ; ")}. Dis-le clairement (« avant on avait…, tu proposes maintenant… »). S'il n'a pas dit lui-même qu'il remplace l'ancienne version, demande-lui laquelle garder, ou ce qu'il prend de chacune ; une demande de changement n'est jamais une validation.${libelles.length ? ` Si le changement est confirmé, dis ce qu'il faut revoir en conséquence (${libelles.join(", ")}) et propose la version revue.` : ""} C'est la priorité de ce tour, avant toute autre question.]`;
 }
 
 const resume = (v: unknown): string => {

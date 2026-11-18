@@ -17,13 +17,13 @@ test("durée : un total double de la cible est une erreur chiffrée", () => {
   const e = controlerDureeScenario(scenes(12, 12, 12, 12, 12, 12, 12, 12, 12, 12), 60);
   assert.equal(e.length, 1);
   assert.match(e[0]!, /10 plans font 120 s/);
-  assert.match(e[0]!, /entre 48 et 72 s/);
+  assert.match(e[0]!, /entre 60 et 72 s/);
   assert.match(e[0]!, /Trop long/);
 });
 
 test("durée : trop court", () => {
   const e = controlerDureeScenario(scenes(10, 10), 60);
-  assert.match(e[0]!, /Trop court de 28 s/);
+  assert.match(e[0]!, /Trop court de 40 s/);
 });
 
 test("durée : pas de cible ou pas de plan, rien à contrôler", () => {
