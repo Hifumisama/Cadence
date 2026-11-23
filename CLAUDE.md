@@ -12,7 +12,7 @@ uniquement (statuts, validation).
 - `agents/skills/` : prompts d'exécution des agents de l'application (format Agent Skills).
   Ce ne sont PAS des skills de développement.
 - `workflows/` : graphes ComfyUI (format API). `deploy/gpu/` : image Docker GPU (RunPod).
-- Pas de dossier `docs/` pour l'instant : l'ancienne documentation est dans l'historique git (`git log -- docs/`), sa recréation est prévue plus tard. Les renvois à `docs/…` ou « FRICTIONS » dans les commentaires sont des repères historiques.
+- Pas de documentation métier dans `docs/` pour l'instant, à part `docs/agents/` (config des skills d'ingénierie) : l'ancienne documentation est dans l'historique git (`git log -- docs/`), sa recréation est prévue plus tard. Les renvois à `docs/…` ou « FRICTIONS » dans les commentaires sont des repères historiques.
 
 - `BACKLOG.md` : ce qui est décidé, en attente ou refusé (à tenir à jour à chaque point d'étape).
 
@@ -63,6 +63,28 @@ Cible : commentaires, noms de variables/fonctions et noms de dossiers/fichiers e
 textes de l'interface en français. Les tables, colonnes et URL **restent en français** (pas de
 migration de renommage : risque élevé, gain faible). Migration du code à faire en dernier, avec la
 réorganisation de `lib/` ; d'ici là, suivre la langue du fichier édité.
+
+## Agent skills
+
+### Issue tracker
+
+Tickets en markdown local sous `.scratch/<chantier>/` (`BACKLOG.md` reste la vue d'ensemble). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Les cinq rôles par défaut, en ligne `Status:` dans chaque ticket. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context : `GLOSSARY.md` + `docs/adr/` à la racine, créés au fil de l'eau. See `docs/agents/domain.md`.
+
+### Grilling
+
+Ne poser que les questions où un autre choix serait défendable, ou dont l'erreur coûterait cher
+à défaire. Une décision évidente (elle découle du code, d'une règle ci-dessus ou d'une réponse
+déjà donnée, et se rattrape facilement) ne fait pas l'objet d'une question : la ranger dans un
+bloc « Décidé par défaut » en fin de tour, une ligne par décision, que l'utilisateur peut
+contester d'un mot.
 
 <!-- BEGIN:nextjs-agent-rules -->
 
