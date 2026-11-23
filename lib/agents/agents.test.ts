@@ -252,7 +252,7 @@ test("prompt-affiche : une modification de l'asset d'affiche, avec la ligne de t
   assert.match(apres.promptGeneration, /Title lettering: "Rubis"/);
   assert.doesNotMatch(apres.promptGeneration, /No text, no lettering/);
   assert.equal(apres.methodeGeneration, "edition");
-  assert.ok(avecTitre!.avertissements!.some((a) => /canevas vide 2:3/.test(a.texte)));
+  assert.ok(avecTitre!.avertissements!.some((a) => /format 2:3/.test(a.texte)));
   // no character image at request time: never an edit, even when recommended
   const [sansImage] = depuisPromptAffiche(sortie, { id: 7, promptGeneration: "A.", methodeGeneration: "generation" }, { titre: "Rubis", imagePersonnageDisponible: false });
   const a2 = sansImage!.apres as { promptGeneration: string; methodeGeneration?: string };

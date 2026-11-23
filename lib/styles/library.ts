@@ -6,7 +6,7 @@ export * from "./filters";
 
 /** Style library offered when creating a project. Source: `bibliotheque.json` (versioned, it is the file
  * to sort by hand: removing an entry is enough to remove it from the application). Each style has a long prompt (the
- * descriptor, in English, which goes to Krea 2). Its presentation images are the common scenes of `subjects.ts`
+ * descriptor, in English, which goes to the image model). Its presentation images are the common scenes of `subjects.ts`
  * rendered in this style. The short clause for video (H3) is an optional field: as long as an entry has none,
  * the application cannot offer it as a ready-to-use style (see `styleUtilisable`). */
 

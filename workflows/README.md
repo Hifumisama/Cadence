@@ -5,7 +5,7 @@ directement par le backend de Cadence — pas de la documentation, une
 dépendance d'exécution.
 
 - `video-generation/` — génération H3, 1er pass + upscale (F04)
-- `image-refs/` — Krea 2 (masters) + Qwen Image Edit (dérivés) (F01)
+- `image-refs/` — MiniMax H3 Image : génération (masters) et édition (dérivés) (F01)
 
 ## Avant de committer un workflow
 
@@ -22,17 +22,20 @@ Ce que le backend devra injecter dans chaque graphe (format API). Les valeurs
 présentes dans les fichiers (prompts d'exemple, seeds) sont des **valeurs de
 test**, toujours remplacées à la soumission.
 
-### `IMG_01_TextToImage.json` — génération (Krea 2 Turbo)
+### `IMG_01_TextToImage.json` — génération (MiniMax H3 Image)
 
 | Donnée | Nœud | Champ | Note |
 |---|---|---|---|
-| Prompt de l'asset | `59` (PrimitiveStringMultiline) | `value` | le sujet seulement, sans style |
-| Clause de style | `60` (PrimitiveStringMultiline) | `value` | `projects.clauseStyle`, concaténée au prompt dans le graphe (`30:58`) |
-| Format | `49` (ResolutionSelector) | `aspect_ratio`, `megapixels` | 16:9 par défaut pour un décor et une fiche personnage (meilleurs résultats, recette 2026-10-05) ; 1:1 pour un effet ou un détail |
-| Seed | `30:3` (KSampler) | `seed` | |
-| Sortie | `29` (SaveImage) | `filename_prefix` | |
+| Prompt de l'asset | `41` (PrimitiveStringMultiline) | `value` | le sujet seulement, sans style |
+| Clause de style | `42` (PrimitiveStringMultiline) | `value` | `projects.clauseStyle`, concaténée après le sujet dans le graphe (`43`, séparateur espace) |
+| Format | `14` (ResolutionSelector) | `aspect_ratio` | 16:9 par défaut pour un décor et une fiche personnage ; 1:1 pour un effet ou un détail ; 2:3 pour une affiche. `megapixels` reste à **16** dans le fichier : en dessous, l'image n'est pas propre (essais de l'utilisateur, 2026-11-23) |
+| Taille enregistrée | `44` (ResizeImageMaskNode, « scale total pixels », `area`) | `resize_type.megapixels` | `asset_generations.megapixels` (1 à 1,3 selon le type) : le dessin à 16 MP est réduit avant `SaveImage` |
+| Seed | `23:7` (KSampler) | `seed` | |
+| Sortie | `9` (SaveImage) | `filename_prefix` | |
 
-8 étapes, CFG 1, `euler` / `simple`, négatif remis à zéro (`ConditioningZeroOut`).
+6 étapes, CFG 1, `euler` / `simple`, négatif remis à zéro (`ConditioningZeroOut`). Environ une minute par image sur la 5070 Ti.
+Le gabarit officiel a un « prompt enhancer » (LLM qui réécrit le prompt) : retiré, lent et inutile, le prompt vient de l'agent ;
+ses consignes ont nourri `agents/skills/prompt-asset/references/guide-h3-image-*.md`.
 
 Branché côté worker : `worker/comfyui/imageMapping.ts` (injection) et
 `worker/images.ts` (tâche). `imageMapping.test.ts` lit ce fichier et casse si un
@@ -40,37 +43,28 @@ des nœuds ci-dessus disparaît après un ré-export. Formats acceptés par
 `ResolutionSelector` : 1:1, 2:3, 3:2, 3:4, 4:3, 9:16, 16:9, 21:9 (chaînes exactes
 dans `lib/assets/asset-generation.ts`).
 
-### `IMG_Simple_Edit.json` — édition (Qwen Image Edit 2511)
+### `IMG_Simple_Edit.json` — édition (MiniMax H3 Image)
 
 | Donnée | Nœud | Champ | Note |
 |---|---|---|---|
-| Image 1 : la cible de la modification | `41` (LoadImage) | `image` | nom du fichier dans le dossier d'entrée de ComfyUI ; le parent par défaut |
-| Images 2 et 3 : références (optionnelles) | à créer à la soumission (LoadImage → `FluxKontextImageScale`) | `image2`, `image3` de `170:149` et `170:151` | jusqu'à **3 images** au total ; les nœuds ne sont créés que pour les images fournies, comme pour les références du workflow vidéo |
-| Instructions d'édition | `170:151` (TextEncodeQwenImageEditPlus, positif) | `prompt` | les images se citent par leur rang : « image 1 », « image 2 » ; le worker ajoute une dernière ligne `Keep the result in this art style: <clause>` (clause **courte** du projet, instantané `asset_generations.clause_style`) : le graphe n'a pas de nœud de style |
-| Négatif | `170:149` | `prompt` | laissé **vide** |
-| Seed | `170:169` (KSampler) | `seed` | |
-| LoRA Lightning 4 étapes | `170:168` (PrimitiveBoolean) | `value` | `true` : 4 étapes CFG 1 (toujours utilisé par l'application) ; `false` : 40 étapes CFG 4, sans LoRA (sans effet visible au test) |
-| Sortie | `195` (SaveImageAdvanced) | `filename_prefix`, `format` | PNG 8 bits sRGB |
+| Image 1 : la cible de la modification | `45` (LoadImage) | `image` | nom du fichier dans le dossier d'entrée de ComfyUI ; ramenée à 4 MP (`56`) puis à un multiple de 32 (`48`) |
+| Images 2 à 6 : références (optionnelles) | à créer à la soumission | `images.image_<n>` de `32` | jusqu'à **6 images** au total ; chacune reçoit la même chaîne que l'image 1 (`LoadImage` → `ResizeImageMaskNode` 4 MP → `ResizeImageMaskNode` multiple de 32), nœuds `cadence_source_<n>`, `_pixels`, `_echelle` |
+| Instructions | `43` (PrimitiveStringMultiline) | `value` | les images se citent `<Picture 1>`, `<Picture 2>`… ; le worker ajoute une dernière ligne `Keep the result in this art style: <clause>` (clause **courte** du projet, instantané `asset_generations.clause_style`) : le graphe n'a pas de nœud de style |
+| Format de sortie | `32` (MiniMaxH3ImageConditioning) | `width`, `height` | par défaut, liés à `50` (GetImageSize de l'image 1) : la sortie suit l'image 1. Une **affiche** reçoit une largeur et une hauteur explicites, 2:3 à 4 MP (`dimensionsFormat`) |
+| Seed | `38` (KSampler) | `seed` | |
+| Sortie | `9` (SaveImage) | `filename_prefix` | le résultat est réduit à 1 MP (`63`) avant l'enregistrement |
 
-**La taille de sortie suit l'image 1** : le graphe n'a aucun nœud de taille (le latent
-est le `VAEEncode` de l'image 1 mise à l'échelle par `FluxKontextImageScale`), donc
-ni format ni mégapixels à régler en édition.
+Le modèle est réglé pour une surface de 2048² (infobulle du nœud) : l'édition travaille à 4 MP, la génération dessine à 16 MP.
+Plus de toile blanche pour l'affiche (Qwen recopiait le format de l'image 1) : le format passe par `width` et `height`.
 
 Branché côté worker : `injecterEditionImages` dans `worker/comfyui/imageMapping.ts`
-(sources envoyées par `/upload/image` sous `cadence_<uuid>_<rang>.<ext>`, nœuds
-`cadence_source_<rang>` et `cadence_source_<rang>_echelle` créés pour les images 2 et
-3) ; `imageMapping.test.ts` lit ce fichier et casse si un nœud ou un champ change
-après un ré-export. Validé en réel le 2026-10-01 (2 sources). Variable optionnelle :
-`COMFYUI_WORKFLOW_EDITION_PATH`.
+(sources envoyées par `/upload/image` sous `cadence_<uuid>_<rang>.<ext>`) ; `imageMapping.test.ts` lit ce fichier et casse si un
+nœud ou un champ change après un ré-export. Variable optionnelle : `COMFYUI_WORKFLOW_EDITION_PATH`.
 
-Le fichier exporté ne câble que `image1`, mais le nœud `TextEncodeQwenImageEditPlus`
-accepte jusqu'à trois images : la première est **ce qu'on modifie**, les autres
-sont des références (la matière d'un objet, le style, un personnage à
-introduire). Deux cas d'usage : éditer l'image d'un asset (le parent, seul), ou
-fabriquer une image à partir d'autres (plusieurs assets combinés). Le modèle est
-`qwen_image_edit_2511_int8_convrot` avec l'encodeur `qwen_2.5_vl_7b_fp8_scaled` ;
-Krea 2 charge un autre encodeur (`qwen3vl_4b_fp8_scaled`), donc alterner les deux
-types de tâches recharge des modèles.
+Les deux graphes chargent les mêmes fichiers : `minimax_h3_image_pruned_int8_convrot` (modèle),
+`qwen3vl_32b_minimax_h3_int8_convrot` (encodeur, type `minimax`) et `minimax_h3_image_vae_fp16` : alterner génération et
+édition ne recharge rien. Vérifié par `GET /object_info/MiniMaxH3ImageConditioning` le 2026-11-23 (entrée `images`
+extensible, préfixe `image_`, 100 au plus ; `width`/`height` à 0 = taille de l'image 1).
 
 ## Contrat du workflow vidéo (`video-generation/`)
 

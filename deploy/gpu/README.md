@@ -129,7 +129,7 @@ copier les deux fichiers et passer le nom dans `CADENCE_PROFIL`.
 ## Ce qui n'est pas vérifié
 
 - **Les adresses du manifeste** répondent toutes (vérifié le 2026-11-03), mais certaines pointent des dépôts de
-  tiers (Singularity, LoRA Lightning, upscaler, TAE) : un dépôt retiré ou renommé fera échouer le
+  tiers (Singularity, upscaler, TAE) : un dépôt retiré ou renommé fera échouer le
   téléchargement de ce fichier.
 
 - **Les nodes custom** : la liste (`custom-nodes.txt`) a été confirmée dépôt par dépôt, mais pas relevée sur le PC

@@ -24,13 +24,13 @@ export function estAspect(v: string): v is Aspect {
   return v in ASPECTS_COMFYUI;
 }
 
-/** Two modes (variant B of the mockup): « texte » = text-to-image
- * (IMG_01_TextToImage, Krea 2 Turbo); « images » = IMG_Simple_Edit
- * (Qwen Image Edit 2511) with 1 to 3 source images, the first being the modified target.
- * A single image = modification, several = merging of references. */
+/** Two modes (variant B of the mockup), one model (MiniMax H3 Image): « texte » = text-to-image
+ * (IMG_01_TextToImage); « images » = IMG_Simple_Edit with 1 to MAX_IMAGES_EDITION source images,
+ * the first being the modified target. A single image = modification, several = merging of references. */
 const MODES_GENERATION = ["texte", "images"] as const;
 type ModeGeneration = (typeof MODES_GENERATION)[number];
-const MAX_SOURCES = 3;
+/** Source images of an edit, the target included (H3 Image accepts more; 6 like the references of a video clip). */
+export const MAX_IMAGES_EDITION = 6;
 
 /** A source image of a generation in « images » mode, in order:
  * - `asset`: the current image of a registry asset;
@@ -44,9 +44,8 @@ type SourceGeneration =
  * The prompt is a snapshot specific to this request: it only becomes the asset's
  * own if the candidate is adopted (adopterGeneration). The format and the
  * megapixels only concern the « texte » mode (in « images » mode the output
- * follows image 1, the edit graph has no size node). The edit always
- * runs with the Lightning LoRA (4 steps): the « Qualité » mode without
- * LoRA, tested, changes nothing in the render. */
+ * follows image 1, except for a poster: 2:3). The megapixels are the size of the
+ * SAVED image: the model draws at 16 MP and the graph scales the result down. */
 export type DemandeGeneration = {
   mode: ModeGeneration;
   prompt: string;
@@ -55,16 +54,13 @@ export type DemandeGeneration = {
   sources: SourceGeneration[];
 };
 
-/** The method of an attempt launched from the sheet: **without a base image, Krea 2** (we create the image); **with a base image, Qwen Image
- * Edit** (we retouch it). For a result quite different, we duplicate the asset or remove its image: we do not deface the current image. */
+/** The method of an attempt launched from the sheet: **without a base image, a generation** (we create the image); **with a base
+ * image, an edit** (we retouch it). For a result quite different, we duplicate the asset or remove its image: we do not deface the current image. */
 export const methodeDEssai = (aDesImages: boolean): "generation" | "edition" => (aDesImages ? "edition" : "generation");
 
-/** The images an attempt can carry (Qwen Image Edit takes 3). Create from attached images: up to 3, the 1st « carries » the
- * modifications of the others. Retouch: the base image counts as one, there is room for two attached images. */
-const MAX_IMAGES_CREATION = 3;
-const MAX_IMAGES_RETOUCHE = 3;
-/** How many attached images (in addition to the base, if there is one) can be added. */
-export const maxImagesJointes = (aUneBase: boolean): number => (aUneBase ? MAX_IMAGES_RETOUCHE - 1 : MAX_IMAGES_CREATION);
+/** How many attached images (in addition to the base, if there is one) an attempt can carry: MAX_IMAGES_EDITION in all.
+ * Create from attached images: the 1st « carries » the modifications of the others. Retouch: the base image counts as one. */
+export const maxImagesJointes = (aUneBase: boolean): number => (aUneBase ? MAX_IMAGES_EDITION - 1 : MAX_IMAGES_EDITION);
 
 /** Why an instruction cannot go, or null. Without a base image it may be empty (the agent then writes the prompt from the
  * asset's description); without a description either, there is nothing to draw. A retouch requires an instruction. */
@@ -111,7 +107,7 @@ export function raisonDemandeInvalide(d: DemandeGeneration): string | null {
   if (!Array.isArray(d.sources) || d.sources.length === 0) {
     return "Ajoute au moins une image : la première est celle qui sera modifiée.";
   }
-  if (d.sources.length > MAX_SOURCES) return `${MAX_SOURCES} images au maximum.`;
+  if (d.sources.length > MAX_IMAGES_EDITION) return `${MAX_IMAGES_EDITION} images au maximum.`;
   const vues = new Set<string>();
   for (const src of d.sources) {
     const cle = src.origine === "asset" ? `asset:${src.assetId}` : src.origine === "import" ? `import:${src.fichier}` : "";

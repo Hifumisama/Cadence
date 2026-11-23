@@ -36,7 +36,7 @@ test("demande : mode texte", () => {
   assert.match(raisonDemandeInvalide({ ...demande, megapixels: Number.NaN }) ?? "", /Mégapixels/);
 });
 
-test("demande : mode images, de 1 à 3 sources sans doublon", () => {
+test("demande : mode images, de 1 à 6 sources sans doublon", () => {
   const images = { ...demande, mode: "images" as const, aspect: "nimporte" as never, megapixels: 99 };
   const a = { origine: "asset" as const, assetId: 1 };
   const b = { origine: "asset" as const, assetId: 2 };
@@ -46,7 +46,9 @@ test("demande : mode images, de 1 à 3 sources sans doublon", () => {
   assert.equal(raisonDemandeInvalide({ ...images, sources: [a] }), null);
   assert.equal(raisonDemandeInvalide({ ...images, sources: [a, b, c] }), null);
   assert.match(raisonDemandeInvalide({ ...images, sources: [] }) ?? "", /au moins une image/);
-  assert.match(raisonDemandeInvalide({ ...images, sources: [a, b, c, d] }) ?? "", /maximum/);
+  const six = [1, 2, 3, 4, 5, 6].map((assetId) => ({ origine: "asset" as const, assetId }));
+  assert.equal(raisonDemandeInvalide({ ...images, sources: six }), null);
+  assert.match(raisonDemandeInvalide({ ...images, sources: [...six, d] }) ?? "", /6 images au maximum/);
   assert.match(raisonDemandeInvalide({ ...images, sources: [a, a] }) ?? "", /deux fois/);
   assert.match(raisonDemandeInvalide({ ...images, sources: [c, { ...c }] }) ?? "", /deux fois/);
   assert.match(raisonDemandeInvalide({ ...images, sources: [{ origine: "web" } as never] }) ?? "", /inconnue/);
@@ -62,7 +64,7 @@ test("seed : entier positif sûr", () => {
   assert.ok(Number.isSafeInteger(s) && s >= 0);
 });
 
-test("méthode d'un essai : sans image de base Krea 2 (génération), avec image Qwen Image Edit (édition)", () => {
+test("méthode d'un essai : sans image de base une génération, avec image une édition", () => {
   assert.equal(methodeDEssai(false), "generation");
   assert.equal(methodeDEssai(true), "edition");
 });

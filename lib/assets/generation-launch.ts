@@ -82,7 +82,6 @@ async function poserGeneration(assetId: number, demande: DemandeGeneration, plaf
         // The format only concerns text mode (the edit follows image 1).
         clauseStyle: texte ? styleDesImages(projet) : styleDesEditions(projet),
         ...(texte ? { aspect: demande.aspect, megapixels: demande.megapixels } : {}),
-        lightning: texte ? null : true,
         seed: nouvelleSeed(),
         adoptionAuto,
       })

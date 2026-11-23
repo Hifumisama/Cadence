@@ -12,8 +12,8 @@ export type Jointe = ImageJointe & { cle: string; src: string; libelle: string }
 /** A registry image that can be attached. */
 export type JointeDisponible = { id: number; libelle: string; src: string };
 
-/** The images attached to an instruction (Qwen Image Edit takes up to 3). Creating: three slots, the 1st « porte » (carries) the changes of the two
- * others. Retouching: the base image occupies slot 1, two remain. You attach a registry image or a dropped image. */
+/** The images attached to an instruction (6 in all, MAX_IMAGES_EDITION). Creating: the 1st « porte » (carries) the changes of the
+ * others. Retouching: the base image occupies slot 1. You attach a registry image or a dropped image. */
 export function ImagesJointes({
   assetId,
   base,
@@ -56,7 +56,8 @@ export function ImagesJointes({
   }, [menu]);
 
   const decalage = base ? 2 : 1; // the rank of the first attached image
-  const places = Math.max(max, jointes.length);
+  // The filled slots and one free slot (the add button), not every free slot: up to 6 images, the row would become a gallery of empty boxes.
+  const places = Math.max(Math.min(max, jointes.length + 1), jointes.length);
   const plein = jointes.length >= max;
 
   const ajouter = (j: Jointe) => {

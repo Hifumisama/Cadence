@@ -3,14 +3,13 @@ import { extname, join, resolve } from "node:path";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
 import { assetGenerationSources, assetGenerations, assets, creationsProjet } from "../db/schema";
-import { CANDIDATS_GARDES, estAspect, nomSourceDistante } from "../lib/assets/asset-generation";
+import { CANDIDATS_GARDES, estAspect, formatParDefaut, nomSourceDistante } from "../lib/assets/asset-generation";
 import { TYPE_AFFICHE } from "../lib/posters/posters";
 import { annulationDemandeeImage, finirAnnulationImage } from "../lib/tasks/cancellation-db";
 import { adopterCandidat } from "../lib/assets/generation-adoption";
 import { balayerImportsOrphelins, supprimerGenerationEtFichiers } from "../lib/assets/generation-sources";
 import { cheminAssetMedia, cheminGenerationMedia, cheminSourceImportMedia } from "../lib/media";
 import { annulerCoteComfyUI, surveillerAnnulation } from "./cancellation";
-import { cheminCanevasAffiche } from "./canvas-poster";
 import type { ComfyUIClient } from "./comfyui";
 import {
   NODE_IDS_EDITION,
@@ -23,9 +22,9 @@ import type { Suivi } from "./comfyui/types";
 import { attendreResultat } from "./waiting";
 import { creerRelais } from "./progress";
 
-// Asset generation task: text-to-image (Krea 2 Turbo, IMG_01_TextToImage,
-// method « generation »), from 1 to 3 images (Qwen Image Edit 2511,
-// IMG_Simple_Edit, method « edition »). A generation is
+// Asset generation task, MiniMax H3 Image: text-to-image (IMG_01_TextToImage,
+// method « generation »), from 1 to 6 images (IMG_Simple_Edit, method
+// « edition »). A generation is
 // not replayed automatically: a failure is shown with its message and
 // the user restarts it (unlike H3 clips, an image is redone in a
 // few seconds). An unreachable ComfyUI API consumes nothing: the request
@@ -64,19 +63,6 @@ async function envoyerSources(client: ComfyUIClient, gen: Generation, mediaRoot:
     noms.push(distant);
   }
   return noms;
-}
-
-/** Sources of an edit. For a poster from the old path (without instruction; an attempt on the sheet sets its own canvas), a blank 2:3 canvas becomes image 1: Qwen's output follows the format of
- * image 1, and without it a 16:9 character sheet would give a 16:9 poster. The character (the recorded source)
- * becomes image 2. */
-async function sourcesEdition(client: ComfyUIClient, gen: Generation, mediaRoot: string, affiche: boolean): Promise<string[]> {
-  const sources = await envoyerSources(client, gen, mediaRoot);
-  if (!affiche) return sources;
-  if (sources.length > 2) throw new Error("Une affiche éditée prend 2 images au plus (le canevas occupe la première des 3 places)");
-  const local = await cheminCanevasAffiche(join(mediaRoot, "_canevas"));
-  const distant = nomSourceDistante(gen.uuid, 0, ".png");
-  await client.uploadRef(local, distant);
-  return [distant, ...sources];
 }
 
 /** A project's images wait for the end of its creation (2026-10-19): while the LLM writes, generating them at the same time
@@ -152,8 +138,9 @@ export async function traiterGenerationImage(client: ComfyUIClient, gen: Generat
         prompt: gen.prompt,
         clauseStyle: gen.clauseStyle, // the short clause, set on demand (styleDesEditions); "" for old requests
         seed: gen.seed,
-        lightning: gen.lightning ?? true,
-        sourcesDistantes: await sourcesEdition(client, gen, mediaRoot, asset.type === TYPE_AFFICHE && gen.consigne == null),
+        sourcesDistantes: await envoyerSources(client, gen, mediaRoot),
+        // A poster is a 2:3 portrait, whatever image 1 is (often a 16:9 character sheet); otherwise the output follows image 1.
+        format: asset.type === TYPE_AFFICHE ? formatParDefaut(TYPE_AFFICHE).aspect : undefined,
         prefixeSortie: `cadence_${asset.code}`,
       });
     } else {

@@ -312,7 +312,7 @@ export function styleDesImages(projet: { clauseStyle: string; stylePromptImage: 
   return projet?.stylePromptImage?.trim() || projet?.clauseStyle || "";
 }
 
-/** The style reminded to IMAGE EDITS (Qwen): the SHORT clause, never the long prompt. The worker adds it as the last line of the
+/** The style reminded to IMAGE EDITS: the SHORT clause, never the long prompt. The worker adds it as the last line of the
  * instructions (worker/comfyui/imageMapping.ts): one more instruction line, not a description that would drown out the
  * requested changes. Without it, a retouch (or an image attached from another style) came out of the project's style. */
 export function styleDesEditions(projet: { clauseStyle: string } | null | undefined): string {

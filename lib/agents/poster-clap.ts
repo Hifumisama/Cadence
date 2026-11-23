@@ -197,7 +197,7 @@ export async function relancerAfficheApresHeros(db: Db, projectId: number, asset
 
 /** Skill return (called by the worker, in its transaction): the prompt becomes the poster's, and the generation goes into the image queue,
  * adopted automatically (it is the project's poster). Same request as `lancerGeneration` for a poster: 2:3. In `edition` with the hero's
- * image, the hero is the only source (the worker puts the empty 2:3 canvas as image 1, worker/images.ts `sourcesEdition`); otherwise text mode. */
+ * image, the hero is the only source (image 1; the worker sets the 2:3 format, worker/images.ts); otherwise text mode. */
 export async function ecrireAfficheEtGenerer(db: Db, projectId: number, sortie: { promptGeneration?: unknown; methode?: unknown }): Promise<void> {
   const promptModele = typeof sortie.promptGeneration === "string" ? sortie.promptGeneration.trim() : "";
   if (!promptModele) throw new Error("Le prompt de l'affiche est vide.");
@@ -220,10 +220,9 @@ export async function ecrireAfficheEtGenerer(db: Db, projectId: number, sortie: 
       assetId: asset.id,
       methode: edition ? "edition" : "generation",
       prompt,
-      // Same snapshot as lib/assets/generation-launch.ts: the long style prompt in text mode, the short clause in an edit (the edit follows image 1).
+      // Same snapshot as lib/assets/generation-launch.ts: the long style prompt in text mode, the short clause in an edit.
       clauseStyle: edition ? styleDesEditions(projet) : styleDesImages(projet),
       ...(edition ? {} : { aspect: format.aspect, megapixels: format.megapixels }),
-      lightning: edition ? true : null,
       seed: nouvelleSeed(),
       adoptionAuto: true,
     })

@@ -3,7 +3,7 @@
  * repeated the same wide view instead of a reverse shot). Same principle as the poster's title line (lib/posters/posters.ts, `avecTitreDansImage`):
  * the model's own template sentence is removed wherever it is, then the fixed sentence is appended. Pure, tested. */
 
-/** Character sheet (agents/skills/prompt-asset/references/guide-krea2.md, « Character sheet »). */
+/** Character sheet (agents/skills/prompt-asset/references/guide-h3-image-generation.md, « Character sheet »). */
 export const GABARIT_PERSONNAGE =
   "Neutral standing pose, empty hands, plain light background, character has 4 views : front full-body view, body side view, body back view, detailed single headshot portrait on the right side of the image, in the foreground.";
 

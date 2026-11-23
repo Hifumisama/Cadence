@@ -24,8 +24,8 @@ import { join, resolve } from "node:path";
  * line, `<!-- variantes: image, generation -->` (the line is removed from the prompt).
  * When the caller provides a `variante`, only the guides WITHOUT a declaration and those that name it are loaded; without a `variante`, all guides are loaded.
  * This avoids sending the model (especially a small local model) an audio guide to
- * write an image prompt. Example prompt-asset: `generation` (Krea 2),
- * `edition` (Qwen), `image` (the two image guides: the method is still to be recommended),
+ * write an image prompt. Example prompt-asset: `generation` (text-to-image),
+ * `edition` (from images), `image` (the two image guides: the method is still to be recommended),
  * `affiche` (the presentation poster: the two image guides too). */
 
 /** Files read outside a skill's folder. None since 2026-11-09: `iteration-plan` reads its own copy of the lexicon, oriented to diagnosis

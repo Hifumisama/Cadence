@@ -104,9 +104,8 @@ export function AtelierAsset({
   const attendParent = base === "parent" && !parent?.src;
   const retouche = base != null;
   const baseSrc = base === "actuelle" ? imageSrc : base === "parent" ? (parent?.src ?? null) : base ? (essai(base.essai)?.src ?? null) : null;
-  // Qwen Image Edit takes 3 images: creating attaches up to 3, retouching leaves only one more next to the base.
-  // A poster created from images starts from an empty canvas as image 1 (which counts as the base): two attached images at most.
-  const maxJointes = maxImagesJointes(retouche || affiche);
+  // 6 images in all: creating attaches up to 6, retouching up to 5 next to the base.
+  const maxJointes = maxImagesJointes(retouche);
   const trop = jointes.length > maxJointes;
   const libelleBase =
     base === "actuelle" ? "l'image actuelle" : base === "parent" ? `l'image de « ${parent?.libelle ?? ""} »` : base ? `l'essai n°${numeros.get(base.essai)}` : null;

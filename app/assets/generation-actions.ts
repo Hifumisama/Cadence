@@ -30,8 +30,8 @@ import {
 // Image generation for an asset (dedicated ComfyUI task). These actions never
 // talk to ComfyUI: they record a request in the database, and the worker picks
 // it up (worker/images.ts). The result is a candidate the user adopts.
-// Two modes (see DemandeGeneration): « texte » (Krea 2 Turbo) and « images »
-// (Qwen Image Edit 2511, 1 to 3 sources, the first one is the target).
+// Two modes (see DemandeGeneration), MiniMax H3 Image: « texte » and « images »
+// (1 to 6 sources, the first one is the target).
 
 type Resultat = { ok: true } | { ok: false; erreur: string };
 

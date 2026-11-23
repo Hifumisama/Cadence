@@ -1,9 +1,9 @@
 {
-  "29": {
+  "9": {
     "inputs": {
-      "filename_prefix": "Krea2_turbo",
+      "filename_prefix": "minimax_h3_image_t2i",
       "images": [
-        "30:53",
+        "44",
         0
       ]
     },
@@ -12,117 +12,70 @@
       "title": "Enregistrer Image"
     }
   },
-  "49": {
+  "14": {
     "inputs": {
       "aspect_ratio": "16:9 (Widescreen)",
-      "megapixels": 1,
-      "multiple": 8
+      "megapixels": 16,
+      "multiple": 32
     },
     "class_type": "ResolutionSelector",
     "_meta": {
       "title": "Sélecteur de résolution"
     }
   },
-  "59": {
+  "41": {
     "inputs": {
-      "value": "  A single large firework burst exploding outward from one central point, long arcing spark trails radiating in every direction, the sparks covering a full rainbow spectrum simultaneously — emerald green, sapphire blue, violet, bright gold, scarlet and rose all present at once — each trail fading and burning out in mid-air rather than falling to the ground."
+      "value": "A weathered stone lighthouse on a rocky cape at dusk."
     },
     "class_type": "PrimitiveStringMultiline",
     "_meta": {
       "title": "Sujet"
     }
   },
-  "60": {
+  "42": {
     "inputs": {
-      "value": "Cinematic Anime. premium animation aesthetics characterized by refined linework, sophisticated lighting design, cinematic composition, nuanced atmospheric depth, polished rendering, and emotionally driven visual storytelling, blending the clarity of high-end anime production with filmic realism through controlled detail, expressive staging, and exceptional artistic cohesion, reminiscent of Makoto Shinkai and Yoshiyuki Sadamoto, inspired by Your Name and Evangelion: 3.0+1.0 Thrice Upon a Time."
+      "value": "Cinematic anime illustration."
     },
     "class_type": "PrimitiveStringMultiline",
     "_meta": {
-      "title": "Style Krea 2"
+      "title": "Style"
     }
   },
-  "30:6": {
+  "43": {
     "inputs": {
-      "text": [
-        "30:19",
+      "string_a": [
+        "41",
         0
       ],
-      "clip": [
-        "30:11",
+      "string_b": [
+        "42",
+        0
+      ],
+      "delimiter": " "
+    },
+    "class_type": "StringConcatenate",
+    "_meta": {
+      "title": "Sujet + style"
+    }
+  },
+  "44": {
+    "inputs": {
+      "resize_type": "scale total pixels",
+      "resize_type.megapixels": 1,
+      "scale_method": "area",
+      "input": [
+        "23:8",
         0
       ]
     },
-    "class_type": "CLIPTextEncode",
+    "class_type": "ResizeImageMaskNode",
     "_meta": {
-      "title": "CLIP Text Encode (Prompt)"
+      "title": "Réduction avant enregistrement"
     }
   },
-  "30:5": {
+  "23:1": {
     "inputs": {
-      "width": [
-        "49",
-        0
-      ],
-      "height": [
-        "49",
-        1
-      ],
-      "batch_size": 1
-    },
-    "class_type": "EmptyLatentImage",
-    "_meta": {
-      "title": "Image Latente Vide"
-    }
-  },
-  "30:3": {
-    "inputs": {
-      "seed": 955573876128110,
-      "steps": 8,
-      "cfg": 1,
-      "sampler_name": "euler",
-      "scheduler": "simple",
-      "denoise": 1,
-      "model": [
-        "30:10",
-        0
-      ],
-      "positive": [
-        "30:6",
-        0
-      ],
-      "negative": [
-        "30:13",
-        0
-      ],
-      "latent_image": [
-        "30:5",
-        0
-      ]
-    },
-    "class_type": "KSampler",
-    "_meta": {
-      "title": "KSampler"
-    }
-  },
-  "30:8": {
-    "inputs": {
-      "samples": [
-        "30:3",
-        0
-      ],
-      "vae": [
-        "30:12",
-        0
-      ]
-    },
-    "class_type": "VAEDecode",
-    "_meta": {
-      "title": "VAE Decode"
-    }
-  },
-  "30:10": {
-    "inputs": {
-      "unet_name": "krea2_turbo_int8_convrot.safetensors",
+      "unet_name": "minimax_h3_image_pruned_int8_convrot.safetensors",
       "weight_dtype": "default"
     },
     "class_type": "UNETLoader",
@@ -130,10 +83,10 @@
       "title": "Charger Modèle Diffusion"
     }
   },
-  "30:11": {
+  "23:2": {
     "inputs": {
-      "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
-      "type": "krea2",
+      "clip_name": "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+      "type": "minimax",
       "device": "default"
     },
     "class_type": "CLIPLoader",
@@ -141,19 +94,47 @@
       "title": "Charger CLIP"
     }
   },
-  "30:12": {
+  "23:3": {
     "inputs": {
-      "vae_name": "qwen_image_vae.safetensors"
+      "vae_name": "minimax_h3_image_vae_fp16.safetensors"
     },
     "class_type": "VAELoader",
     "_meta": {
       "title": "Charger VAE"
     }
   },
-  "30:13": {
+  "23:5": {
+    "inputs": {
+      "prompt": [
+        "43",
+        0
+      ],
+      "width": [
+        "14",
+        0
+      ],
+      "height": [
+        "14",
+        1
+      ],
+      "clip": [
+        "23:2",
+        0
+      ],
+      "vae": [
+        "23:3",
+        0
+      ]
+    },
+    "class_type": "MiniMaxH3ImageConditioning",
+    "_meta": {
+      "title": "MiniMax H3 Image Conditioning"
+    }
+  },
+  "23:6": {
     "inputs": {
       "conditioning": [
-        "30:6",
+        "23:5",
         0
       ]
     },
@@ -162,69 +143,50 @@
       "title": "ConditioningZeroOut"
     }
   },
-  "30:53": {
+  "23:7": {
     "inputs": {
-      "anything": [
-        "30:8",
-        0
-      ]
-    },
-    "class_type": "easy cleanGpuUsed",
-    "_meta": {
-      "title": "Clean VRAM Used"
-    }
-  },
-  "30:19": {
-    "inputs": {
-      "value": [
-        "30:58",
-        0
-      ]
-    },
-    "class_type": "PrimitiveStringMultiline",
-    "_meta": {
-      "title": "Text String (User Prompt)"
-    }
-  },
-  "30:58": {
-    "inputs": {
-      "string_a": [
-        "30:57",
+      "seed": 478907647099523,
+      "steps": 6,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": [
+        "23:1",
         0
       ],
-      "string_b": [
-        "30:56",
+      "positive": [
+        "23:5",
         0
       ],
-      "delimiter": ""
+      "negative": [
+        "23:6",
+        0
+      ],
+      "latent_image": [
+        "23:5",
+        1
+      ]
     },
-    "class_type": "StringConcatenate",
+    "class_type": "KSampler",
     "_meta": {
-      "title": "Concaténer"
+      "title": "KSampler"
     }
   },
-  "30:57": {
+  "23:8": {
     "inputs": {
-      "value": [
-        "59",
+      "samples": [
+        "23:7",
+        0
+      ],
+      "vae": [
+        "23:3",
         0
       ]
     },
-    "class_type": "PrimitiveStringMultiline",
+    "class_type": "VAEDecode",
     "_meta": {
-      "title": "Subject"
-    }
-  },
-  "30:56": {
-    "inputs": {
-      "value": [
-        "60",
-        0
-      ]
-    },
-    "class_type": "PrimitiveStringMultiline",
-    "_meta": {
-      "title": "Style"
+      "title": "VAE Decode"
     }
   }
 }

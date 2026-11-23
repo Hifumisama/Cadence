@@ -8,7 +8,7 @@ import { entreePromptAsset, type EntreeSkill } from "./context";
 import type { Db } from "./appliers/common";
 
 /** An attempt launched from an asset's sheet (2026-10-15): the user writes an INSTRUCTION in French; the `prompt-asset` skill translates it
- * into a prompt for the model (Krea 2 without a base image, Qwen Image Edit with one); the attempt then enters the image queue. Like the clap
+ * into a prompt for the model (MiniMax H3 Image: a generation without a base image, an edit with one); the attempt then enters the image queue. Like the clap
  * poster (lib/agents/poster-clap.ts), this is an LLM task whose result starts the generation, without going through a proposal to review. */
 
 export const BUT_ESSAI = "essai";

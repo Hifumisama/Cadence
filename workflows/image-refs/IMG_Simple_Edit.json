@@ -1,185 +1,20 @@
 {
-  "41": {
+  "9": {
     "inputs": {
-      "image": "CHAR_Maya.png"
-    },
-    "class_type": "LoadImage",
-    "_meta": {
-      "title": "Charger Image"
-    }
-  },
-  "195": {
-    "inputs": {
-      "filename_prefix": "Qwen_Edit_2511",
-      "format": "png",
-      "format.bit_depth": "8-bit",
-      "format.input_color_space": "sRGB",
+      "filename_prefix": "minimax_h3_image_edit",
       "images": [
-        "170:158",
+        "63",
         0
       ]
     },
-    "class_type": "SaveImageAdvanced",
+    "class_type": "SaveImage",
     "_meta": {
-      "title": "Enregistrer l’image (Avancé)"
+      "title": "Enregistrer Image"
     }
   },
-  "170:145": {
+  "29": {
     "inputs": {
-      "shift": 3.1,
-      "sampling": "flow",
-      "model": [
-        "170:161",
-        0
-      ]
-    },
-    "class_type": "ModelSamplingAuraFlow",
-    "_meta": {
-      "title": "ModelSamplingAuraFlow"
-    }
-  },
-  "170:146": {
-    "inputs": {
-      "vae_name": "qwen_image_vae.safetensors"
-    },
-    "class_type": "VAELoader",
-    "_meta": {
-      "title": "Charger VAE"
-    }
-  },
-  "170:147": {
-    "inputs": {
-      "reference_latents_method": "index_timestep_zero",
-      "conditioning": [
-        "170:149",
-        0
-      ]
-    },
-    "class_type": "FluxKontextMultiReferenceLatentMethod",
-    "_meta": {
-      "title": "Méthode latente multi-référence FluxKontext"
-    }
-  },
-  "170:148": {
-    "inputs": {
-      "reference_latents_method": "index_timestep_zero",
-      "conditioning": [
-        "170:151",
-        0
-      ]
-    },
-    "class_type": "FluxKontextMultiReferenceLatentMethod",
-    "_meta": {
-      "title": "Méthode latente multi-référence FluxKontext"
-    }
-  },
-  "170:149": {
-    "inputs": {
-      "prompt": "",
-      "clip": [
-        "170:162",
-        0
-      ],
-      "vae": [
-        "170:146",
-        0
-      ],
-      "image1": [
-        "170:160",
-        0
-      ]
-    },
-    "class_type": "TextEncodeQwenImageEditPlus",
-    "_meta": {
-      "title": "TextEncodeQwenImageEditPlus"
-    }
-  },
-  "170:151": {
-    "inputs": {
-      "prompt": "make all womens with red super sayan aura",
-      "clip": [
-        "170:162",
-        0
-      ],
-      "vae": [
-        "170:146",
-        0
-      ],
-      "image1": [
-        "170:160",
-        0
-      ]
-    },
-    "class_type": "TextEncodeQwenImageEditPlus",
-    "_meta": {
-      "title": "TextEncodeQwenImageEditPlus (Positive)"
-    }
-  },
-  "170:152": {
-    "inputs": {
-      "strength": 1,
-      "pre_cfg": false,
-      "model": [
-        "170:145",
-        0
-      ]
-    },
-    "class_type": "CFGNorm",
-    "_meta": {
-      "title": "CFGNorm"
-    }
-  },
-  "170:153": {
-    "inputs": {
-      "lora_name": "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
-      "strength_model": 1,
-      "model": [
-        "170:152",
-        0
-      ]
-    },
-    "class_type": "LoraLoaderModelOnly",
-    "_meta": {
-      "title": "LoraLoaderModelOnly"
-    }
-  },
-  "170:154": {
-    "inputs": {
-      "value": 4
-    },
-    "class_type": "PrimitiveFloat",
-    "_meta": {
-      "title": "CFG"
-    }
-  },
-  "170:155": {
-    "inputs": {
-      "value": 1
-    },
-    "class_type": "PrimitiveFloat",
-    "_meta": {
-      "title": "CFG"
-    }
-  },
-  "170:156": {
-    "inputs": {
-      "pixels": [
-        "170:160",
-        0
-      ],
-      "vae": [
-        "170:146",
-        0
-      ]
-    },
-    "class_type": "VAEEncode",
-    "_meta": {
-      "title": "VAE Encode"
-    }
-  },
-  "170:161": {
-    "inputs": {
-      "unet_name": "qwen_image_edit_2511_int8_convrot.safetensors",
+      "unet_name": "minimax_h3_image_pruned_int8_convrot.safetensors",
       "weight_dtype": "default"
     },
     "class_type": "UNETLoader",
@@ -187,10 +22,10 @@
       "title": "Charger Modèle Diffusion"
     }
   },
-  "170:162": {
+  "30": {
     "inputs": {
-      "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
-      "type": "qwen_image",
+      "clip_name": "qwen3vl_32b_minimax_h3_int8_convrot.safetensors",
+      "type": "minimax",
       "device": "default"
     },
     "class_type": "CLIPLoader",
@@ -198,122 +33,82 @@
       "title": "Charger CLIP"
     }
   },
-  "170:163": {
+  "31": {
     "inputs": {
-      "switch": [
-        "170:168",
+      "vae_name": "minimax_h3_image_vae_fp16.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Charger VAE"
+    }
+  },
+  "32": {
+    "inputs": {
+      "prompt": [
+        "43",
         0
       ],
-      "on_false": [
-        "170:152",
+      "width": [
+        "50",
         0
       ],
-      "on_true": [
-        "170:153",
+      "height": [
+        "50",
+        1
+      ],
+      "clip": [
+        "30",
+        0
+      ],
+      "vae": [
+        "31",
+        0
+      ],
+      "images.image_1": [
+        "48",
         0
       ]
     },
-    "class_type": "ComfySwitchNode",
+    "class_type": "MiniMaxH3ImageConditioning",
     "_meta": {
-      "title": "Switch (Model)"
+      "title": "MiniMax H3 Image Conditioning"
     }
   },
-  "170:165": {
+  "33": {
     "inputs": {
-      "value": 4
-    },
-    "class_type": "PrimitiveInt",
-    "_meta": {
-      "title": "Steps"
-    }
-  },
-  "170:166": {
-    "inputs": {
-      "value": 40
-    },
-    "class_type": "PrimitiveInt",
-    "_meta": {
-      "title": "Steps"
-    }
-  },
-  "170:168": {
-    "inputs": {
-      "value": true
-    },
-    "class_type": "PrimitiveBoolean",
-    "_meta": {
-      "title": "Enable 4steps LoRA?"
-    }
-  },
-  "170:164": {
-    "inputs": {
-      "switch": [
-        "170:168",
-        0
-      ],
-      "on_false": [
-        "170:154",
-        0
-      ],
-      "on_true": [
-        "170:155",
+      "conditioning": [
+        "32",
         0
       ]
     },
-    "class_type": "ComfySwitchNode",
+    "class_type": "ConditioningZeroOut",
     "_meta": {
-      "title": "Switch (CFG)"
+      "title": "ConditioningZeroOut"
     }
   },
-  "170:167": {
+  "38": {
     "inputs": {
-      "switch": [
-        "170:168",
-        0
-      ],
-      "on_false": [
-        "170:166",
-        0
-      ],
-      "on_true": [
-        "170:165",
-        0
-      ]
-    },
-    "class_type": "ComfySwitchNode",
-    "_meta": {
-      "title": "Switch (Steps)"
-    }
-  },
-  "170:169": {
-    "inputs": {
-      "seed": 144075972529681,
-      "steps": [
-        "170:167",
-        0
-      ],
-      "cfg": [
-        "170:164",
-        0
-      ],
+      "seed": 779446154840421,
+      "steps": 6,
+      "cfg": 1,
       "sampler_name": "euler",
       "scheduler": "simple",
       "denoise": 1,
       "model": [
-        "170:163",
+        "29",
         0
       ],
       "positive": [
-        "170:148",
+        "32",
         0
       ],
       "negative": [
-        "170:147",
+        "33",
         0
       ],
       "latent_image": [
-        "170:156",
-        0
+        "32",
+        1
       ]
     },
     "class_type": "KSampler",
@@ -321,14 +116,14 @@
       "title": "KSampler"
     }
   },
-  "170:158": {
+  "42": {
     "inputs": {
       "samples": [
-        "170:169",
+        "38",
         0
       ],
       "vae": [
-        "170:146",
+        "31",
         0
       ]
     },
@@ -337,16 +132,79 @@
       "title": "VAE Decode"
     }
   },
-  "170:160": {
+  "43": {
     "inputs": {
-      "image": [
-        "41",
+      "value": "The woman in <Picture 1> is <Subject 1>. The target image shows <Subject 1> with short silver hair."
+    },
+    "class_type": "PrimitiveStringMultiline",
+    "_meta": {
+      "title": "Instructions"
+    }
+  },
+  "45": {
+    "inputs": {
+      "image": "CHAR_Maya.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Charger Image"
+    }
+  },
+  "48": {
+    "inputs": {
+      "resize_type": "scale to multiple",
+      "resize_type.multiple": 32,
+      "scale_method": "area",
+      "input": [
+        "56",
         0
       ]
     },
-    "class_type": "FluxKontextImageScale",
+    "class_type": "ResizeImageMaskNode",
     "_meta": {
-      "title": "Échelle d'image FluxKontext"
+      "title": "Redimensionner image/masque"
+    }
+  },
+  "50": {
+    "inputs": {
+      "image": [
+        "48",
+        0
+      ]
+    },
+    "class_type": "GetImageSize",
+    "_meta": {
+      "title": "Obtenir la taille de l'image"
+    }
+  },
+  "56": {
+    "inputs": {
+      "resize_type": "scale total pixels",
+      "resize_type.megapixels": 4,
+      "scale_method": "area",
+      "input": [
+        "45",
+        0
+      ]
+    },
+    "class_type": "ResizeImageMaskNode",
+    "_meta": {
+      "title": "Redimensionner image/masque"
+    }
+  },
+  "63": {
+    "inputs": {
+      "resize_type": "scale total pixels",
+      "resize_type.megapixels": 1,
+      "scale_method": "area",
+      "input": [
+        "42",
+        0
+      ]
+    },
+    "class_type": "ResizeImageMaskNode",
+    "_meta": {
+      "title": "Réduction avant enregistrement"
     }
   }
 }

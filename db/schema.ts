@@ -259,12 +259,12 @@ export const assets = pgTable("assets", {
   label: varchar("label", { length: 120 }),
   type: varchar("type", { length: 30 }).notNull(), // personnage | decor | prop | vfx | keyframe | oth
   description: text("description"),
-  // Generation prompt (Krea 2 / Qwen Image Edit / Qwen3-TTS depending on the
+  // Generation prompt (MiniMax H3 Image / Qwen3-TTS depending on the
   // type) — distinct from the canonical description: one describes the subject
   // for narrative continuity, the other is what gets pasted into ComfyUI.
   promptGeneration: text("prompt_generation"),
-  // How the image is made: "generation" (text-to-image, Krea 2) or
-  // "edition" (Qwen Image Edit, from the parent's image). Distinct from the
+  // How the image is made: "generation" (text-to-image) or
+  // "edition" (from the parent's image). Distinct from the
   // deriveDeId link, which only says which family the asset belongs to:
   // an effect (flames, lightning) attached to a master is generated from scratch. null =
   // not yet chosen (a master takes "generation"). Not applicable to a voice.
@@ -288,8 +288,8 @@ export const assets = pgTable("assets", {
 // the registry (assets.fichier) when the user adopts it, never on its
 // own (F01: an image replaces the node, it does not accumulate in the asset).
 // `statut`: en_attente | en_cours | termine | echoue (varchar controlled on the
-// application side, not a pg enum). `methode`: "generation" (text-to-image, Krea 2);
-// "edition" (Qwen Image Edit) will come later.
+// application side, not a pg enum). `methode`: "generation" (text-to-image) or
+// "edition" (from 1 to 6 images), both with MiniMax H3 Image.
 export const assetGenerations = pgTable("asset_generations", {
   id: serial("id").primaryKey(),
   uuid: uuid("uuid").notNull().defaultRandom().unique(),
@@ -300,15 +300,12 @@ export const assetGenerations = pgTable("asset_generations", {
   statut: varchar("statut", { length: 12 }).notNull().default("en_attente"),
   prompt: text("prompt").notNull(),
   // The instruction in French that the user gave on the sheet (« les cheveux plus courts »): an agent translates it into a prompt
-  // (Krea 2 or Qwen Image Edit). null for a generation launched without an instruction (batch, poster, old attempt). As long as the translation
+  // (MiniMax H3 Image). null for a generation launched without an instruction (batch, poster, old attempt). As long as the translation
   // is not done, the status is « traduction » and `prompt` is empty.
   consigne: text("consigne"),
   clauseStyle: text("clause_style").notNull().default(""),
   aspect: varchar("aspect", { length: 8 }).notNull().default("1:1"),
   megapixels: real("megapixels").notNull().default(1),
-  // « From images » mode (edition method): true = Lightning 4 steps,
-  // false = « Qualité » (40 steps CFG 4). null for text mode.
-  lightning: boolean("lightning"),
   seed: text("seed").notNull(),
   comfyuiPromptId: varchar("comfyui_prompt_id", { length: 100 }),
   fichier: varchar("fichier", { length: 255 }),
@@ -339,7 +336,7 @@ export const assetGenerations = pgTable("asset_generations", {
 });
 
 // Source images of a « from images » generation (IMG_Simple_Edit: from 1
-// to 3, position 1 is the modified target). `fichier` is a SNAPSHOT taken at
+// to 6, position 1 is the modified target). `fichier` is a SNAPSHOT taken at
 // launch: for an 'asset' source, the asset's file name (under
 // assets/); for an 'import' source, the name under generations/<assetId>/sources/
 // (disposable, never attached to the registry). Deleted along with their generation.

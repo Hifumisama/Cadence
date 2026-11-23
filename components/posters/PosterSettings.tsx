@@ -47,7 +47,7 @@ export function ReglagesAffiche({
       <p className="tiny-note">
         {personnage
           ? personnage.aImage
-            ? `Le personnage principal (${personnage.nom}) est joint d'office à la consigne : l'affiche part d'un canevas vide 2:3 et en reprend le visage et la tenue. Retire-le pour une création de zéro.`
+            ? `Le personnage principal (${personnage.nom}) est joint d'office à la consigne : l'affiche, au format 2:3, en reprend le visage et la tenue. Retire-le pour une création de zéro.`
             : `Le personnage principal (${personnage.nom}) est décrit dans le prompt, mais il n'a pas encore d'image : la cohérence sera moindre.`
           : "Aucun personnage principal repéré dans le registre : l'agent compose à partir du résumé."}
       </p>

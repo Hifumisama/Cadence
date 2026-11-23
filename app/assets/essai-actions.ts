@@ -23,7 +23,6 @@ import { TYPE_AFFICHE } from "@/lib/posters/posters";
 import { styleDesEditions, styleDesImages } from "@/lib/projects/design";
 import { MEDIA_ROOT, cheminAssetMedia, cheminGenerationMedia, cheminSourceImportMedia, estImage, estNomSourceImport } from "@/lib/media";
 import { nbImagesEnAttente } from "@/lib/tasks/queries-tasks";
-import { cheminCanevasAffiche } from "@/worker/canvas-poster";
 import { PLAFOND_FILE_IMAGES } from "@/lib/tasks/tasks";
 import { z } from "zod";
 import { idSchema, texteSchema, uuidSchema, verifier } from "@/lib/validation/args";
@@ -37,13 +36,13 @@ const essaiSchema = z.object({
     .optional(),
 });
 
-// An asset's sheet works « like the clip sheet »: a directive is written in French, an agent translates it into a prompt (Krea 2 without a
-// base image, Qwen Image Edit with one), the attempt goes into the image queue, and the attempt log keeps each one's directive, base and prompt.
+// An asset's sheet works « like the clip sheet »: a directive is written in French, an agent translates it into a prompt (a generation
+// without a base image, an edit with one, both with MiniMax H3 Image), the attempt goes into the image queue, and the attempt log keeps each one's directive, base and prompt.
 
 type Resultat = { ok: true } | { ok: false; erreur: string };
 
 /** Where an attempt starts from: the asset's current image, its parent's image (a character or set state), a previous attempt (by its uuid),
- * or nothing (Krea 2 creates the image). */
+ * or nothing (a generation creates the image). */
 export type BaseEssai = "actuelle" | "parent" | { essai: string } | null;
 
 /** An image attached to the attempt: that of another asset in the registry, or a dropped image (see `deposerSourceImport`). */
@@ -86,12 +85,14 @@ export async function lancerEssai(
     promptBase = essai.prompt;
   }
   const jointes = p.jointes ?? [];
-  // A poster created from images (the main character, for example) starts from an empty 2:3 canvas as image 1: Qwen's output follows the
-  // format of image 1, and without it a 16:9 character sheet would give a 16:9 poster. The canvas counts as the base image.
-  const canevas = asset.type === TYPE_AFFICHE && baseFichierRelatif == null && jointes.length > 0;
-  const aUneBase = baseFichierRelatif != null || canevas;
+  // A poster created from images (the main character, for example): the worker sets its 2:3 format, image 1 is the first attached image.
+  const afficheDepuisImages = asset.type === TYPE_AFFICHE && baseFichierRelatif == null && jointes.length > 0;
+  const aUneBase = baseFichierRelatif != null;
   if (jointes.length > maxImagesJointes(aUneBase)) {
-    return { ok: false, erreur: aUneBase ? "Pour retoucher, une seule image peut s'ajouter à l'image de base." : "Trois images au plus." };
+    return {
+      ok: false,
+      erreur: aUneBase ? `Pour retoucher, ${maxImagesJointes(true)} images au plus s'ajoutent à l'image de base.` : `${maxImagesJointes(false)} images au plus.`,
+    };
   }
   // Attached images are resolved BEFORE any write: a missing file leaves nothing behind.
   const sourcesJointes: { origine: "asset" | "import"; assetId: number | null; fichier: string; libelle: string }[] = [];
@@ -108,9 +109,9 @@ export async function lancerEssai(
   }
   const aDesImages = aUneBase || sourcesJointes.length > 0;
   const consigne = p.consigne.trim();
-  // A poster is drawn from the project's title and summary: its directive may stay empty, even with images (the canvas counts as base).
+  // A poster is drawn from the project's title and summary: its directive may stay empty, even with images.
   // A state from its parent's image too: its description says what the parent becomes.
-  const raison = raisonConsigneInvalide(consigne, aDesImages && !canevas && baseVoulue !== "parent", asset.description);
+  const raison = raisonConsigneInvalide(consigne, aDesImages && !afficheDepuisImages && baseVoulue !== "parent", asset.description);
   if (raison) return { ok: false, erreur: raison };
   if ((await nbImagesEnAttente()) >= PLAFOND_FILE_IMAGES) {
     return { ok: false, erreur: `La file est pleine (${PLAFOND_FILE_IMAGES} images en attente) : laisse le worker en vider quelques-unes.` };
@@ -118,8 +119,8 @@ export async function lancerEssai(
 
   // The base is SNAPSHOTTED: the attempt keeps the image it started from, even if the asset changes afterwards (like imported sources).
   let nomBase: string | null = null;
-  if (baseFichierRelatif || canevas) {
-    const origine = baseFichierRelatif ? join(MEDIA_ROOT, baseFichierRelatif) : await cheminCanevasAffiche(join(MEDIA_ROOT, "_canevas"));
+  if (baseFichierRelatif) {
+    const origine = join(MEDIA_ROOT, baseFichierRelatif);
     nomBase = `${randomUUID()}${extname(origine).toLowerCase() || ".png"}`;
     const cible = join(MEDIA_ROOT, cheminSourceImportMedia(assetId, nomBase));
     try {
@@ -131,7 +132,6 @@ export async function lancerEssai(
   }
 
   const images = [
-    ...(canevas ? [{ rang: 1, role: "base" as const, libelle: "an empty vertical 2:3 canvas (the poster to paint)" }] : []),
     ...(baseFichierRelatif
       ? [{ rang: 1, role: "base" as const, libelle: baseVoulue === "parent" && parent ? `l'image de « ${libelleAsset(parent)} », dont cet asset est un état` : `l'image actuelle de « ${libelleAsset(asset)} »` }]
       : []),
@@ -159,7 +159,6 @@ export async function lancerEssai(
         // Editing: the short clause, recalled by the worker as the last line of the instructions (see lib/assets/generation-launch.ts).
         clauseStyle: texte ? styleDesImages(projet) : styleDesEditions(projet),
         ...(texte ? { aspect: format.aspect, megapixels: format.megapixels } : {}),
-        lightning: texte ? null : true,
         seed: nouvelleSeed(),
       })
       .returning({ id: assetGenerations.id, uuid: assetGenerations.uuid });
@@ -184,7 +183,7 @@ export async function lancerEssai(
   return { ok: true, uuid };
 }
 
-/** Removes an asset's image: it becomes « sans image » (« à produire ») again, and the next attempt starts from scratch with Krea 2. The attempts remain. */
+/** Removes an asset's image: it becomes « sans image » (« à produire ») again, and the next attempt starts from scratch (a generation). The attempts remain. */
 export async function retirerImageAsset(assetId: number): Promise<Resultat> {
   const v = verifier(idSchema, assetId);
   if (!v.ok) return v;

@@ -617,6 +617,13 @@
       "when": 1797008400000,
       "tag": "0087_changement_par_defaut",
       "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1797094800000,
+      "tag": "0088_sans_lightning",
+      "breakpoints": true
     }
   ]
 }

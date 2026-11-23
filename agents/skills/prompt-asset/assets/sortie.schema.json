@@ -30,16 +30,16 @@
     },
     "sources": {
       "type": "array",
-      "maxItems": 3,
+      "maxItems": 6,
       "items": {
         "type": "string"
       },
-      "description": "Edit only: codes of the assets whose image is supplied to the workflow, in order. The first is the target of the modification (by default the starting image), the next ones are references. Three at most. Omit for a generation."
+      "description": "Edit only: codes of the assets whose image is supplied to the workflow, in order. The first is the target of the modification (by default the starting image), the next ones are references. Six at most. Omit for a generation."
     },
     "promptGeneration": {
       "type": "string",
       "minLength": 1,
-      "description": "(English) Krea 2 prose (generation) or Qwen imperative instructions, one per line (edit). No style, no label. A poster ends with its exact final line (title rule)."
+      "description": "(English) MiniMax H3 Image prompt: continuous prose (generation), or one paragraph citing the images as <Picture N> (edit). No style, no label. A poster ends with its exact final line (title rule)."
     },
     "remarques": {
       "type": "array",

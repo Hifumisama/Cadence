@@ -137,7 +137,7 @@ export async function entreePromptAsset(db: Db, projectId: number, assetId: numb
 
 /** The `prompt-asset` input for a REGISTRY asset (step 2): an existing asset goes through
  * `entreePromptAsset` (its description, its parent, its clips); an asset to create gets the same shape,
- * built from the brief's description. A master is always a generation (Krea 2): we only
+ * built from the brief's description. A master is always a generation: we only
  * load its guide. */
 export async function entreePromptAssetCandidat(
   db: Db,

@@ -529,7 +529,7 @@ export function depuisPromptAffiche(
     ...avertissementsRemarques((sortie.remarques ?? []).filter((r): r is { type: string; message: string } => typeof r !== "string")),
     ...(sortie.remarques ?? []).filter((r): r is string => typeof r === "string").map((texte) => ({ type: "info" as const, texte })),
   ];
-  if (methode === "edition") avertissements.unshift({ type: "info", texte: "L'image du personnage principal est la source ; à la génération, un canevas vide 2:3 est ajouté en image 1 pour fixer le format de l'affiche : la fenêtre s'ouvre en mode « images »." });
+  if (methode === "edition") avertissements.unshift({ type: "info", texte: "L'image du personnage principal est la source ; l'affiche est peinte au format 2:3 à partir de son visage et de sa tenue : la fenêtre s'ouvre en mode « images »." });
   return [
     {
       groupe: "assets",

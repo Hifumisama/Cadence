@@ -65,7 +65,7 @@ npm run dev:setup
 
 Sur la fiche d'un asset (hors voix), le panneau « Générer l'image » soumet le
 prompt de génération au worker, qui lance `workflows/image-refs/IMG_01_TextToImage.json`
-(Krea 2 Turbo) avec la clause de style du projet. Le résultat est un **candidat** :
+(MiniMax H3 Image, comme l'édition) avec la clause de style du projet. Le résultat est un **candidat** :
 « Utiliser » en fait l'image de l'asset. En mode `stub`, les images sont factices.
 Variables optionnelles : `COMFYUI_WORKFLOW_IMAGE_PATH` (workflow texte → image) et
 `COMFYUI_WORKFLOW_EDITION_PATH` (workflow d'édition à partir d'images) et
