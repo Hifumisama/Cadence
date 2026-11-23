@@ -55,7 +55,8 @@ test("message de fin d'entretien écrit par le code : résumé, suppositions, la
   assert.match(m, /« L'Éveil » : Un homme sauve une passante\./);
   assert.match(m, /ton Comédie douce · style Live-action · durée visée 180 s · rythme soutenu\./);
   assert.match(m, /Personnages : Théo, Mamie\./);
-  assert.match(m, /à garder ou à jeter : titre, rythme, lieux/);
+  assert.match(m, /proposé moi-même, à relire : titre, rythme, lieux/);
+  assert.match(m, /Encore à compléter dans le Brief : les moments du film./, "après un arrêt, ce qui reste VIDE est dit (le supposé est déjà listé)");
   assert.match(m, /Veux-tu encore affiner d'autres points \? Sinon, passe à l'étape suivante/);
   assert.match(messageBriefPret({ contenu: {}, statuts: {} }), /Le briefing est prêt\./);
 });

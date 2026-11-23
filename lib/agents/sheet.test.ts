@@ -386,7 +386,7 @@ test("projet 259, trace 1758 : une citation sur le changement de tenue ne prouve
   assert.ok(s.includes("tenue:la danseuse") && s.includes("raccords"), "les détails supposés d'une section dite sont listés");
   assert.ok(!s.includes("lieu:la scene de danse"), "le décor est déjà couvert par « lieux »");
   const message = messageBriefPret(f);
-  assert.match(message, /Ce que j'ai supposé.*lieux.*la tenue de La Danseuse/s);
+  assert.match(message, /proposé moi-même, à relire.*lieux.*la tenue de La Danseuse/s);
   assert.doesNotMatch(message, /\(coupe, couleurs, matières\)/, "libellé court");
 });
 

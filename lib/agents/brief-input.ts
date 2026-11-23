@@ -2,7 +2,7 @@
  * the agent reads it to dig into what is missing; the user's brief comes out of it, without a writing call. Pure (used by the
  * service and by the worker). */
 
-import { DEPENDANCES_CHANGEMENT, REQUIS, fichePourAgent, libelleDetail, momentsDeFiche, momentsRequis, momentsTranches, premierMessageGrosBloc, suppositions, type ChangementFiche, type Fiche } from "./sheet";
+import { DEPENDANCES_CHANGEMENT, REQUIS, fichePourAgent, essentielsManquants, libelleDetail, momentsDeFiche, momentsRequis, momentsTranches, premierMessageGrosBloc, suppositions, valeurVide, type ChangementFiche, type Fiche } from "./sheet";
 import { SECTIONS_BRIEF } from "./types";
 
 export type MessageLlm = { role: "user" | "assistant"; content: string };
@@ -118,7 +118,13 @@ export function messageBriefPret(fiche: Fiche): string {
   const noms = (Array.isArray(c.personnages) ? c.personnages : []).map((p) => texte((p as { nom?: unknown }).nom)).filter(Boolean);
   if (noms.length) l.push(`Personnages : ${noms.join(", ")}.`);
   const supposees = suppositions(fiche).map((k) => libelleSupposition(fiche, k));
-  if (supposees.length) l.push(`Ce que j'ai supposé, à garder ou à jeter : ${supposees.join(", ")}.`);
+  if (supposees.length) l.push(`Ce que j'ai proposé moi-même, à relire : ${supposees.join(", ")}.`);
+  // After a stop asked by the user, an essential may still be empty (the notes did not fill it): it is said, the Brief corrects it.
+  // Only what is EMPTY (an assumed value is already listed above; the ending is written in the story).
+  const vides = essentielsManquants(fiche)
+    .filter((r) => (r.cle === "moments" ? momentsDeFiche(fiche.contenu).length === 0 : r.cle !== "fin" && valeurVide(fiche.contenu[r.cle])))
+    .map((r) => r.libelle.replace(/ \(.*\)$/, ""));
+  if (vides.length) l.push(`Encore à compléter dans le Brief : ${vides.join(", ")}.`);
   l.push("Veux-tu encore affiner d'autres points ? Sinon, passe à l'étape suivante avec le bouton.");
   return l.join("\n\n");
 }

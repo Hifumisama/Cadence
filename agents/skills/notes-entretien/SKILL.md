@@ -48,8 +48,9 @@ Your `origine` becomes the stored status of the section: `dit` = `fourni`, `dele
 
 1. **A delegation holds for the question it answers.** Reread the agent's turn just before the user's message: "je te laisse décider", "comme tu veux", "à toi de voir" delegate **only the subject of that question** (one section or one detail). If that question was about something the sheet does not track (the music, a name), nothing is delegated: note it in `questionsOuvertes` or `inventions` if useful, never as a delegation of other sections.
 2. **A global delegation** needs words that cover **everything else**: "carte blanche pour le reste", "imagine le reste", "je te laisse tout le reste", "décide de tout". Only then, each section of `aTrancher` and each detail of `detailsATrancher` is delegated: for each, fill a sober proposal consistent with what is already noted and attach a `delegue` entry (in `sources` or `details`) with the **same quotation** (quote the words that say "le reste" or "tout"); for the ending, answer `delegue` in the `fin` field (the proposed ending is written in `arc`).
-3. A delegation on a named subject ("le rythme, comme tu veux", "pour sa tenue, je te laisse voir") holds for that subject only.
-4. `questionsOuvertes` and `inventions` are never delegated: they are your notes. Use `invente` for them.
+3. **Ending the interview.** A request to end it (« Terminons l'entretien ici : je te laisse tout le reste. » sent by the « Terminer l'entretien » button, or typed: « on arrête là », « stop », « termine l'entretien ») is a global delegation (quote the words that ask to stop): fill **every** section of `aTrancher`, the moments included (at least `momentsRequis`, each a visible action), and every detail of `detailsATrancher`, as in point 2. The user will not answer anything more: leave nothing empty.
+4. A delegation on a named subject ("le rythme, comme tu veux", "pour sa tenue, je te laisse voir") holds for that subject only.
+5. `questionsOuvertes` and `inventions` are never delegated: they are your notes. Use `invente` for them.
 
 ## The `fin` field
 

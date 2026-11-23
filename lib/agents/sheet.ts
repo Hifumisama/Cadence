@@ -275,7 +275,8 @@ const THEMES_SECTION: Record<string, string[]> = {
 /** A GLOBAL delegation: only a wording that aims at "le reste" or "tout" ("carte blanche pour le reste", "imagine le reste",
  * "décide de tout") holds for several subjects at once. "Carte blanche" alone is understood as global (it is the set phrase). */
 const GLOBALE = / (carte blanche|le reste|ce qui reste|ce qu il reste|pour tout|de tout|decide tout|tout decider|tout choisir|te laisse tout|imagine tout|invente tout) /;
-export const delegationGlobale = (citation: string): boolean => GLOBALE.test(` ${normaliser(citation)} `);
+/** A request to end the interview is one too (test feedback 2026-11-23): the user will answer nothing more, the notes fill in the rest. */
+export const delegationGlobale = (citation: string): boolean => GLOBALE.test(` ${normaliser(citation)} `) || arretDemande(citation);
 
 const mentionne = (texte: string, themes: string[]): boolean => themes.some((m) => m.length > 0 && ` ${texte}`.includes(` ${m}`));
 
@@ -532,18 +533,29 @@ export function manquesFiche(fiche: Fiche): string[] {
 export function ficheComplete(fiche: Fiche, messagesUtilisateur: number | readonly string[]): boolean {
   const nb = typeof messagesUtilisateur === "number" ? messagesUtilisateur : messagesUtilisateur.length;
   const min = typeof messagesUtilisateur === "number" ? MIN_MESSAGES_FICHE : minMessagesFiche(messagesUtilisateur);
+  // The user asked to stop (button « Terminer l'entretien » or a stop sentence, test feedback 2026-11-23): it is THEIR decision, so the
+  // interview closes whatever is missing (the stop message delegates the rest: the notes fill it in and the summary lists it as assumed),
+  // and it stays closed if they carry on.
+  if (typeof messagesUtilisateur !== "number" && messagesUtilisateur.some(arretDemande)) return true;
   const bloquants = essentielsManquants(fiche).filter((r) => r.cle !== "moments" || nb < PLAFOND_MESSAGES_MOMENTS);
   if (nb < min || bloquants.length > 0) return false;
-  // The user asks to stop (project 265: « On peut s'arrêter là », the details still open): once the essentials are settled, it closes.
-  const dernier = typeof messagesUtilisateur === "number" ? "" : (messagesUtilisateur[messagesUtilisateur.length - 1] ?? "");
-  return nb >= PLAFOND_MESSAGES_DETAILS || detailsAPreciser(fiche).length === 0 || arretDemande(dernier);
+  return nb >= PLAFOND_MESSAGES_DETAILS || detailsAPreciser(fiche).length === 0;
 }
 
-/** The user asks to end the interview (« on peut s'arrêter là », « c'est bon pour moi », « passons au clap »). Deliberately narrow: « ça me va »
- * validates a proposal, it does not end anything. Pure. */
+/** The message the « Terminer l'entretien » button sends: a stop (`arretDemande`) AND a global delegation (`delegationGlobale`), so the
+ * notes fill in what is still missing as the screenwriter's proposals. */
+export const MESSAGE_ARRET = "Terminons l'entretien ici : je te laisse tout le reste.";
+
+/** The user asks to end the interview (« on peut s'arrêter là », « stop », « termine l'entretien », « passons au clap »). « ça me va »
+ * validates a proposal, it does not end anything; « elle s'arrête au bord de la falaise » is the story. Pure. */
 export function arretDemande(message: string): boolean {
   const t = ` ${normaliser(message)} `;
-  return / (on peut|on va|je veux|j aimerais|on peut maintenant) (s arreter|arreter|en rester) /.test(t) || / (arretons nous|arretons la|on s arrete|on arrete la|c est bon pour moi|on a tout ce qu il faut|passons au clap|on passe au clap|passons a la suite|on peut passer a la suite) /.test(t);
+  return (
+    /^ stop /.test(t) ||
+    / (on peut|on va|je veux|j aimerais|on peut maintenant) (s arreter|arreter|en rester|terminer|finir) /.test(t) ||
+    / (arretons nous|arretons la|on s arrete|on arrete la|on arrete ici|on a fini|c est bon pour moi|on a tout ce qu il faut|passons au clap|on passe au clap|passons a la suite|on peut passer a la suite) /.test(t) ||
+    / (termine|terminons|terminer|arrete|arretons|finis|finissons) (l entretien|la discussion|la conversation|ici) /.test(t)
+  );
 }
 
 /** The user's message asks the screenwriter for something (a question, « propose-m'en d'autres », « propose-moi la suite »): the screenwriter

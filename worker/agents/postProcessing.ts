@@ -9,7 +9,7 @@ import { contenuPourLlm, normaliserSequence, sequenceValidee } from "../../lib/a
 import { appliquerNotes, changementsDeFiche, detailsAPreciser, ficheComplete, manquesEssentiels, manquesFiche } from "../../lib/agents/sheet";
 import { ficheCourante, enregistrerFiche } from "../../lib/agents/sheet-db";
 import { informationsFormat, verrousDeConception } from "../../lib/projects/design";
-import { demandeAuScenariste } from "../../lib/agents/sheet";
+import { arretDemande, demandeAuScenariste } from "../../lib/agents/sheet";
 import { carteChangement, normaliserCarteChangement, pointsCadre } from "../../lib/agents/chat-change";
 import { normaliserQuestions } from "../../lib/agents/chat-questions";
 import { lireConception } from "../../lib/projects/design-db";
@@ -120,8 +120,11 @@ async function postNotes(tx: Tx, run: RunAgent, sortie: unknown) {
   const carte = carteChangement(avant, changements, cadre);
   const pourLaNote = [...cadre.map((c) => ({ cle: c.cle, libelle: c.cle, avant: String(avant.contenu[c.cle] ?? ""), apres: String(c.valeur) })), ...changements];
   // A question or a request (« Propose-m'en d'autres ») is answered by the screenwriter first; the « prêt » state follows anyway (postTour).
-  const demande = demandeAuScenariste(utilisateur[utilisateur.length - 1] ?? "");
-  if (complete && !carte && !demande && !ficheComplete(avant, utilisateur.slice(0, -1))) {
+  const dernier = utilisateur[utilisateur.length - 1] ?? "";
+  const demande = demandeAuScenariste(dernier);
+  // A stop asked by the user (button or sentence) closes right away: no change card, no last question (test feedback 2026-11-23).
+  const arret = arretDemande(dernier);
+  if (complete && (arret || (!carte && !demande)) && !ficheComplete(avant, utilisateur.slice(0, -1))) {
     // The sheet has just become complete: it is the CODE that announces it (summary, assumptions, « étape suivante » button), without an agent
     // turn. If the user carries on, the agent resumes to refine (« complète » note of entreeTour).
     const messagesStockes = [...((conv.messages as unknown[]) ?? []), { role: "assistant", content: messageBriefPret(fiche), at: new Date().toISOString() }];

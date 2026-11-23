@@ -15,6 +15,7 @@ import { ChatChange } from "./ChatChange";
 import { ChatQuestions } from "./ChatQuestions";
 import { traceMessage, type ViaMessage } from "@/lib/agents/chat-trace";
 import { messageDecision } from "@/lib/agents/chat-change";
+import { MESSAGE_ARRET } from "@/lib/agents/sheet";
 import { FilmSynopsis } from "./FilmSynopsis";
 
 /** « Scénario » scene: the interview with the screenwriter. The engine is that of the existing intake interview (notes sheet kept by the
@@ -106,6 +107,7 @@ export function ScenarioScene({ conv, rafraichir }: { conv: VueConversation; raf
   };
 
   const manque = conv.notes.filter((n) => n.requis && n.statut === "absent").length;
+  const essentielsOuverts = conv.notes.filter((n) => n.requis && !essentielRegle(n, conv.synopsis?.sequence.missing ?? 0)).map((n) => (COURT[n.cle] ?? n.libelle).toLowerCase());
   // The proposed sequences: the last card is the live one; the notes tell whether it was validated (lib/agents/chat-sequence.ts).
   const derniereSequence = conv.messages.reduce((k, m, i) => (m.sequence ? i : k), -1);
   const sequenceNotes = { moments: conv.synopsis?.sequence.moments.map((m) => m.text) ?? [], tranche: conv.synopsis ? ["fourni", "delegue"].includes(conv.synopsis.sequence.status) : false };
@@ -202,6 +204,9 @@ export function ScenarioScene({ conv, rafraichir }: { conv: VueConversation; raf
               <span className="cn-note" style={{ margin: 0 }}>Entrée pour envoyer, Maj + Entrée pour un retour à la ligne.</span>
               <button type="button" className="btn btn-gold" disabled={!texte.trim() || occupe || actif} onClick={() => void envoyer()}>{occupe ? "…" : "Envoyer"}</button>
             </div>
+            {dejaCommence && !conv.briefPret ? (
+              <TerminerEntretien manquants={essentielsOuverts} desactive={occupe || actif} terminer={() => void envoyer(MESSAGE_ARRET, "arret")} />
+            ) : null}
             {erreur ? <p className="cn-erreur" role="alert">{erreur}</p> : null}
           </div>
         </div>
@@ -302,11 +307,36 @@ const COURT: Record<string, string> = {
   titre: "Titre",
 };
 
+/** An essential is settled: said or left to the screenwriter (the moments: all there). */
+const essentielRegle = (n: NoteAffichee, momentsManquants: number): boolean => (n.statut === "fourni" || n.statut === "delegue") && (n.cle !== "moments" || momentsManquants === 0);
+
+/** « Terminer l'entretien » (test feedback 2026-11-23): the reliable way to stop, whatever is missing. When essentials are still open, a
+ * confirmation in place says the screenwriter will propose them; otherwise one click ends it. */
+function TerminerEntretien({ manquants, desactive, terminer }: { manquants: string[]; desactive: boolean; terminer: () => void }) {
+  const [confirmer, setConfirmer] = useState(false);
+  if (confirmer && manquants.length > 0) {
+    return (
+      <div className="cn-terminer is-confirmer" role="group" aria-label="Terminer l’entretien">
+        <p>Il manque encore : {manquants.join(", ")}. Le scénariste les proposera, tu pourras tout corriger dans le Brief.</p>
+        <div className="cn-terminer-actions">
+          <button type="button" className="btn" onClick={() => setConfirmer(false)}>Continuer</button>
+          <button type="button" className="btn btn-gold" disabled={desactive} onClick={terminer}>Terminer</button>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="cn-terminer">
+      <button type="button" className="cn-lien" disabled={desactive} onClick={() => (manquants.length > 0 ? setConfirmer(true) : terminer())}>Terminer l’entretien</button>
+    </div>
+  );
+}
+
 /** The essentials as a gauge and chips: done (said or left to the screenwriter) or still to settle. The detail is in the Synopsis. */
 function Avancement({ notes, momentsManquants }: { notes: NoteAffichee[]; momentsManquants: number }) {
   const requis = notes.filter((n) => n.requis);
   if (requis.length === 0) return null;
-  const regle = (n: NoteAffichee) => (n.statut === "fourni" || n.statut === "delegue") && (n.cle !== "moments" || momentsManquants === 0);
+  const regle = (n: NoteAffichee) => essentielRegle(n, momentsManquants);
   const faits = requis.filter(regle).length;
   return (
     <div className="cn-rail-bloc">

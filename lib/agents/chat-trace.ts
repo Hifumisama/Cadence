@@ -2,7 +2,7 @@
  * automatiquement »): the models read their full text, the screen shows a discreet « ✓ » line instead of a bubble. Pure. */
 
 /** Which card sent the message. */
-export const VIAS = ["sequence", "questions", "choix", "autres", "suite"] as const;
+export const VIAS = ["sequence", "questions", "choix", "autres", "suite", "arret"] as const;
 export type ViaMessage = (typeof VIAS)[number];
 export const estVia = (v: unknown): v is ViaMessage => (VIAS as readonly unknown[]).includes(v);
 
@@ -27,5 +27,7 @@ export function traceMessage(via: ViaMessage, contenu: string): string {
       return "Autres propositions demandées";
     case "suite":
       return "Suite de la séquence demandée";
+    case "arret":
+      return "Entretien terminé : le scénariste complète ce qui manque";
   }
 }

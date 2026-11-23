@@ -33,6 +33,11 @@
 .cn-saisie textarea { background: var(--ground); color: var(--ink); border: 1px solid var(--line-strong); padding: 10px 12px; width: 100%; resize: none; font: inherit; font-size: 15px; }
 .cn-saisie-bas { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 13px; }
 .cn-saisie-bas .btn { margin-left: auto; }
+/* « Terminer l'entretien » : discret sous la saisie ; sa confirmation sur place quand l'essentiel n'est pas tranché. */
+.cn-terminer { display: flex; justify-content: flex-end; margin-top: 6px; font-size: 13px; }
+.cn-terminer.is-confirmer { display: grid; gap: 8px; border: 1px solid var(--line-strong); padding: 10px 12px; color: var(--ink-2); }
+.cn-terminer.is-confirmer p { margin: 0; overflow-wrap: anywhere; }
+.cn-terminer-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
 .cn-fiche { border: 1px solid var(--line-strong); background: rgba(26, 26, 33, 0.92); padding: 16px 18px; position: sticky; top: 72px; }
 .cn-fiche h2 { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--or); margin: 0 0 10px; font-weight: 400; }
 .cn-notes { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SECTIONS_CADRE, appliquerNotes, demandesSurLeCadre, ficheComplete, type Fiche } from "./sheet";
+import { MESSAGE_ARRET, SECTIONS_CADRE, appliquerNotes, delegationGlobale, demandesSurLeCadre, ficheComplete, type Fiche } from "./sheet";
 
 // The frame of a designed project has one source, the form (2026-11-18): the notes model never writes it.
 
@@ -32,12 +32,22 @@ test("demandesSurLeCadre : ce que le modèle a voulu changer dans le cadre (une 
   assert.deepEqual(demandesSurLeCadre(fiche, sortie, []), []);
 });
 
-test("ficheComplete : « on peut s'arrêter là » clôt l'entretien quand l'essentiel est tranché, pas avant", () => {
+test("le message du bouton « Terminer l'entretien » est un arrêt ET une délégation globale (les notes complètent ce qui manque)", () => {
+  assert.ok(delegationGlobale(MESSAGE_ARRET));
+  assert.ok(delegationGlobale("Stop, on arrête là"), "un arrêt tapé à la main aussi");
+  assert.ok(!delegationGlobale("Je te laisse décider"), "une délégation simple reste bornée");
+});
+
+test("ficheComplete : un arrêt demandé clôt l'entretien, même si l'essentiel manque, et il le reste (retours 2026-11-23)", () => {
   const essentiels: Fiche = {
     contenu: { arc: "a", genreTon: "g", style: { nom: "s", clause: "c" }, rythme: "variable", dureeEpisodeSecondes: 20, personnages: [{ nom: "Mia", age: "25 ans", apparence: "cheveux courts", tenue: { coupe: "inspirée de X" } }], moments: ["m1", "m2"] },
     statuts: { arc: "fourni", fin: "fourni", genreTon: "fourni", style: "fourni", rythme: "fourni", dureeEpisodeSecondes: "fourni", personnages: "fourni", moments: "fourni" },
   };
   assert.equal(ficheComplete(essentiels, ["a", "b", "c"]), false, "un détail reste à préciser");
   assert.equal(ficheComplete(essentiels, ["a", "b", "On peut s'arrêter là :)"]), true);
-  assert.equal(ficheComplete({ ...essentiels, statuts: { ...essentiels.statuts, arc: "deduit" } }, ["a", "b", "On peut s'arrêter là"]), false, "l'essentiel manque");
+  const sansEssentiel = { ...essentiels, statuts: { ...essentiels.statuts, arc: "deduit" as const } };
+  assert.equal(ficheComplete(sansEssentiel, ["a", "b", "c"]), false, "l'essentiel manque, pas d'arrêt demandé");
+  assert.equal(ficheComplete(sansEssentiel, ["a", "On peut s'arrêter là"]), true, "l'arrêt est une décision de l'utilisateur : le scénariste complète");
+  assert.equal(ficheComplete(sansEssentiel, [MESSAGE_ARRET]), true, "le bouton « Terminer l'entretien »");
+  assert.equal(ficheComplete(sansEssentiel, ["a", MESSAGE_ARRET, "Finalement, la fin est triste."]), true, "un message après l'arrêt ne rouvre pas l'entretien");
 });
