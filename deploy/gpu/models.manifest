@@ -3,12 +3,12 @@
 # (npm run gpu:verifier dit lesquels manquent). Adresses trouvées sur Hugging Face le 2026-11-03.
 # Un fichier privé ou protégé demande la variable HF_TOKEN (jeton Hugging Face en lecture).
 #
-# Taille totale : ~132 Go. Prévoir un volume de 160 Go au minimum.
+# Taille totale : ~116 Go. Prévoir un volume de 150 Go au minimum.
 
 # ── Vidéo MiniMax H3 (trois étapes) ─────────────────────
+# L'encodeur de texte est celui des images (qwen3vl_32b_minimax_h3_int8_convrot, plus bas) : un seul fichier pour les deux.
 models/diffusion_models/Minimax-h3_Singularity_ref2va_Pruned_v1.3_int8.safetensors | https://huggingface.co/WarmBloodAban/Minimax-h3_Singularity/resolve/main/Minimax-h3_Singularity_ref2va_Pruned_v1.3_int8.safetensors
 models/loras/minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors | https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/loras/minimax_h3_ref2v_turbo_4step_v0.1_comfyui_bf16.safetensors
-models/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors | https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors
 models/vae/minimax_h3_video_vae_fp16.safetensors | https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_video_vae_fp16.safetensors
 models/vae/minimax_h3_audio_vae_fp32.safetensors | https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/main/vae/minimax_h3_audio_vae_fp32.safetensors
 models/latent_upscale_models/minimax_h3_latent_upscaler_3d_bf16.safetensors | https://huggingface.co/DeepBeepMeep/MiniMax-H3/resolve/main/minimax_h3/minimax_h3_latent_upscaler_3d_bf16.safetensors
