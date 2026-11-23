@@ -21,7 +21,6 @@ Chaque chantier a sa fiche : problème · réussi si… · on arrête si… · b
 3. **Phase 6 du projet 259** : rejouer un projet complet de bout en bout après les phases 1 à 5.
 
 ## À valider par toi (codé, pas encore vu en vrai)
-- **Images en MiniMax H3 Image** (2026-11-23, remplace Krea 2 et Qwen Image Edit) : 3 rendus GPU, une génération 16:9, une édition d'une image seule, une édition à 4-6 sources ; câblage (sortie à 1 MP, ~1 min), la qualité est à toi. Puis **l'encodeur `int8_convrot` côté vidéo** (2ᵉ commit) : un rendu vidéo.
 - **Refonte de la conception** : tests T16 à T23. Jamais vu en vrai : la carte de questions (le scénariste a posé des questions ouvertes à ces tours). Une fois, la page ne s'est pas rafraîchie seule en fin de tour.
 - **Machine à états de revue** (31b0cee) : un projet créé par l'installateur et un « Itérer » sur un clip. Ensuite, supprimer la colonne `coche` (faible).
 
@@ -67,6 +66,7 @@ Chacun se cadre avec l'utilisateur avant de coder (risque classé à ce moment-l
 - **Rythme** (13/11, 25 projets) : le rythme demandé ne change pas la durée des plans ; d'où son retrait de l'assistant.
 - **Temps de préparation** : aucune formule (3 à 16 min pour 1 min de film) ; le clap donne les quartiles des 12 dernières.
 - **Bancs du 17/11** : « extreme » donne la caméra cache-misère (« Équilibrée » recommandée) ; une musique sur des plans liés reste continue grâce au latent ; le nombre de prises se règle selon l'intensité.
+- **Images en MiniMax H3 Image** (validé le 2026-11-23) : génération, retouche avec et sans images jointes, affiche 2:3 et vidéo avec l'encodeur `int8_convrot`, tous corrects. Dessin à 16 MP (en dessous l'image n'est pas propre), ~1 min par image.
 - **Guillemets « »** : fonctionnels (4 regex et les skills `scenario-*`), H3 ne les reçoit jamais.
 
 ## Gardé après examen
