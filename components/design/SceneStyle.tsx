@@ -9,8 +9,8 @@ import { EnteteScene } from "./Scenes";
 import type { PropsScene, StyleVue } from "./types";
 
 /** Style scene (ticket 06, 2026-11-24, mock-up C): one scrolling row per family, each style shown by its showcase image (16:9, its name
- * painted in), and « Créer mon style » at the end. Below, the chosen style: its two prompts (read only) for a library style, the two fields
- * and the optional image for a free style. */
+ * painted in), and « Créer mon style » at the end. Below, for a free style only, its two fields and the optional
+ * image (a library style's prompts are read in the Brief). */
 
 const urlStyle = (fichier: string) => `/api/media/styles/${fichier}`;
 
@@ -29,7 +29,6 @@ export function SceneStyle({ etat, maj, styles }: PropsScene & { styles: StyleVu
   const choisiId = etat.style?.source === "bibliotheque" ? etat.style.styleId : null;
   const choisir = (id: string) => maj((e) => ({ ...e, style: { source: "bibliotheque", styleId: id } }));
   const nouveauStyle = () => maj((e) => (e.style?.source === "libre" ? e : { ...e, style: { source: "libre", nom: "", promptImage: "", clause: "" } }));
-  const selection = choisiId ? styles.find((s) => s.id === choisiId) : null;
   const familles = FAMILLES_STYLES.map((nom) => ({ nom, styles: styles.filter((s) => s.famille === nom) })).filter((f) => f.styles.length);
 
   return (
@@ -56,23 +55,12 @@ export function SceneStyle({ etat, maj, styles }: PropsScene & { styles: StyleVu
         </section>
       ))}
 
-      <div className="cn-style-choisi" aria-label="Style choisi">
-        {libreChoisi ? (
+      {/* The prompts of a library style are read in the Brief: only the free style shows its form here (test feedback 2026-11-24). */}
+      {libreChoisi ? (
+        <div className="cn-style-choisi" aria-label="Mon style">
           <DetailLibre etat={etat} maj={maj} />
-        ) : selection ? (
-          <div className="cn-detail">
-            <div className="cn-champs">
-              <h3>{selection.nom}</h3>
-              <label className="cn-champ">Prompt image (génère les images de référence)<textarea readOnly rows={6} value={selection.descriptor} /></label>
-              <label className="cn-champ">Clause courte envoyée à la vidéo<textarea readOnly rows={3} value={selection.clause} /></label>
-              <p className="cn-note" style={{ margin: 0 }}>Les styles de la bibliothèque ne se modifient pas : pour écrire le tien, choisis « Créer mon style ».</p>
-            </div>
-            <Usage />
-          </div>
-        ) : (
-          <p className="cn-vide-style">Choisis un style dans les rangées : ses deux prompts (l’un pour les images, l’autre pour la vidéo) s’affichent ici.</p>
-        )}
-      </div>
+        </div>
+      ) : null}
     </>
   );
 }

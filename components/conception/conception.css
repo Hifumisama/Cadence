@@ -296,5 +296,4 @@
 .cn-carte-creer span { font-size: calc(13px * var(--cn-echelle, 1)); }
 .cn-carte-creer:hover, .cn-carte-creer[aria-pressed="true"] { border-color: var(--or); color: var(--or-glow); }
 .cn-style-choisi { margin-top: 8px; }
-.cn-style-choisi .cn-vide-style { border: 1px dashed var(--line-strong); padding: 18px 22px; margin: 0; }
 @media (max-width: 760px) { .cn-defile { grid-auto-columns: 80%; } }

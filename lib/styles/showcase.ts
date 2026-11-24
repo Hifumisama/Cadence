@@ -56,7 +56,7 @@ export const APERCUS_STYLES: readonly ApercuStyle[] = [
     id: "vintage-children-s-book-drawing",
     famille: "Illustration",
     titre: "CHILDREN'S BOOK",
-    scene: `A small fox wearing a knitted scarf and a little boy in short trousers share a picnic under a large oak tree, a basket of apples, a teapot and a kite resting on the grass, a cottage and gentle hills behind them, pale morning light. Wide shot. ${titre("CHILDREN'S BOOK", "in the sky above the oak tree", "hand-drawn storybook")}`,
+    scene: `A small fox wearing a knitted scarf and a little boy in short trousers share a picnic under a large oak tree, a basket of apples, a teapot and a kite resting on the grass, a cottage and gentle hills behind them, pale morning light. Wide shot. ${titre("CHILDREN'S BOOK", "large across the top of the image like a storybook cover title, dark ink on the pale sky, very high contrast, nothing in front of the letters", "bold hand-drawn storybook, dark brown ink")}`,
   },
   {
     id: "cinematic-final-fantasy-3d-render",
