@@ -37,6 +37,7 @@ Chaque chantier a sa fiche : problème · réussi si… · on arrête si… · b
 - Affichage des dialogues en “ ” dans les vignettes et le tiroir (affichage seulement ; changer le stockage = haut risque).
 
 ## Idées (boîte de réception, non triées)
+- **Retours UX de la conception, 2026-11-24** : 7 tickets dans `.scratch/conception-ux/issues/`. 5 prêts à coder, petits et sans risque (largeur pleine, étape Durée allégée, bouton Retour, glissière cliquable, étape Langue allégée). 2 à griller en séance dédiée : refonte des styles graphiques (06) et de la mise en scène (07).
 - Rejouer avec H3 Image les cas « ne pas éditer » hérités de Qwen (absence, changement de point de vue) : H3 reconstruit une scène autour d'une référence.
 - Carte d'un monde inventé : la règle « aucun texte » venait des lettres illisibles de Krea ; H3 écrit proprement.
 
