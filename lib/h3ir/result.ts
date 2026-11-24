@@ -14,12 +14,11 @@ export const SKILL_TRADUCTION = "traduction-intent";
 export type EntreeH3ir = {
   planUuid: string;
   shots?: number | null;
-  director?: string | null;
   creativity?: string | null;
   description?: string | null;
   dureeSecondes?: number | null;
   references?: { ajouter: string[]; retirer: string[] } | null;
-  reglagesPlan?: { creativite?: string | null; styleCamera?: string | null } | null;
+  reglagesPlan?: { creativite?: string | null } | null;
   /** « Partir de cet essai »: retouch the prompt of this attempt (skill `retouche-prompt`) instead of recompiling; if the skill answers « refonte », the compilation
    * above (description, duration, references, settings) takes over. */
   retouche?: EntreeRetouche | null;

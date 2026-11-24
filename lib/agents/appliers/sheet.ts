@@ -166,9 +166,8 @@ async function ecrireFiche(tx: Tx, projectId: number, p: { id: number; statut: s
   if (apres.description) valeurs.description = conserverConsigneAuteur(apres.description, actuel?.description);
   // The sheet has just been written from THIS text of the clip: if it changes afterwards, the sheet must be regenerated (lib/clips/intent.ts, `intentionChangee`).
   if (sections.length > 0) valeurs.ficheDescription = valeurs.description ?? actuel?.description ?? null;
-  // The Open H3 IR settings decided by « Itérer »: the new value of the CLIP replaces the old one (no directive piling up).
+  // The Open H3 IR creativity decided by « Itérer » (temps fort or not): the new value of the CLIP replaces the old one (no directive piling up).
   if (apres.reglages?.creativite) valeurs.creativite = apres.reglages.creativite;
-  if (apres.reglages?.styleCamera) valeurs.styleCamera = apres.reglages.styleCamera;
   if (p.statut === "brouillon") valeurs.statut = "en_attente"; // developed into a clip sheet (developperEnFichePlan)
   await tx.update(plans).set(valeurs).where(eq(plans.id, p.id));
 }

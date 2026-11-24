@@ -242,7 +242,7 @@ export async function getEtatPlans(episodeId: number) {
  * scene selector of a clip's page. */
 export async function getScenesEpisode(episodeId: number) {
   return db
-    .select({ id: scenes.id, titre: scenes.titre, creativite: scenes.creativite, styleCamera: scenes.styleCamera })
+    .select({ id: scenes.id, titre: scenes.titre })
     .from(scenes)
     .where(eq(scenes.episodeId, episodeId))
     .orderBy(scenes.ordre);

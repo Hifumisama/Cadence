@@ -77,10 +77,6 @@ export const projects = pgTable("projects", {
   // synchroniserClauseStyle); empty for a project without design: the images then fall back to the clause.
   stylePromptImage: text("style_prompt_image").notNull().default(""),
   notes: text("notes").notNull().default(""),
-  // Open H3 IR (lib/h3ir/settings.ts): creativity and staging style of the project, inherited by its scenes then its clips. Null = default setting.
-  // Varchar controlled by the application (not a Postgres enum); the style is one of the 7 profiles or « aucun ».
-  creativite: varchar("creativite", { length: 12 }),
-  styleCamera: varchar("style_camera", { length: 20 }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -116,9 +112,6 @@ export const scenes = pgTable("scenes", {
   genre: varchar("genre", { length: 20 }),
   // Visual frame held across the whole scene (time of day, weather, general light): continuity between clips.
   ambiance: text("ambiance"),
-  // Open H3 IR: creativity and staging style of the scene (null = inherits from the project; style « aucun » = forces no style). lib/h3ir/settings.ts.
-  creativite: varchar("creativite", { length: 12 }),
-  styleCamera: varchar("style_camera", { length: 20 }),
   // The treatment of the scene (lib/agents/treatment.ts): what it tells, where it starts, where it ends, its target duration.
   traitement: jsonb("traitement").$type<{ intention: string; etatEntree: string; etatSortie: string; dureeCibleSecondes: number; momentsDeLAuteur: string; moments?: string[] }>(),
 });
@@ -173,9 +166,9 @@ export const plans = pgTable("plans", {
   // Link with the PREVIOUS clip of the episode (2026-10-14, lib/clips/clip-link.ts): « suite » = the clip picks up where the other one ends (same place, roughly
   // the same instant); « coupe » = a clean break (other place, other moment, free angle). Set by the screenplay, editable by hand.
   liaison: varchar("liaison", { length: 10 }).notNull().default("suite"),
-  // Open H3 IR: creativity and staging style of THIS clip (null = inherits from the scene, then from the project; style « aucun » = forces no style). lib/h3ir/settings.ts.
+  // Open H3 IR (lib/h3ir/settings.ts): `"extreme"` = this clip is a TEMPS FORT (compiled with every choice pushed to the maximum); null or `"balanced"` = a normal clip.
+  // Varchar controlled by the application (not a Postgres enum). No project-level nor scene-level setting since ADR 0001 (2026-11-24).
   creativite: varchar("creativite", { length: 12 }),
-  styleCamera: varchar("style_camera", { length: 20 }),
   dureeMontageSecondes: integer("duree_montage_secondes").notNull(),
   dureeGenerationSecondes: integer("duree_generation_secondes").notNull(),
   fps: integer("fps").notNull().default(24),

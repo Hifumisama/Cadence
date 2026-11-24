@@ -8,7 +8,6 @@ import { db } from "@/db";
 import { lireVueCreation } from "@/lib/agents/creation-view";
 import { genreDuFilm } from "@/lib/projects/design";
 import { lireConception } from "@/lib/projects/design-db";
-import { resumeMiseEnScene } from "@/lib/h3ir/settings";
 import { MEDIA_ROOT, posterSrc } from "@/lib/media";
 import { getFirstEpisodeId, getProject, getScenarioData } from "@/lib/queries";
 import { lireBrief } from "@/lib/agents/queries-agents";
@@ -59,7 +58,7 @@ export default async function CreationPage({ params }: { params: Promise<{ proje
         tabs={{ projectId: pid, episodeBase }}
       />
       <main>
-        <AvanceeScene projectId={pid} nomProjet={projet.nom} initial={creation} imagesInitial={images} conception={conception} genre={genreDuFilm(conception, brief?.contenu.genreTon)} style={{ nom: styleBrief?.nom || "Style libre", image, poster: posterSrc("projects", pid, projet.posterFichier ?? null) }} miseEnScene={resumeMiseEnScene(projet.creativite, projet.styleCamera)} premierJet={premierJet} />
+        <AvanceeScene projectId={pid} nomProjet={projet.nom} initial={creation} imagesInitial={images} conception={conception} genre={genreDuFilm(conception, brief?.contenu.genreTon)} style={{ nom: styleBrief?.nom || "Style libre", image, poster: posterSrc("projects", pid, projet.posterFichier ?? null) }} premierJet={premierJet} />
       </main>
     </>
   );

@@ -8,7 +8,6 @@ import { db } from "@/db";
 import { lireEstimationPreparation, lireVueCreation } from "@/lib/agents/creation-view";
 import { ouvrirConversation } from "@/lib/agents/service-conversation";
 import { lireConception } from "@/lib/projects/design-db";
-import { resumeMiseEnScene } from "@/lib/h3ir/settings";
 import { MEDIA_ROOT, posterSrc } from "@/lib/media";
 import { getProject } from "@/lib/queries";
 import { lireBrief, lireConversation, trouverConversation } from "@/lib/agents/queries-agents";
@@ -53,7 +52,7 @@ export default async function DemarragePage({ params }: { params: Promise<{ proj
         }
       />
       <main>
-        <DemarrageAssistant projectId={pid} nomProjet={projet.nom} convInitiale={conv} conception={conception} style={{ nom: styleBrief?.nom || "Style libre", image, poster: posterSrc("projects", pid, projet.posterFichier ?? null) }} miseEnScene={resumeMiseEnScene(projet.creativite, projet.styleCamera)} estimation={estimation} />
+        <DemarrageAssistant projectId={pid} nomProjet={projet.nom} convInitiale={conv} conception={conception} style={{ nom: styleBrief?.nom || "Style libre", image, poster: posterSrc("projects", pid, projet.posterFichier ?? null) }} estimation={estimation} />
       </main>
     </>
   );

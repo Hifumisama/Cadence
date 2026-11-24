@@ -22,7 +22,7 @@ export type DepsH3ir = {
   charger?: (
     projectId: number,
     planUuid: string,
-    options: { shots?: number | null; director?: string | null; creativity?: string | null },
+    options: { shots?: number | null; creativity?: string | null },
     surcharge?: SurchargeBrief,
   ) => Promise<ResultatBrief | null>;
   lancer?: LanceurPython;
@@ -46,12 +46,11 @@ export function lireEntreeH3ir(entree: unknown): EntreeH3ir {
   const codes = (v: unknown): string[] => (Array.isArray(v) ? v.filter((c): c is string => typeof c === "string" && !!c.trim()) : []);
   const references = e.references ? { ajouter: codes(e.references.ajouter), retirer: codes(e.references.retirer) } : null;
   const r = e.reglagesPlan;
-  const reglagesPlan = r && (typeof r.creativite === "string" || typeof r.styleCamera === "string") ? { creativite: typeof r.creativite === "string" ? r.creativite : null, styleCamera: typeof r.styleCamera === "string" ? r.styleCamera : null } : null;
+  const reglagesPlan = r && typeof r.creativite === "string" ? { creativite: r.creativite } : null;
   const retouche = lireRetouche(e.retouche);
   return {
     planUuid: e.planUuid,
     shots: e.shots ?? null,
-    director: e.director ?? null,
     creativity: e.creativity ?? null,
     ...(description ? { description } : {}),
     ...(duree != null ? { dureeSecondes: duree } : {}),
@@ -155,7 +154,7 @@ export async function executerH3ir(
           ...(entree.reglagesPlan ? { reglages: entree.reglagesPlan } : {}),
         }
       : undefined;
-  const r = await charger(run.projectId, entree.planUuid, { shots: entree.shots, director: entree.director, creativity: entree.creativity }, surcharge);
+  const r = await charger(run.projectId, entree.planUuid, { shots: entree.shots, creativity: entree.creativity }, surcharge);
   if (!r) throw new Error("Plan introuvable.");
   if (!r.brief) throw new Error(r.refus ?? "Le brief Open H3 IR est refusé.");
   const brief = r.brief;

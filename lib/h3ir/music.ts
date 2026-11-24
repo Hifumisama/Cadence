@@ -30,12 +30,14 @@ export function musiqueDePlan(musiqueBrief: unknown, intention?: IntentionMusiqu
   return `${/[.!?]$/.test(propre) ? propre : `${propre}.`} ${consigne}`;
 }
 
-/** The final `non_diegetic_music` of a clip (2026-11-18):
- * - the user wants no music (intention « aucune », or the brief says N/A): « N/A », whatever the creativity;
- * - the compiled section is empty or N/A (creativity « Sobre »): it stays as it is;
- * - otherwise the brief's description, the same on every clip (`musiqueDePlan`), or the compiled text when the brief has none. Pure. */
+/** The final `non_diegetic_music` of a clip: the DESIGN decides, not the creativity (ADR 0001: « Sobre », which used to switch the music off, no longer exists):
+ * - the user wants no music (intention « aucune », or the brief says N/A): « N/A »;
+ * - the user wants some (intention « discrète » or « présente »): the brief's description, the same on every clip (`musiqueDePlan`), even if the compiler wrote
+ *   « N/A » or nothing; without a description in the brief, the compiled text stays;
+ * - no intention (a project designed before it existed): the compiled section if it is empty or N/A stays as it is, otherwise the brief's description. Pure. */
 export function sectionMusique(compilee: string, musiqueBrief: unknown, intention?: IntentionMusique): string {
   if (intention === "aucune" || estSansMusique(musiqueBrief)) return "N/A";
-  if (!compilee.trim() || estSansMusique(compilee)) return compilee;
+  const voulue = intention === "discrete" || intention === "presente";
+  if (!voulue && (!compilee.trim() || estSansMusique(compilee))) return compilee;
   return musiqueDePlan(musiqueBrief, intention) ?? compilee;
 }

@@ -29,7 +29,6 @@ export function DemarrageAssistant({
   convInitiale,
   conception,
   style,
-  miseEnScene,
   estimation = null,
 }: {
   projectId: number;
@@ -39,8 +38,6 @@ export function DemarrageAssistant({
   style: StyleAffiche;
   /** The usual duration of a preparation (last finished ones), null without enough of them. */
   estimation?: { nb: number; bas: number; median: number; haut: number } | null;
-  /** The project's staging in a few words (`resumeMiseEnScene`): read from the project, not from the design. */
-  miseEnScene: string;
 }) {
   const [conv, setConv] = useState(convInitiale);
   const [etape, setEtape] = useState(SCENARIO);
@@ -98,7 +95,7 @@ export function DemarrageAssistant({
     return () => clearInterval(t);
   }, [afficheEnCours, projectId]);
 
-  const resumes = useMemo(() => resumesCadre(conception, style.nom, miseEnScene), [conception, style.nom, miseEnScene]);
+  const resumes = useMemo(() => resumesCadre(conception, style.nom), [conception, style.nom]);
   // The genre is decided in the interview: the room's light follows it as soon as the notes have it.
   const genre = genreDuFilm(conception, conv.notes.find((n) => n.cle === "genreTon")?.texte);
   const ambiance = useMemo(() => ambianceDuGenre(genre) as CSSProperties, [genre]);
@@ -117,7 +114,7 @@ export function DemarrageAssistant({
 
       <div className={`cn-scene${recule ? " is-recule" : ""}`} key={etape}>
         {etape === SCENARIO ? <ScenarioScene conv={conv} rafraichir={rafraichir} /> : null}
-        {etape === CLAP ? <ClapScene projectId={projectId} nomProjet={nomProjet} conception={conception} genre={genre} style={style} miseEnScene={miseEnScene} estimation={estimation} notes={conv.notes} synopsis={conv.synopsis} pret={pret} affiche={affiche} reessayer={() => preparer(true)} apresTitre={() => preparer(false)} /> : null}
+        {etape === CLAP ? <ClapScene projectId={projectId} nomProjet={nomProjet} conception={conception} genre={genre} style={style} estimation={estimation} notes={conv.notes} synopsis={conv.synopsis} pret={pret} affiche={affiche} reessayer={() => preparer(true)} apresTitre={() => preparer(false)} /> : null}
       </div>
 
       <div className="cn-barre" role="group" aria-label="Avancer dans la conception">

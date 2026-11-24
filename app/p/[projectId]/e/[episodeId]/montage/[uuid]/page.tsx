@@ -7,7 +7,6 @@ import { getAssetsRegistre, getPlanDetail, getProject, getScenesEpisode, type As
 import { getPelliculePlans } from "@/lib/clips/queries-clip-sheet";
 import { infosMedia } from "@/lib/assets/assetMedia";
 import { controlerStructure, DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, verifierCoherenceRefs, WORKFLOW_IMPORT_MANUEL } from "@/lib/clips/clip-checks";
-import { demosMiseEnScene } from "@/lib/media";
 import { essaiEnFile, essaiVoisin, etatPlan, LIBELLE_ETAT_PLAN, libelleEssai, planSuivant, texteConsigne, trierEssais } from "@/lib/clips/clip-sheet";
 import { ReferencesCases, type RefVue } from "@/components/clip/ReferencesCheckboxes";
 import type { NoeudPicker } from "@/components/clip/AssetPickerModal";
@@ -135,11 +134,8 @@ export default async function PlanPage({
     dureeSecondes: plan.dureeGenerationSecondes >= DUREE_GENERATION_MIN && plan.dureeGenerationSecondes <= DUREE_GENERATION_MAX ? plan.dureeGenerationSecondes : null,
     liaison: liaisonOuDefaut(plan.liaison),
     creativite: plan.creativite ?? "",
-    styleCamera: plan.styleCamera ?? "",
   };
 
-  // The staging demo videos (style choice window): read from disk, server side.
-  const demos = demosMiseEnScene();
   const assetsPicker = assetsRegistre.map(versNoeudPicker);
   const refsVue: RefVue[] = refs.map((r) => ({
     id: r.id,
@@ -157,9 +153,6 @@ export default async function PlanPage({
   }));
 
   const scene = scenesEpisode.find((sc) => sc.id === plan.sceneId);
-  // Creativity and staging style for Open H3 IR: the clip's, otherwise its scene's, otherwise the project's (lib/h3ir/settings.ts).
-  const reglagesProjet = { creativite: projet?.creativite ?? null, styleCamera: projet?.styleCamera ?? null };
-  const reglagesScene = scene ? { creativite: scene.creativite, styleCamera: scene.styleCamera } : null;
   // A clip is a draft as long as it has neither a written sheet nor an attempt: a status still "brouillon" on a clip that already has a prompt or renders does not hide them.
   const estBrouillon = plan.statut === "brouillon" && !aUneFiche && jobHistory.length === 0;
   const plansHref = `/p/${pid}/e/${eid}/montage`;
@@ -362,7 +355,7 @@ export default async function PlanPage({
         <div className="tm-brouillon">
           {titre}
           <p className="tiny-note">Cette fiche n&rsquo;est pas encore développée : complète le scénario du plan, puis développe-le : l&rsquo;agent écrit la fiche (prompt vidéo, références) en arrière-plan.</p>
-          <PlanScenarioPanel planId={plan.id} projectId={pid} planUuid={plan.uuid} brouillon initial={scenarioInitial} demandeEnCours={ficheEnCours?.id ?? null} reglagesProjet={reglagesProjet} reglagesScene={reglagesScene} dureeGeneration={plan.dureeGenerationSecondes} premierPlan={position === 1} demos={demos} />
+          <PlanScenarioPanel planId={plan.id} projectId={pid} planUuid={plan.uuid} brouillon initial={scenarioInitial} demandeEnCours={ficheEnCours?.id ?? null} dureeGeneration={plan.dureeGenerationSecondes} premierPlan={position === 1} />
         </div>
       ) : (
         <BrouillonProvider planId={plan.id} serveur={serveur} prochainRendu={jobHistory.reduce((m, j) => Math.max(m, j.numeroRendu), 0) + 1}>
@@ -377,10 +370,8 @@ export default async function PlanPage({
                 initial={scenarioInitial}
                 dureeGeneration={plan.dureeGenerationSecondes}
                 musique={plan.timecodeMusique}
-                reglagesProjet={reglagesProjet}
-                reglagesScene={reglagesScene}
                 premierPlan={position === 1}
-                demos={demos}
+               
               />
               <TiroirPlan
                 panneaux={{

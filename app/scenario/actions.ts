@@ -5,7 +5,6 @@ import { scenes, plans } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { recomposerOrdre } from "@/lib/clips/clip-order";
-import { creativiteOuNull, styleCameraOuNull } from "@/lib/h3ir/settings";
 import { conserverConsigneAuteur, intentAffichee, memeDescription, normaliserGuillemetsRepliques } from "@/lib/clips/intent";
 import { z } from "zod";
 import { exiger, idSchema, texteSchema, uuidSchema, verifier } from "@/lib/validation/args";
@@ -54,10 +53,9 @@ export async function deplacerPlan(planId: number, sceneId: number | null, avant
 
 /** Editing a scene: title, function (description) and mood (visual frame held across the whole scene). The genre of
  * scene is removed (2026-11-09): the column stays in the database, neither read nor written. */
-/** `creativite` and `styleCamera` (Open H3 IR, lib/h3ir/settings.ts): absent = left untouched; `null` or empty = the scene inherits from the project; `aucun` (style) = no style despite the project's. */
 export async function modifierScene(
   sceneId: number,
-  valeurs: { titre: string; fonction: string; ambiance?: string; creativite?: string | null; styleCamera?: string | null },
+  valeurs: { titre: string; fonction: string; ambiance?: string },
 ) {
   exiger(
     z.tuple([
@@ -66,8 +64,6 @@ export async function modifierScene(
         titre: texteSchema(255),
         fonction: texteSchema(),
         ambiance: texteSchema().optional(),
-        creativite: z.string().max(40).nullish(),
-        styleCamera: z.string().max(80).nullish(),
       }),
     ]),
     [sceneId, valeurs],
@@ -80,8 +76,6 @@ export async function modifierScene(
       titre,
       fonction: valeurs.fonction.trim() || null,
       ambiance: valeurs.ambiance?.trim() || null,
-      ...(valeurs.creativite !== undefined ? { creativite: creativiteOuNull(valeurs.creativite) } : {}),
-      ...(valeurs.styleCamera !== undefined ? { styleCamera: styleCameraOuNull(valeurs.styleCamera) } : {}),
     })
     .where(eq(scenes.id, sceneId));
   revalidatePath("/", "layout");

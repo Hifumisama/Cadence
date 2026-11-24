@@ -2,7 +2,7 @@ import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../clips/clip-checks
 import { MAX_REFS, verifierCoherenceRefs, type RefLabel } from "../clips/clip-checks";
 import { ORDRE_SECTIONS, type NomSection } from "../clips/prompt";
 import type { Avertissement } from "./types";
-import { estCreativite, estMiseEnScene, STYLE_AUCUN } from "../h3ir/settings";
+import { estCreativite } from "../h3ir/settings";
 
 /** Step 3 of the pipeline: a clip's SHEET (H3 prompt in six sections, picture references, generation
  * duration). PURE rules (no database or Next), shared by the conversion, the `fiche` applier,
@@ -59,7 +59,7 @@ export type ApresFiche = {
   moteur?: "h3ir";
   /** Open H3 IR settings of the CLIP decided by "Itérer" (2026-11-09): the value REPLACES `plans.creativite` / `plans.style_camera` (`"aucun"` = no
    * style). Absent = not touched. Written with the compiled sheet that used them. */
-  reglages?: { creativite?: string; styleCamera?: string };
+  reglages?: { creativite?: string };
 };
 
 export function estSectionFiche(s: string): s is NomSection {
@@ -82,7 +82,7 @@ export function lireApresFiche(apres: unknown): ApresFiche {
   if (a.moteur === "h3ir") sortie.moteur = "h3ir";
   if (a.reglages && typeof a.reglages === "object") {
     const r = a.reglages as Record<string, unknown>;
-    const reglages = { ...(typeof r.creativite === "string" ? { creativite: r.creativite } : {}), ...(typeof r.styleCamera === "string" ? { styleCamera: r.styleCamera } : {}) };
+    const reglages = typeof r.creativite === "string" ? { creativite: r.creativite } : {};
     if (Object.keys(reglages).length) sortie.reglages = reglages;
   }
   if (Array.isArray(a.dependDeCles)) sortie.dependDeCles = a.dependDeCles.filter((c): c is string => typeof c === "string");
@@ -122,7 +122,6 @@ export function verifierFiche(apres: ApresFiche, etat: EtatPlanFiche): string | 
   if (cles.length === 0 && apres.refs === undefined && apres.dureeGenerationSecondes === undefined && apres.description === undefined && apres.reglages === undefined) return "Rien à écrire dans la fiche.";
   const rg = apres.reglages;
   if (rg?.creativite !== undefined && !estCreativite(rg.creativite)) return `Créativité inconnue : « ${rg.creativite} ».`;
-  if (rg?.styleCamera !== undefined && !estMiseEnScene(rg.styleCamera) && rg.styleCamera !== STYLE_AUCUN) return `Style de mise en scène inconnu : « ${rg.styleCamera} ».`;
   const inconnue = cles.find((k) => !estSectionFiche(k));
   if (inconnue) return `Section de prompt inconnue : « ${inconnue} ».`;
   const d = apres.dureeGenerationSecondes;

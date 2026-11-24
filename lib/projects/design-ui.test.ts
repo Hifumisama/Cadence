@@ -6,16 +6,13 @@ import {
   ETAPE,
   ETAPES_ASSISTANT,
   ETAPES_CONCEPTION,
-  choisirMiseEnScene,
   etapeMax,
   etapeValide,
   etatInitial,
   lireEtatSauvegarde,
   minutesSecondes,
-  miseEnSceneDuStyle,
   resumeEtape,
   styleComplet,
-  suivreRecommandation,
   teinteAmbiance,
   versCharge,
   type EtatAssistant,
@@ -30,7 +27,7 @@ test("état de départ : film, français, 2 min, rythme variable, musique discr�
 });
 
 test("étapes : le cadre seulement (plus de genre), il faut un style complet ; etapeMax s'arrête à la première étape incomplète", () => {
-  assert.deepEqual([...ETAPES_ASSISTANT], ["Accueil", "Durée", "Langue", "Style", "Mise en scène", "Musique"]);
+  assert.deepEqual([...ETAPES_ASSISTANT], ["Accueil", "Durée", "Langue", "Style", "Musique"]);
   let e = etatInitial();
   assert.equal(etapeMax(e, tout), ETAPE.style, "le style manque : on atteint l'étape du style");
   assert.equal(etapeValide(ETAPE.style, e, tout), false);
@@ -86,76 +83,26 @@ test("sauvegarde en session : aller-retour, et toute valeur inattendue retombe s
   assert.equal("genres" in abime, false, "une session d'avant garde ses genres hors de l'état");
 });
 
-// --- « Mise en scène » step (creativity and staging style of Open H3 IR, step 6 of /nouveau) ---------------------------
+// --- The steps of the design (the « Mise en scène » step was removed: ADR 0001) ------------------------------------------
 
-test("mise en scène : cinquième étape, départ coché (équilibrée, aucun style), toujours franchissable", () => {
+test("étapes : cinq choix (accueil, durée, langue, style, musique), la musique est la dernière et se franchit sans rien toucher", () => {
+  assert.deepEqual([...ETAPES_ASSISTANT], ["Accueil", "Durée", "Langue", "Style", "Musique"]);
   assert.equal(DERNIERE_ETAPE, ETAPE.musique);
-  assert.equal(ETAPES_ASSISTANT[ETAPE.miseEnScene], "Mise en scène");
-  assert.equal(ETAPES_CONCEPTION.length, 9);
+  assert.equal(ETAPES_CONCEPTION.length, 8);
   const e = etatInitial();
-  assert.deepEqual([e.creativite, e.styleCamera], ["balanced", "aucun"]);
-  assert.equal(etapeValide(ETAPE.miseEnScene, e, tout), true, "rien à remplir : on peut continuer sans toucher à rien");
   assert.equal(etapeValide(ETAPE.musique, e, tout), true, "musique présélectionnée");
   const pret: EtatAssistant = { ...etatInitial(), style: { source: "bibliotheque", styleId: "x" } };
   assert.equal(etapeMax(pret, tout), DERNIERE_ETAPE);
 });
 
-test("mise en scène : résumé du ruban (créativité · style) et charge utile", () => {
-  const nom = () => null;
-  assert.equal(resumeEtape(ETAPE.miseEnScene, etatInitial(), nom), "Équilibrée · aucun style");
-  assert.equal(resumeEtape(ETAPE.miseEnScene, { ...etatInitial(), creativite: "bold", styleCamera: "villeneuve" }, nom), "Audacieuse · Immense et silencieux");
-  const charge = versCharge({ ...etatInitial(), creativite: "extreme", styleCamera: "wong" });
-  assert.equal(charge.creativite, "extreme");
-  assert.equal(charge.styleCamera, "wong");
-  // The server's validation ignores these keys: it stays strict on the design, which does not carry them.
-  const base: EtatAssistant = { ...etatInitial(), style: { source: "bibliotheque", styleId: "gouache" }, creativite: "bold", styleCamera: "wong" };
-  assert.ok(validerConception(versCharge(base), [{ id: "gouache" }]).ok);
-});
-
-test("mise en scène : une session plus ancienne (sans ces champs) ou abîmée retombe sur le départ ; un aller-retour garde le choix", () => {
-  const ancien = lireEtatSauvegarde(JSON.stringify({ genres: ["Drame"], duree: 120, rythme: "mesure", langue: "Français", style: null }))!;
-  assert.deepEqual([ancien.creativite, ancien.styleCamera], ["balanced", "aucun"]);
-  const abime = lireEtatSauvegarde(JSON.stringify({ genres: [], creativite: "folle", styleCamera: "kubrick" }))!;
-  assert.deepEqual([abime.creativite, abime.styleCamera], ["balanced", "aucun"]);
-  const choisi: EtatAssistant = choisirMiseEnScene({ ...etatInitial(), creativite: "restrained" }, "anderson");
-  assert.deepEqual(lireEtatSauvegarde(JSON.stringify(choisi)), choisi);
-  // A session from before the `miseEnSceneChoisie` field: a style other than « aucun » can only come from a manual choice, it is kept.
-  const vieux = lireEtatSauvegarde(JSON.stringify({ genres: ["Drame"], style: { source: "bibliotheque", styleId: "claymation" }, styleCamera: "wong" }))!;
-  assert.deepEqual([vieux.styleCamera, vieux.miseEnSceneChoisie], ["wong", true]);
-});
-
-test("reglagesDepuisCharge : valeurs validées, repli sur le départ (jamais null), « aucun » accepté", async () => {
-  const { reglagesDepuisCharge } = await import("../h3ir/settings");
-  assert.deepEqual(reglagesDepuisCharge({ creativite: "bold", styleCamera: "tarantino" }), { creativite: "bold", styleCamera: "tarantino" });
-  assert.deepEqual(reglagesDepuisCharge({ creativite: "bold", styleCamera: "aucun" }), { creativite: "bold", styleCamera: "aucun" });
-  assert.deepEqual(reglagesDepuisCharge({ creativite: "folle", styleCamera: "kubrick" }), { creativite: "balanced", styleCamera: "aucun" });
-  assert.deepEqual(reglagesDepuisCharge({}), { creativite: "balanced", styleCamera: "aucun" });
-  assert.deepEqual(reglagesDepuisCharge(null), { creativite: "balanced", styleCamera: "aucun" });
-  assert.deepEqual(reglagesDepuisCharge("texte"), { creativite: "balanced", styleCamera: "aucun" });
-});
-
-// --- Recommendation: the project's style suggests a way of filming ----------------------------------------------------------
-
-test("recommandation : la mise en scène suit le style tant qu'elle n'a pas été choisie à la main, puis n'est plus jamais écrasée", () => {
-  const avecStyle = (styleId: string, e: EtatAssistant = etatInitial()): EtatAssistant => ({ ...e, style: { source: "bibliotheque", styleId } });
-  // A recommended style: the suggestion is ticked automatically.
-  const clay = suivreRecommandation(avecStyle("claymation"));
-  assert.deepEqual([clay.styleCamera, clay.miseEnSceneChoisie], ["claymation", false]);
-  assert.equal(miseEnSceneDuStyle(clay.style), "claymation");
-  // The style changes: the suggestion follows (another recommendation, then none).
-  assert.equal(suivreRecommandation(avecStyle("ghibli-style", clay)).styleCamera, "anime-contemplatif");
-  assert.equal(suivreRecommandation(avecStyle("van-gogh-style", clay)).styleCamera, "aucun");
-  // A free style has no recommendation.
-  assert.equal(suivreRecommandation({ ...clay, style: { source: "libre", nom: "x", promptImage: "p", clause: "c" } }).styleCamera, "aucun");
-  // A manual choice (even « aucun ») is never overwritten by a style change.
-  const manuel = choisirMiseEnScene(clay, "wong");
-  assert.equal(suivreRecommandation(avecStyle("ghibli-style", manuel)).styleCamera, "wong");
-  const sans = choisirMiseEnScene(clay, "aucun");
-  assert.equal(suivreRecommandation(avecStyle("ghibli-style", sans)).styleCamera, "aucun");
-  // A custom profile is sent to the server like any choice, and the ribbon summarises it.
-  assert.equal(versCharge(clay).styleCamera, "claymation");
-  assert.equal(resumeEtape(ETAPE.miseEnScene, clay, () => null), "Équilibrée · Stop-motion en pâte à modeler");
-  // The flag stays on the browser side.
-  assert.equal("miseEnSceneChoisie" in versCharge(clay), false);
-  assert.ok(validerConception(versCharge(clay), [{ id: "claymation" }]).ok);
+test("la charge utile ne porte plus de réglage de mise en scène ; une session d'avant en porte encore sans conséquence", () => {
+  const base: EtatAssistant = { ...etatInitial(), style: { source: "bibliotheque", styleId: "gouache" } };
+  const charge = versCharge(base);
+  assert.equal("creativite" in charge, false);
+  assert.equal("styleCamera" in charge, false);
+  assert.ok(validerConception(charge, [{ id: "gouache" }]).ok);
+  // An older session still has the retired fields: they are ignored, nothing else changes.
+  const ancien = lireEtatSauvegarde(JSON.stringify({ duree: 300, langue: "Français", creativite: "bold", styleCamera: "wong", miseEnSceneChoisie: true, style: null }))!;
+  assert.equal(ancien.duree, 300);
+  for (const k of ["creativite", "styleCamera", "miseEnSceneChoisie"]) assert.equal(k in ancien, false, k);
 });

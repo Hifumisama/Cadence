@@ -258,8 +258,8 @@ export type ContexteFichePlan = {
   planUuid: string;
   /** The last agent task posted (choice of references, prompts, compilation): the panel's line follows its state. */
   runUuid?: string;
-  /** Open H3 IR settings chosen at launch (absent: those of the clip, its scene or the project). */
-  reglagesH3ir?: { shots?: number | null; director?: string | null; creativity?: string | null };
+  /** Open H3 IR settings chosen at launch (absent: those of the clip). */
+  reglagesH3ir?: { shots?: number | null; creativity?: string | null };
   preparation?: ContextePreparation;
   /** What the request has to say at the end (references chosen, assets created). */
   notes?: string[];

@@ -12,7 +12,7 @@ import { SKILL_REFERENCES_PLAN } from "./references-clip";
 import { type ManquantRetenu, SKILL_ASSETS_MANQUANTS, brutsManquants } from "../h3ir/preparation";
 import { enregistrerChangements, appliquerProposition } from "./proposal-db";
 import { DUREE_GENERATION_MIN, DUREE_GENERATION_MAX } from "../clips/clip-checks";
-import { estCreativite, styleCameraOuNull } from "../h3ir/settings";
+import { estCreativite } from "../h3ir/settings";
 import { referencesApresDecisions } from "../h3ir/brief-clip";
 import { preparerDepart } from "../h3ir/retouch";
 import { conversationParUuid } from "./service-conversation";
@@ -93,8 +93,8 @@ export async function genererFiches(
     consigne?: string;
     /** The "Générer la fiche" request that posts this task (single clip). */
     demandeId?: number;
-    /** Number of shots, staging style and creativity, optional (absent: those of the clip, its scene or the project). */
-    reglagesH3ir?: { shots?: number | null; director?: string | null; creativity?: string | null };
+    /** Number of shots and creativity, optional (absent: those of the clip). */
+    reglagesH3ir?: { shots?: number | null; creativity?: string | null };
   } = {},
 ): Promise<Resultat<{ propositionUuid: string; nbSousTaches: number; runUuid?: string; nonPrets: string[] }>> {
   const conv = await conversationParUuid(conversationUuid);
@@ -112,7 +112,7 @@ export async function genererFiches(
   const consigne = (options.consigne ?? "").trim() || CONSIGNE_FICHE;
   const attentes = await attentesFiches(conv.projectId, choisis.map((p) => p.uuid));
   const attenteDe = (uuid: string): string | null => attenteDuPlan(attentes, uuid);
-  const entreeH3ir = (planUuid: string): EntreeH3ir => ({ planUuid, shots: options.reglagesH3ir?.shots ?? null, director: options.reglagesH3ir?.director ?? null, creativity: options.reglagesH3ir?.creativity ?? null });
+  const entreeH3ir = (planUuid: string): EntreeH3ir => ({ planUuid, shots: options.reglagesH3ir?.shots ?? null, creativity: options.reglagesH3ir?.creativity ?? null });
   const nonPrets = choisis.filter((p) => attenteDe(p.uuid)).map((p) => p.uuid);
 
   if (portee === "plan") {
@@ -260,8 +260,7 @@ export async function genererReecriturePlan(
   const duree = Number.isInteger(dec.dureeSecondes) && dec.dureeSecondes! >= DUREE_GENERATION_MIN && dec.dureeSecondes! <= DUREE_GENERATION_MAX ? dec.dureeSecondes! : null;
   const references = dec.references && dec.references.ajouter.length + dec.references.retirer.length > 0 ? { ajouter: [...dec.references.ajouter], retirer: [...dec.references.retirer] } : null;
   const creativite = dec.reglages?.creativite && estCreativite(dec.reglages.creativite) ? dec.reglages.creativite : null;
-  const styleCamera = dec.reglages?.styleCamera && styleCameraOuNull(dec.reglages.styleCamera) ? dec.reglages.styleCamera : null;
-  const reglagesPlan = creativite || styleCamera ? { creativite, styleCamera } : null;
+  const reglagesPlan = creativite ? { creativite } : null;
   if (!description && duree == null && !references && !reglagesPlan) return ERR("L'agent n'a rien décidé de changer : rien à recompiler.");
   { const refus = await refusSiTacheActive(conv.id, "Une tâche de l'agent est déjà en cours sur ce plan."); if (refus) return refus; }
   const [p] = await db.select({ uuid: plans.uuid }).from(plans).where(eq(plans.id, conv.cibleId));
@@ -296,7 +295,6 @@ export async function genererReecriturePlan(
   const entree: EntreeH3ir = {
     planUuid: p.uuid,
     shots: null,
-    director: null,
     creativity: null,
     ...(descriptionVoulue ? { description: descriptionVoulue } : {}),
     ...(dureeVoulue != null ? { dureeSecondes: dureeVoulue } : {}),

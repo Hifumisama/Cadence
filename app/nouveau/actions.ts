@@ -12,7 +12,6 @@ import { creerProjetSansRedirection } from "@/app/projects/actions";
 import { ouvrirConversation } from "@/lib/agents/service-conversation";
 import { resoudreStyle, validerConception } from "@/lib/projects/design";
 import { ecrireConception, poserStyleDuProjet } from "@/lib/projects/design-db";
-import { reglagesDepuisCharge } from "@/lib/h3ir/settings";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET } from "@/lib/media";
 import { listerStyles } from "@/lib/styles/styles-db";
 import { z } from "zod";
@@ -74,8 +73,7 @@ export async function creerProjetConcu(brut: unknown): Promise<{ ok: true; proje
   // For a library style, the image is its showcase (if it has been generated): the brief keeps the path relative to the `styles/` folder.
   const image = conception.style.source === "libre" ? conception.style.image : fichierApercuStyle(conception.style.styleId);
 
-  // Staging (creativity, style) is not part of the design: it lives in the project, where the Brief modifies it afterwards (lib/h3ir/settings.ts).
-  const { projectId } = await creerProjetSansRedirection({ nom: "Sans titre", ...reglagesDepuisCharge(brut) });
+  const { projectId } = await creerProjetSansRedirection({ nom: "Sans titre" });
   try {
     await ecrireConception(db, projectId, conception);
     const pose = await poserStyleDuProjet(db, projectId, { ...style.style, ...(image ? { image } : {}) });

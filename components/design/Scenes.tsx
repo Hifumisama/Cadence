@@ -34,9 +34,9 @@ export function SceneAccueil({ apercus, action }: { apercus: string[]; action: R
   return (
     <div className="cn-accueil">
       <div className="cn-accueil-texte">
-        <EnteteScene acte="Bienvenue" titre={<>On va <em>générer un film</em> avec l’IA.</>} sous="En quelques choix (durée, langue, style, mise en scène, musique), tu poses le cadre de ton film. Ensuite, un scénariste te pose ses questions pour écrire l’histoire avec toi (genre compris), et la production des images, des voix et des plans peut commencer." />
+        <EnteteScene acte="Bienvenue" titre={<>On va <em>générer un film</em> avec l’IA.</>} sous="En quelques choix (durée, langue, style, musique), tu poses le cadre de ton film. Ensuite, un scénariste te pose ses questions pour écrire l’histoire avec toi (genre compris), et la production des images, des voix et des plans peut commencer." />
         <ol className="cn-accueil-etapes">
-          <li><b>Tu poses le cadre</b><span>la durée, la langue, le style graphique, la mise en scène et la musique.</span></li>
+          <li><b>Tu poses le cadre</b><span>la durée, la langue, le style graphique et la musique.</span></li>
           <li><b>Tu rencontres le scénariste</b><span>un entretien pour transformer ton idée en scénario.</span></li>
           <li><b>L’IA fabrique le film</b><span>assets, voix, plans, jusqu’au montage.</span></li>
         </ol>

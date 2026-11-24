@@ -4,6 +4,7 @@ import { editionImposee } from "../assets/asset-state";
 import { PREFIXE_PAR_TYPE, TYPES_ASSET, slugifyCode } from "../assets/assetCode";
 import type { ChangementBrut } from "./changes";
 import { estLiaison } from "../clips/clip-link";
+import { CREATIVITE_TEMPS_FORT } from "../h3ir/settings";
 import { ajusterDureesScene, repartirDureesScenes } from "./treatment";
 import type { Avertissement, PlaceScene, Position } from "./types";
 
@@ -105,6 +106,9 @@ export function depuisRegistreAsset(sortie: SortiePromptAsset, a: AssetDuRegistr
 
 /** `{ liaison }` to write with a screenplay clip, or nothing if the output gives none (or an unknown value). */
 const liaisonDe = (p: { liaison?: string }): { liaison?: string } => (estLiaison(p.liaison) ? { liaison: p.liaison } : {});
+/** A clip the screenwriter marked as a TEMPS FORT (the one that carries the film's strong moment) is written with the stored value of a temps fort; an unmarked clip writes nothing
+ * (the user may have set it by hand: a new screenplay never clears it). */
+const tempsFortDe = (p: { tempsFort?: boolean }): { creativite?: string } => (p.tempsFort === true ? { creativite: CREATIVITE_TEMPS_FORT } : {});
 
 // --- scenario-episode -------------------------------------------------------
 
@@ -122,6 +126,8 @@ export type SortieScenarioEpisode = {
       /** Link with the previous clip (lib/clips/clip-link.ts): absent from an older screenplay, in which case the clip's link does not change. */
       liaison?: string;
       dureeSecondes: number;
+      /** The clip that carries the film's strong moment (skill `scenario-scene`): compiled at the far end of every choice. Absent = a normal clip. */
+      tempsFort?: boolean;
     }[];
   }[];
   inventions: string[];
@@ -233,7 +239,7 @@ export function depuisScenarioEpisode(sortie: SortieScenarioEpisode, ep: Episode
           libelle: `Plan · ${p.titre}`,
           operation: "modifier",
           sousGroupe: sc.titre,
-          apres: { description: p.description, dureeGenerationSecondes: p.dureeSecondes, ...liaisonDe(p) },
+          apres: { description: p.description, dureeGenerationSecondes: p.dureeSecondes, ...liaisonDe(p), ...tempsFortDe(p) },
           avertissements: avert,
           ...ecrase(`La description et la durée actuelles de « ${p.titre} » seront remplacées.`),
         });
@@ -254,6 +260,7 @@ export function depuisScenarioEpisode(sortie: SortieScenarioEpisode, ep: Episode
             description: p.description,
             dureeGenerationSecondes: p.dureeSecondes,
             ...liaisonDe(p),
+            ...tempsFortDe(p),
             episodeId: ep.id,
             ...(existante ? { sceneId: existante.id } : { sceneCle: cleScene }),
           },
@@ -340,7 +347,7 @@ export function depuisTraitement(
 }
 
 export type SortieScenarioScene = {
-  plans: { titre: string; description: string; liaison?: string; dureeSecondes: number }[];
+  plans: { titre: string; description: string; liaison?: string; dureeSecondes: number; tempsFort?: boolean }[];
   inventions: string[];
   notes: string;
 };
@@ -396,6 +403,7 @@ export function depuisPlanAInserer(
         description: p.description,
         dureeGenerationSecondes: p.dureeSecondes,
         ...liaisonDe(p),
+        ...tempsFortDe(p),
         episodeId: cible.episodeId,
         ...(cible.sceneId != null ? { sceneId: cible.sceneId } : {}),
       },
@@ -454,6 +462,7 @@ export function depuisSceneAInserer(
           dureeGenerationSecondes: p.dureeSecondes,
           // The first clip of a new scene is a cut: no end state to carry over.
           ...liaisonDe(j === 0 ? { ...p, liaison: "coupe" } : p),
+          ...tempsFortDe(p),
           episodeId: cible.episodeId,
           sceneCle: "scene-inseree",
         },
@@ -474,7 +483,7 @@ export function depuisCorrectionPlan(sortie: SortieScenarioEpisode, plan: { uuid
       cibleRef: plan.uuid,
       libelle: `Plan · ${plan.titre}`,
       operation: "modifier",
-      apres: { description: p.description, dureeGenerationSecondes: p.dureeSecondes, ...liaisonDe(p) },
+      apres: { description: p.description, dureeGenerationSecondes: p.dureeSecondes, ...liaisonDe(p), ...tempsFortDe(p) },
       avertissements: [
         ...(sortie.inventions ?? []).map((t) => ({ type: "invention" as const, texte: t })),
       ],

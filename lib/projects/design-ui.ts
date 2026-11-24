@@ -17,9 +17,6 @@ import {
   SANS_DIALOGUE,
 } from "./design";
 import type { RythmeBrief } from "../agents/types";
-import type { ProfilPersoId } from "../h3ir/character-profiles";
-import { miseEnSceneRecommandee } from "../styles/recommended-staging";
-import { CREATIVITE_PAR_DEFAUT, STYLE_AUCUN, creativiteOuNull, resumeMiseEnScene, styleCameraOuNull, type Creativite } from "../h3ir/settings";
 
 /** The state of the design assistant (`/nouveau` page) on the browser side: starting values, moving from one step to the next, summary of
  * each step, session save, and payload sent to the server (which re-validates it: lib/projects/design.ts). Pure and without React,
@@ -36,23 +33,17 @@ export type EtatAssistant = {
   langue: string;
   langueChoisie: boolean;
   style: StyleChoisi | null;
-  /** Staging (Open H3 IR, lib/h3ir/settings.ts): the creativity, and the staging style (one of the 7 profiles, or « aucun »). Starting values ticked on screen. */
-  creativite: Creativite;
-  styleCamera: string;
-  /** True as soon as the user has chosen the staging style himself. As long as it is false, `styleCamera` FOLLOWS the recommendation of the project's style (`suivreRecommandation`);
-   * when true, a style change never overwrites it. Saved in session, not sent to the server. */
-  miseEnSceneChoisie: boolean;
   /** The music intention (preselected « discrète ») and its optional reference (« un peu comme… »). */
   musique: IntentionMusique;
   referenceMusique: string;
 };
 
 /** The form holds the FRAME only (2026-11-18): the genre and the story are decided in the interview. */
-export const ETAPES_ASSISTANT = ["Accueil", "Durée", "Langue", "Style", "Mise en scène", "Musique"] as const;
+export const ETAPES_ASSISTANT = ["Accueil", "Durée", "Langue", "Style", "Musique"] as const;
 /** Index of each step, so that screens never hard-code a number. */
-export const ETAPE = { accueil: 0, duree: 1, langue: 2, style: 3, miseEnScene: 4, musique: 5 } as const;
+export const ETAPE = { accueil: 0, duree: 1, langue: 2, style: 3, musique: 4 } as const;
 export const DERNIERE_ETAPE = ETAPES_ASSISTANT.length - 1;
-/** The whole film strip, visible from the start page: the six choices, then what follows the project's creation. */
+/** The whole film strip, visible from the start page: the five choices, then what follows the project's creation. */
 export const ETAPES_CONCEPTION = [...ETAPES_ASSISTANT, "Scénario", "Clap", "Avancée"] as const;
 export const CLE_SESSION = "cadence.conception.v1";
 
@@ -64,29 +55,10 @@ export function etatInitial(): EtatAssistant {
     langue: LANGUE_PAR_DEFAUT,
     langueChoisie: false,
     style: null,
-    creativite: CREATIVITE_PAR_DEFAUT,
-    styleCamera: STYLE_AUCUN,
-    miseEnSceneChoisie: false,
     musique: INTENTION_MUSIQUE_PAR_DEFAUT,
     referenceMusique: "",
   };
 }
-
-/** The staging profile recommended by the chosen style (library), or null (free style, or no recommendation). */
-export function miseEnSceneDuStyle(style: StyleChoisi | null): ProfilPersoId | null {
-  return style?.source === "bibliotheque" ? miseEnSceneRecommandee(style.styleId) : null;
-}
-
-/** As long as the user has not chosen the staging by hand, it follows the style's recommendation (otherwise « aucun style »); once chosen, it is never touched.
- * To apply after each state change (`ConceptionAssistant`) and when the session is read back. */
-export function suivreRecommandation(etat: EtatAssistant): EtatAssistant {
-  if (etat.miseEnSceneChoisie) return etat;
-  const voulu = miseEnSceneDuStyle(etat.style) ?? STYLE_AUCUN;
-  return voulu === etat.styleCamera ? etat : { ...etat, styleCamera: voulu };
-}
-
-/** A MANUAL staging choice (card clicked, « aucun » included): it is kept and no longer follows the recommendation. */
-export const choisirMiseEnScene = (etat: EtatAssistant, styleCamera: string): EtatAssistant => ({ ...etat, styleCamera, miseEnSceneChoisie: true });
 
 /** A free style is complete with its two prompts (the name and the image are optional). */
 export function styleComplet(style: StyleChoisi | null, styleUtilisable: (id: string) => boolean): boolean {
@@ -126,9 +98,6 @@ export function resumeEtape(i: number, etat: EtatAssistant, nomStyle: (id: strin
     case ETAPE.style:
       if (!etat.style) return "";
       return etat.style.source === "libre" ? etat.style.nom.trim() || "Style libre" : (nomStyle(etat.style.styleId) ?? "");
-    case ETAPE.miseEnScene:
-      // The starting values are ticked on screen: the ribbon shows them too.
-      return resumeMiseEnScene(etat.creativite, etat.styleCamera);
     case ETAPE.musique:
       return LIBELLES_INTENTION_MUSIQUE[etat.musique];
     default:
@@ -150,8 +119,8 @@ export function ambianceDuGenre(genre: string): { "--cn-hue": number; "--cn-lum"
 
 /** The ribbon's summaries of a CREATED project, one per `ETAPES_ASSISTANT` step (the choices are made: shown, not replayed). A project designed
  * before the music step shows « — » there. */
-export function resumesCadre(c: Conception, nomStyle: string, miseEnScene: string): string[] {
-  return ["Film", minutesSecondes(c.dureeSecondes), c.langue, nomStyle, miseEnScene, c.musique ? LIBELLES_INTENTION_MUSIQUE[c.musique.intention] : "—"];
+export function resumesCadre(c: Conception, nomStyle: string): string[] {
+  return ["Film", minutesSecondes(c.dureeSecondes), c.langue, nomStyle, c.musique ? LIBELLES_INTENTION_MUSIQUE[c.musique.intention] : "—"];
 }
 
 /** The payload sent to `creerProjetConcu` (the server re-validates it entirely). */
@@ -165,8 +134,6 @@ export function versCharge(etat: EtatAssistant): Record<string, unknown> {
     langue: etat.langue,
     langueChoisie: etat.langueChoisie,
     style: etat.style ?? undefined,
-    creativite: etat.creativite,
-    styleCamera: etat.styleCamera,
     musique: { intention: etat.musique, ...(reference && etat.musique !== "aucune" ? { reference } : {}) },
   };
 }
@@ -199,8 +166,7 @@ export function lireEtatSauvegarde(brut: string | null): EtatAssistant | null {
     };
   }
   const langue = typeof o.langue === "string" && (o.langue === SANS_DIALOGUE || (LANGUES_DIALOGUES as readonly string[]).includes(o.langue)) ? o.langue : depart.langue;
-  const styleCamera = styleCameraOuNull(o.styleCamera) ?? depart.styleCamera;
-  return suivreRecommandation({
+  return {
     duree: entier(o.duree, DUREE_MIN_SECONDES, DUREE_MAX_SECONDES, depart.duree),
     // The rhythm is no longer a choice: a saved session from before keeps the starting value.
     rythme: depart.rythme,
@@ -208,12 +174,7 @@ export function lireEtatSauvegarde(brut: string | null): EtatAssistant | null {
     langue,
     langueChoisie: o.langueChoisie === true,
     style,
-    // An older session does not have these fields: starting values.
-    creativite: creativiteOuNull(o.creativite) ?? depart.creativite,
-    styleCamera,
-    // A session from before this field: a style other than « aucun » can only come from a manual choice, we keep it.
-    miseEnSceneChoisie: typeof o.miseEnSceneChoisie === "boolean" ? o.miseEnSceneChoisie : styleCamera !== STYLE_AUCUN,
     musique: (INTENTIONS_MUSIQUE as readonly unknown[]).includes(o.musique) ? (o.musique as IntentionMusique) : depart.musique,
     referenceMusique: typeof o.referenceMusique === "string" ? o.referenceMusique.slice(0, REFERENCE_MUSIQUE_MAX) : "",
-  });
+  };
 }

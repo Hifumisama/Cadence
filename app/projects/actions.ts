@@ -9,21 +9,15 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join } from "node:path";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET, cheminPosterMedia, type PosterCible } from "@/lib/media";
 import { inventaireProjet, supprimerProjetComplet } from "@/lib/projects/project-deletion";
-import { creativiteOuNull, styleCameraOuNull } from "@/lib/h3ir/settings";
 import { z } from "zod";
 import { exiger, idSchema, texteSchema } from "@/lib/validation/args";
 
 const nomSchema = z.string().trim().min(1).max(255);
-const reglagesSchema = z.object({ creativite: z.string().max(40).nullish(), styleCamera: z.string().max(80).nullish() });
 
 /** Creates the project (a film) and its single episode WITHOUT redirecting: « Créer avec l'agent » then opens the agent popup on the empty project. */
-export async function creerProjetSansRedirection(valeurs: { nom: string; creativite?: string | null; styleCamera?: string | null }): Promise<{ projectId: number }> {
-  exiger(reglagesSchema.extend({ nom: nomSchema }), valeurs);
-  // Creativity and staging style (Open H3 IR): chosen at the « Mise en scène » step of the design; when absent, the project inherits the defaults.
-  const [projet] = await db
-    .insert(projects)
-    .values({ nom: valeurs.nom, creativite: creativiteOuNull(valeurs.creativite), styleCamera: styleCameraOuNull(valeurs.styleCamera) })
-    .returning();
+export async function creerProjetSansRedirection(valeurs: { nom: string }): Promise<{ projectId: number }> {
+  exiger(z.object({ nom: nomSchema }), valeurs);
+  const [projet] = await db.insert(projects).values({ nom: valeurs.nom }).returning();
   if (!projet) throw new Error("Échec de création du projet.");
   await db.insert(episodes).values({ projectId: projet.id, numero: 1, titre: "" });
 
@@ -78,17 +72,6 @@ export async function supprimerProjet(projectId: number) {
 export async function modifierNomProjet(projectId: number, nom: string) {
   exiger(z.tuple([idSchema, nomSchema]), [projectId, nom]);
   await db.update(projects).set({ nom }).where(eq(projects.id, projectId));
-  revalidatePath("/", "layout");
-}
-
-/** Creativity and staging style of the project (Open H3 IR): the most general level, which the scenes and then the clips can override (lib/h3ir/settings.ts).
- * Empty or unknown value = default setting; the style « aucun » is a value (no staging style). */
-export async function modifierReglagesCameraProjet(projectId: number, valeurs: { creativite: string | null; styleCamera: string | null }) {
-  exiger(z.tuple([idSchema, reglagesSchema]), [projectId, valeurs]);
-  await db
-    .update(projects)
-    .set({ creativite: creativiteOuNull(valeurs.creativite), styleCamera: styleCameraOuNull(valeurs.styleCamera) })
-    .where(eq(projects.id, projectId));
   revalidatePath("/", "layout");
 }
 

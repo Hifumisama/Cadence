@@ -5038,6 +5038,19 @@ button {
   color: var(--or-glow);
   font-style: normal;
 }
+/* Temps fort: the switch sits in the line of the clip's facts; once on, its label takes the gold of the validation accents. */
+.sp-puces li:has(.pl-interrupteur) {
+  display: inline-flex;
+  align-items: center;
+}
+.sp-puces .pl-interrupteur {
+  padding: 0;
+  color: var(--ink-3);
+  font-size: 13px;
+}
+.sp-puces .is-temps-fort .pl-interrupteur {
+  color: var(--or-glow);
+}
 .sp-gestes {
   display: inline-flex;
   align-items: center;

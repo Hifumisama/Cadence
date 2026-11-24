@@ -92,7 +92,6 @@ export function ClapScene({
   affiche,
   reessayer,
   apresTitre,
-  miseEnScene,
   estimation = null,
 }: {
   projectId: number;
@@ -101,8 +100,6 @@ export function ClapScene({
   /** The film's genre (`genreDuFilm`: the interview's, live), empty while undecided. */
   genre: string;
   style: StyleAffiche;
-  /** The project's staging in a few words (lib/h3ir/settings.ts, `resumeMiseEnScene`), shown on the board; it stays editable in the Brief. */
-  miseEnScene?: string;
   /** The usual duration of a preparation (the last finished ones): said under the launch button. */
   estimation?: { nb: number; bas: number; median: number; haut: number } | null;
   notes: NoteAffichee[];
@@ -182,7 +179,6 @@ export function ClapScene({
               <Cellule cle="Durée" valeur={minutesSecondes(conception.dureeSecondes)} defaut={defauts.duree} />
               <Cellule cle="Plans estimés" valeur={`≈ ${plans.min} à ${plans.max} plans`} defaut={defauts.duree} />
               <Cellule cle="Dialogues" valeur={conception.langue} defaut={defauts.langue} />
-              {miseEnScene ? <Cellule cle="Mise en scène" valeur={miseEnScene} /> : null}
               <Cellule cle="L’arc" valeur={note("arc")} large />
               <Cellule cle="La fin" valeur={note("fin")} large />
               <Cellule cle="Le héros et les personnages" valeur={note("personnages")} large />

@@ -624,6 +624,13 @@
       "when": 1797094800000,
       "tag": "0088_sans_lightning",
       "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1797181200000,
+      "tag": "0089_open_h3_ir_simplifie",
+      "breakpoints": true
     }
   ]
 }

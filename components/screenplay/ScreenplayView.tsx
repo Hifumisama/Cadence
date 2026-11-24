@@ -11,10 +11,9 @@ import { GenererFiche } from "@/components/clip/GenerateSheet";
 import { useTaches } from "@/components/tasks/TasksProvider";
 import { Icone } from "@/components/ui/Icon";
 import { posterBackgroundImage } from "@/lib/posters/poster";
-import type { DemoDispo } from "@/lib/h3ir/demos";
-import { LIBELLE_CREATIVITE, RESUME_STYLE_CAMERA, STYLE_AUCUN, infobulleChoix, creativiteOuNull, styleCameraOuNull, type ReglagesBruts } from "@/lib/h3ir/settings";
 import { cleDemande } from "@/lib/tasks/tasks";
 import { intentAffichee } from "@/lib/clips/intent";
+import { AIDE_TEMPS_FORT, LIBELLE_TEMPS_FORT } from "@/lib/h3ir/settings";
 import { LIBELLE_ETAT, LIBELLE_INTENTION_CHANGEE, cleScene, minutage, romain, type AjoutEnCours, type AjoutSceneEnCours, type PlanVue, type SceneVue } from "@/lib/clips/screenplay-view";
 import { MIME_PLAN, MIME_SCENE, PlanDeplacable, demarrerApercu, lire, marquerDepose, useEnGlissement, type ChargePlan } from "./DragDrop";
 import { AjouterPlan, type CibleAjoutPlan } from "./AddClip";
@@ -39,6 +38,8 @@ const NOEUD = { brouillon: "st-brouillon", iteration: "st-encours", pret: "st-te
 const libellePlan = (p: PlanVue) => `Plan ${p.position}, ${p.titre}, ${LIBELLE_ETAT[p.etat].toLowerCase()}${ficheRedigee(p) ? ", fiche rédigée" : ""}${p.intentionChangee ? `, ${LIBELLE_INTENTION_CHANGEE[p.intentionChangee].toLowerCase()}` : ""}`;
 
 /** The « texte modifié » marker: the clip's text has changed since its sheet or its last render (never regenerated on its own). */
+/** The lightning bolt of a temps fort on a clip's card: gold, like every accent that says « look here ». */
+const RepereTempsFort = ({ p }: { p: PlanVue }) => (p.tempsFort ? <span className="sc-temps-fort" title={`${LIBELLE_TEMPS_FORT} : ${AIDE_TEMPS_FORT}`}><Icone nom="eclair" taille={12} /> {LIBELLE_TEMPS_FORT}</span> : null);
 const RepereIntention = ({ p }: { p: PlanVue }) => (p.intentionChangee ? <span className="sc-intention" title={LIBELLE_INTENTION_CHANGEE[p.intentionChangee]}>Texte modifié</span> : null);
 
 /** Before any render, a clip is either « intention seule » (sheet not developed: plain dashed dot) or « fiche rédigée » (developed, not
@@ -54,8 +55,6 @@ type Signal = { texte: string; cle?: string; planId?: number };
 export function VueScenario({
   projectId,
   episodeId,
-  reglagesProjet,
-  demos,
   groupes,
   sceneInitiale,
   ajout,
@@ -65,9 +64,6 @@ export function VueScenario({
   projectId: number;
   episodeId: number;
   /** Creativity and staging style of the project (Open H3 IR): what a scene inherits when it sets nothing. */
-  reglagesProjet: ReglagesBruts;
-  /** The staging demo videos (lib/media.ts, `demosMiseEnScene`), for the scenes' style window. */
-  demos?: Record<string, DemoDispo>;
   groupes: SceneVue[];
   sceneInitiale: string | null;
   /** A clip being written (« Ajouter un plan »), or null. */
@@ -224,8 +220,6 @@ export function VueScenario({
   const scenesReelles = groupes.filter((g) => g.id != null);
   const nbPlans = groupes.reduce((acc, g) => acc + g.plans.length, 0);
   const dureeTotale = groupes.reduce((acc, g) => acc + g.duree, 0);
-  const creativiteScene = creativiteOuNull(courant.creativite);
-  const styleScene = styleCameraOuNull(courant.styleCamera);
   const estSans = courant.id == null;
   // Starting timing of each scene in the film (sum of the durations of the scenes before it).
   const debuts = groupes.map((_, i) => groupes.slice(0, i).reduce((acc, g) => acc + g.duree, 0));
@@ -407,10 +401,6 @@ export function VueScenario({
                   titre={courant.titre}
                   fonction={courant.fonction ?? ""}
                   ambiance={courant.ambiance ?? ""}
-                  creativite={courant.creativite ?? ""}
-                  styleCamera={courant.styleCamera ?? ""}
-                  reglagesProjet={reglagesProjet}
-                  demos={demos}
                 />
                 <SupprimerSceneButton sceneId={courant.id} titre={courant.titre} />
               </span>
@@ -421,26 +411,12 @@ export function VueScenario({
           ) : courant.fonction ? (
             <p className="sc-fonction">{courant.fonction}</p>
           ) : null}
-          {courant.ambiance || creativiteScene || styleScene ? (
+          {courant.ambiance ? (
             <ul className="sc-chips">
-              {creativiteScene ? (
-                <li className="sc-chip" title="Créativité propre à cette scène (Open H3 IR) ; sinon elle hérite du projet">
-                  <span>Créativité</span>
-                  <b>{LIBELLE_CREATIVITE[creativiteScene]}</b>
-                </li>
-              ) : null}
-              {styleScene ? (
-                <li className="sc-chip" title="Style de mise en scène propre à cette scène (Open H3 IR) ; sinon elle hérite du projet">
-                  <span>Mise en scène</span>
-                  <b title={styleScene === STYLE_AUCUN ? undefined : infobulleChoix(styleScene)}>{styleScene === STYLE_AUCUN ? "Aucun style" : RESUME_STYLE_CAMERA[styleScene]}</b>
-                </li>
-              ) : null}
-              {courant.ambiance ? (
-                <li className="sc-chip is-ambiance">
-                  <span>Ambiance</span>
-                  <b>{courant.ambiance}</b>
-                </li>
-              ) : null}
+              <li className="sc-chip is-ambiance">
+                <span>Ambiance</span>
+                <b>{courant.ambiance}</b>
+              </li>
             </ul>
           ) : null}
         </section>
@@ -523,6 +499,7 @@ export function VueScenario({
                   <span className="sc-cadre-temps num">
                     {minutage(p.debut)} · {p.duree} s
                   </span>
+                  <RepereTempsFort p={p} />
                   <RepereIntention p={p} />
                 </PlanDeplacable>
                   </div>
@@ -562,7 +539,8 @@ export function VueScenario({
                       <span className="shot-duree num" title="Durée de montage">
                         {p.duree} s
                       </span>
-                      <RepereIntention p={p} />
+                      <RepereTempsFort p={p} />
+                  <RepereIntention p={p} />
                       {p.etat !== "brouillon" ? <span className={`sc-etat is-${p.etat}`}>{p.etat === "pret" ? "✓ Prêt" : "En itération"}</span> : null}
                     </span>
                   </PlanDeplacable>
@@ -661,6 +639,7 @@ function TiroirPlan({
       <span className="sc-detail-meta num">
         {minutage(plan.debut)} · {plan.duree} s · {LIBELLE_ETAT[plan.etat]}
       </span>
+      <RepereTempsFort p={plan} />
       <RepereIntention p={plan} />
       {plan.src ? <video className="sc-tiroir-video" src={`${plan.src}#t=0.1`} controls loop muted playsInline preload="metadata" aria-label={`Aperçu du plan ${pad(plan.position)}`} /> : null}
       <p className={`sc-description${intentAffichee(plan.description) ? "" : " is-vide"}`}>{intentAffichee(plan.description) || "Pas encore de description."}</p>

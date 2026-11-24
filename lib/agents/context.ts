@@ -10,7 +10,7 @@ import { MAX_VIGNETTES_ITERATION, historiqueIteration } from "./iteration-clip";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { cheminAssetMedia, MEDIA_ROOT } from "../media";
-import { AIDE_CREATIVITE, CREATIVITES, DETAIL_STYLE_CAMERA, LIBELLE_CREATIVITE, LIBELLE_NIVEAU, MISES_EN_SCENE, RESUME_STYLE_CAMERA, STYLE_AUCUN, resoudreReglages } from "../h3ir/settings";
+import { AIDE_TEMPS_FORT, CREATIVITE_PAR_DEFAUT, CREATIVITE_TEMPS_FORT, LIBELLE_TEMPS_FORT, creativiteDuPlan } from "../h3ir/settings";
 import { SKILL_H3IR } from "../h3ir/result";
 import { detailsDuBrief, libelleDetailsDuBrief } from "./registry";
 import { editionImposee } from "../assets/asset-state";
@@ -727,16 +727,14 @@ export async function entreeIterationPlan(
     (await db.select({ code: assets.code, fichier: assets.fichier }).from(assets).where(eq(assets.projectId, projectId))).map((a) => [a.code, !!a.fichier && existsSync(join(MEDIA_ROOT, cheminAssetMedia(a.fichier)))]),
   );
   const registre = (await registreResume(db, projectId)).map((a) => ({ ...a, image: fichiers.get(a.code) ?? false }));
-  // The effective Open H3 IR settings of the clip (clip > scene > project) and the allowed values: the agent sets the camera and the rhythm through them, not through text.
-  const [sceneR] = p.sceneId != null ? await db.select({ creativite: scenes.creativite, styleCamera: scenes.styleCamera }).from(scenes).where(eq(scenes.id, p.sceneId)) : [];
-  const [projetR] = await db.select({ creativite: projects.creativite, styleCamera: projects.styleCamera }).from(projects).where(eq(projects.id, projectId));
-  const resolus = resoudreReglages({ projet: projetR, scene: sceneR, plan: { creativite: p.creativite, styleCamera: p.styleCamera } });
+  // The clip's Open H3 IR creativity and the allowed values: the agent makes a clip a temps fort (or back to a normal one) through them, not through text.
   const reglages = {
-    creativite: { actuelle: resolus.creativite, regleSur: LIBELLE_NIVEAU[resolus.origine.creativite] },
-    styleMiseEnScene: { actuel: resolus.styleCamera ?? STYLE_AUCUN, regleSur: LIBELLE_NIVEAU[resolus.origine.styleCamera] },
+    creativite: { actuelle: creativiteDuPlan(p.creativite) },
     choix: {
-      creativite: CREATIVITES.map((v) => ({ valeur: v, nom: LIBELLE_CREATIVITE[v], effet: AIDE_CREATIVITE[v] })),
-      styleMiseEnScene: [{ valeur: STYLE_AUCUN, nom: "Aucun style", effet: "Aucun goût de mise en scène imposé : seuls l'intent et les images décident." }, ...MISES_EN_SCENE.map((v) => ({ valeur: v, nom: RESUME_STYLE_CAMERA[v], effet: DETAIL_STYLE_CAMERA[v] }))],
+      creativite: [
+        { valeur: CREATIVITE_PAR_DEFAUT, nom: "Normal", effet: "Équilibré : cadrage, caméra et ambiance soignés, sans excès." },
+        { valeur: CREATIVITE_TEMPS_FORT, nom: LIBELLE_TEMPS_FORT, effet: AIDE_TEMPS_FORT },
+      ],
     },
   };
   const contexte: ContexteUtilise[] = [

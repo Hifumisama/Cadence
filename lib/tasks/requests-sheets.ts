@@ -22,14 +22,14 @@ import { ERR, LigneDemande, annuler, echouer, ecrire, lireEtapes, occupe } from 
  * clip's page). Open H3 IR ALONE (wave 4a, lib/h3ir/preparation.ts): a clip whose references all have their image goes at once to
  * compilation (fast path); otherwise the pilot PREPARES it first (references, missing assets, prompts, images), turn after turn. The compiled sheet
  * may replace an existing sheet (the click is confirmation; the old prompt stays in the history).
- * Options: `rechoisir` (re-choose the references even if the clip already has some; never by default), optional Open H3 IR settings (`shots`, `director`,
- * `creativity`: absent, those of the clip, its scene or the project). */
+ * Options: `rechoisir` (re-choose the references even if the clip already has some; never by default), optional Open H3 IR settings (`shots`,
+ * `creativity`: absent, those of the clip). */
 export async function lancerDemandeFichePlan(projectId: number, planUuid: string, options: OptionsDemandeFiche = {}): Promise<Resultat<{ demandeId: number }>> {
   const [plan] = await db.select({ id: plans.id, titre: plans.titre, statut: plans.statut }).from(plans).where(and(eq(plans.uuid, planUuid), eq(plans.projectId, projectId)));
   if (!plan) return ERR("Plan introuvable.");
   const etat = (await etatsRefsVisuelles(projectId, [planUuid])).get(planUuid) ?? { total: 0, sansFichier: [] };
   const parcours: ParcoursFichePlan = !options.rechoisir && refusReferences(etat) == null ? "rapide" : "preparation";
-  const reglagesH3ir = { shots: options.shots ?? null, director: options.director ?? null, creativity: options.creativity ?? null };
+  const reglagesH3ir = { shots: options.shots ?? null, creativity: options.creativity ?? null };
   const ouverte = await ouvrirConversation(projectId, "plan", { uuid: planUuid }, "courte");
   if (!ouverte.ok) return ouverte;
   const contexte: ContexteFichePlan = {
@@ -60,7 +60,6 @@ export async function lancerDemandeFichePlan(projectId: number, planUuid: string
 export type OptionsDemandeFiche = {
   rechoisir?: boolean;
   shots?: number | null;
-  director?: string | null;
   creativity?: string | null;
 };
 

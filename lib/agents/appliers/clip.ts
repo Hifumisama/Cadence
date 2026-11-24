@@ -4,6 +4,7 @@ import { recomposerOrdre } from "../../clips/clip-order";
 import { ajouterPlanNeAuMontage } from "../../montage/montage-db";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "../../clips/clip-checks";
 import { estLiaison, liaisonOuDefaut } from "../../clips/clip-link";
+import { CREATIVITE_TEMPS_FORT } from "../../h3ir/settings";
 import type { ChangementBrut } from "../changes";
 import { planifierDeplacement, planifierInsertion } from "../ranks";
 import type { Avertissement, Position } from "../types";
@@ -182,6 +183,8 @@ export const applicateurPlan: Applicateur = {
       if (texte(a.titre) !== undefined) valeurs.titre = texte(a.titre)!.trim();
       if (texte(a.description) !== undefined) valeurs.description = texte(a.description)!.trim() || null;
       if (estLiaison(a.liaison)) valeurs.liaison = a.liaison;
+      // A screenplay only ever SETS a temps fort (lib/agents/conversion.ts, `tempsFortDe`): it never clears the one the user set by hand.
+      if (a.creativite === CREATIVITE_TEMPS_FORT) valeurs.creativite = CREATIVITE_TEMPS_FORT;
       // The duration in the edit follows the generation duration (same rule as the interface actions, app/plans/actions.ts).
       if (typeof a.dureeGenerationSecondes === "number") {
         valeurs.dureeGenerationSecondes = a.dureeGenerationSecondes;
@@ -216,6 +219,7 @@ export const applicateurPlan: Applicateur = {
         sceneId,
         description: texte(a.description)?.trim() || null,
         liaison: liaisonOuDefaut(a.liaison),
+        creativite: a.creativite === CREATIVITE_TEMPS_FORT ? CREATIVITE_TEMPS_FORT : null,
         dureeMontageSecondes: duree,
         dureeGenerationSecondes: duree,
       })

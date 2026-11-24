@@ -422,7 +422,7 @@ export type DecisionsIteration = {
   /** Registry codes to add / remove from the clip's image references. */
   references?: { ajouter: string[]; retirer: string[] };
   /** Open H3 IR settings of the CLIP (`plans.creativite`, `plans.style_camera`; `"aucun"` = no style). */
-  reglages?: { creativite?: string; styleCamera?: string };
+  reglages?: { creativite?: string };
   /** Assets to CREATE (two at most, valid code and parent): created outright, their image generated, then added to the references before the recompilation
    * (wave 4a, 2026-11-09). */
   manquants?: { code: string; type: string; parent: string | null; description: string; raison: string }[];

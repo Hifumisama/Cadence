@@ -1,6 +1,6 @@
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS } from "../clips/clip-checks";
 import { dureeEffectiveSecondes } from "../renders/image-grid";
-import { CREATIVITES, LIBELLE_CREATIVITE, MISES_EN_SCENE, RESUME_STYLE_CAMERA, STYLE_AUCUN, estCreativite, estMiseEnScene, type ChoixMiseEnScene } from "../h3ir/settings";
+import { CREATIVITES, LIBELLE_TEMPS_FORT, estCreativite, estTempsFort } from "../h3ir/settings";
 import type { DecisionsAffichees, DecisionsIteration, DiagnosticIteration } from "./types";
 import { raisonDescriptionIncomplete, repliquesPerdues, sansEtatDeFin } from "../clips/intent";
 import { retenirManquants } from "../h3ir/preparation";
@@ -26,7 +26,7 @@ export type DecisionsSortie = {
   dureeSecondes: number | null;
   references: { ajouter: string[]; retirer: string[] };
   manquants: AssetManquant[];
-  reglages: { creativite: string | null; styleMiseEnScene: string | null };
+  reglages: { creativite: string | null };
 };
 
 export type SortieIterationPlan = {
@@ -53,7 +53,7 @@ export type ContexteIteration = {
   /** Real duration of the rendered file (ffprobe), if known at the time of the check. */
   dureeReelleSecondes?: number | null;
   /** The clip's EFFECTIVE Open H3 IR settings (resolved clip > scene > project): `"aucun"` = no style. */
-  reglages?: { creativite: string; styleMiseEnScene: string };
+  reglages?: { creativite: string };
 };
 
 export type ProblemeIteration = { niveau: "erreur" | "alerte" | "info"; regle: string; message: string };
@@ -80,7 +80,7 @@ function lireDecisions(brut: unknown): DecisionsSortie {
     dureeSecondes: typeof d.dureeSecondes === "number" ? d.dureeSecondes : null,
     references: { ajouter: chaines(refs.ajouter), retirer: chaines(refs.retirer) },
     manquants: manquants.map((a) => ({ code: a.code, type: a.type, ...(typeof a.parent === "string" && a.parent.trim() ? { parent: a.parent.trim() } : {}), description: typeof a.description === "string" ? a.description : "", raison: typeof a.raison === "string" ? a.raison : "" })),
-    reglages: { creativite: typeof reg.creativite === "string" ? reg.creativite : null, styleMiseEnScene: typeof reg.styleMiseEnScene === "string" ? reg.styleMiseEnScene : null },
+    reglages: { creativite: typeof reg.creativite === "string" ? reg.creativite : null },
   };
 }
 
@@ -125,8 +125,6 @@ export function decisionsEffectives(sortie: Pick<SortieIterationPlan, "decisions
   const reglages: NonNullable<DecisionsIteration["reglages"]> = {};
   const c = d.reglages.creativite;
   if (c && estCreativite(c) && c !== ctx.reglages?.creativite) reglages.creativite = c;
-  const s = d.reglages.styleMiseEnScene;
-  if (s && (estMiseEnScene(s) || s === STYLE_AUCUN) && s !== (ctx.reglages?.styleMiseEnScene ?? STYLE_AUCUN)) reglages.styleCamera = s;
   if (Object.keys(reglages).length) out.reglages = reglages;
   return Object.keys(out).length ? out : null;
 }
@@ -226,13 +224,11 @@ export function controlerSortieIterationPlan(sortie: SortieIterationPlan, ctx: C
   }
   const c = d.reglages.creativite;
   if (c != null && !estCreativite(c)) problemes.push({ niveau: "erreur", regle: "reglage-inconnu", message: `decisions.reglages.creativite : « ${c} » inconnu (${CREATIVITES.join(", ")}, ou null).` });
-  const s = d.reglages.styleMiseEnScene;
-  if (s != null && !estMiseEnScene(s) && s !== STYLE_AUCUN) problemes.push({ niveau: "erreur", regle: "reglage-inconnu", message: `decisions.reglages.styleMiseEnScene : « ${s} » inconnu (${[...MISES_EN_SCENE, STYLE_AUCUN].join(", ")}, ou null).` });
   return problemes;
 }
 
-const libelleCreativite = (v: string | null | undefined): string => (v && estCreativite(v) ? LIBELLE_CREATIVITE[v] : "Équilibrée");
-const libelleStyle = (v: string | null | undefined): string => (v && estMiseEnScene(v) ? RESUME_STYLE_CAMERA[v as ChoixMiseEnScene] : "aucun style");
+/** The clip's creativity as the page names it: a temps fort, or a normal clip. */
+const libelleCreativite = (v: string | null | undefined): string => (estTempsFort(v) ? LIBELLE_TEMPS_FORT : "Normal");
 
 /** The decisions as the clip's page displays them (before → after). */
 function decisionsAffichees(dec: DecisionsIteration | null, ctx: ContexteIteration, suggeres: AssetManquant[] = []): DecisionsAffichees | null {
@@ -245,8 +241,7 @@ function decisionsAffichees(dec: DecisionsIteration | null, ctx: ContexteIterati
     referencesAjoutees: dec?.references?.ajouter ?? [],
     referencesRetirees: dec?.references?.retirer ?? [],
     reglages: [
-      ...(dec?.reglages?.creativite ? [{ libelle: "Créativité", avant: libelleCreativite(ctx.reglages?.creativite), apres: libelleCreativite(dec.reglages.creativite) }] : []),
-      ...(dec?.reglages?.styleCamera ? [{ libelle: "Style de mise en scène", avant: libelleStyle(ctx.reglages?.styleMiseEnScene), apres: libelleStyle(dec.reglages.styleCamera) }] : []),
+      ...(dec?.reglages?.creativite ? [{ libelle: "Mise en scène", avant: libelleCreativite(ctx.reglages?.creativite), apres: libelleCreativite(dec.reglages.creativite) }] : []),
     ],
     manquants: manquants.map((m) => ({ code: m.code, raison: m.raison })),
   };
@@ -328,7 +323,7 @@ export function contexteDepuisEntree(entree: unknown): ContexteIteration {
     registre?: { code?: string; type?: string; image?: boolean }[];
     plan?: { dureeVoulueSecondes?: number; intention?: string };
     rendu?: { dureeReelleSecondes?: number };
-    reglages?: { creativite?: { actuelle?: string }; styleMiseEnScene?: { actuel?: string } };
+    reglages?: { creativite?: { actuelle?: string } };
   };
   const refs: ContexteIteration["refs"] = [];
   for (const r of e.references ?? []) {
@@ -336,7 +331,6 @@ export function contexteDepuisEntree(entree: unknown): ContexteIteration {
     if (r.type === "picture" || r.type === "video") refs.push({ type: r.type, slot: r.slot, asset: r.asset ?? null });
   }
   const creativite = e.reglages?.creativite?.actuelle;
-  const style = e.reglages?.styleMiseEnScene?.actuel;
   return {
     description: e.plan?.intention,
     refs,
@@ -345,6 +339,6 @@ export function contexteDepuisEntree(entree: unknown): ContexteIteration {
       .map((a) => ({ code: a.code, type: a.type, ...(typeof a.image === "boolean" ? { image: a.image } : {}) })),
     dureeGenerationSecondes: e.plan?.dureeVoulueSecondes ?? 0,
     dureeReelleSecondes: typeof e.rendu?.dureeReelleSecondes === "number" ? e.rendu.dureeReelleSecondes : null,
-    ...(typeof creativite === "string" || typeof style === "string" ? { reglages: { creativite: typeof creativite === "string" ? creativite : "balanced", styleMiseEnScene: typeof style === "string" ? style : STYLE_AUCUN } } : {}),
+    ...(typeof creativite === "string" ? { reglages: { creativite } } : {}),
   };
 }

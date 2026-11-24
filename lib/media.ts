@@ -1,6 +1,5 @@
 import { existsSync, statSync } from "node:fs";
 import { resolve } from "node:path";
-import { CLES_DEMOS, cheminDemo, type DemoDispo } from "./h3ir/demos";
 
 export const MEDIA_ROOT = resolve(process.env.MEDIA_ROOT ?? "./data");
 
@@ -149,25 +148,4 @@ export function sourceImportMediaSrc(assetId: number, fichier: string | null): s
   } catch {
     return null;
   }
-}
-
-/** The « Mise en scène » screen's demo videos (lib/h3ir/demos.ts) present on the storage: for each key, the URL of the video and of its poster (if there is one). A missing demo
- * is not in the result: the screen falls back to the sample text. The `?v=` (file date) allows caching without missing a redone demo. Server side only
- * (disk access). */
-export function demosMiseEnScene(): Record<string, DemoDispo> {
-  const demos: Record<string, DemoDispo> = {};
-  for (const cle of CLES_DEMOS) {
-    try {
-      const video = resolve(MEDIA_ROOT, cheminDemo(cle, "mp4"));
-      if (!existsSync(video)) continue;
-      const affiche = resolve(MEDIA_ROOT, cheminDemo(cle, "webp"));
-      demos[cle] = {
-        video: `/api/media/${cheminDemo(cle, "mp4")}?v=${Math.floor(statSync(video).mtimeMs)}`,
-        affiche: existsSync(affiche) ? `/api/media/${cheminDemo(cle, "webp")}?v=${Math.floor(statSync(affiche).mtimeMs)}` : null,
-      };
-    } catch {
-      /* unreadable file: treated as missing */
-    }
-  }
-  return demos;
 }

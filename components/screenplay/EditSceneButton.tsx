@@ -5,9 +5,6 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { modifierScene } from "@/app/scenario/actions";
 import { Icone } from "@/components/ui/Icon";
-import { ChampsReglagesCamera } from "@/components/h3ir/CameraSettingsFields";
-import type { DemoDispo } from "@/lib/h3ir/demos";
-import { resoudreReglages, type ReglagesBruts } from "@/lib/h3ir/settings";
 
 /** « Modifier » button of a scene: title, description and mood, in a popup (same frame as « Ajouter un plan »). */
 export function ModifierSceneButton({
@@ -15,30 +12,17 @@ export function ModifierSceneButton({
   titre,
   fonction,
   ambiance = "",
-  creativite = "",
-  styleCamera = "",
-  reglagesProjet,
-  demos,
 }: {
   sceneId: number;
   titre: string;
   fonction: string;
   ambiance?: string;
-  /** Open H3 IR: empty = the scene inherits from the project. */
-  creativite?: string;
-  styleCamera?: string;
-  /** The project's settings: what the scene inherits if it sets nothing. */
-  reglagesProjet: ReglagesBruts;
-  /** The staging demo videos (lib/media.ts, `demosMiseEnScene`). */
-  demos?: Record<string, DemoDispo>;
 }) {
   const router = useRouter();
   const [ouvert, setOuvert] = useState(false);
   const [t, setT] = useState(titre);
   const [f, setF] = useState(fonction);
   const [a, setA] = useState(ambiance);
-  const [cr, setCr] = useState(creativite);
-  const [sc, setSc] = useState(styleCamera);
   const [pending, startTransition] = useTransition();
   const champTitre = useRef<HTMLInputElement>(null);
 
@@ -46,8 +30,6 @@ export function ModifierSceneButton({
     setT(titre);
     setF(fonction);
     setA(ambiance);
-    setCr(creativite);
-    setSc(styleCamera);
     setOuvert(true);
   };
   const fermer = () => {
@@ -68,7 +50,7 @@ export function ModifierSceneButton({
   const enregistrer = () => {
     if (!t.trim()) return;
     startTransition(async () => {
-      await modifierScene(sceneId, { titre: t, fonction: f, ambiance: a, creativite: cr || null, styleCamera: sc || null });
+      await modifierScene(sceneId, { titre: t, fonction: f, ambiance: a });
       setOuvert(false);
       router.refresh();
     });
@@ -128,7 +110,6 @@ export function ModifierSceneButton({
                       placeholder="Ex. plein jour, ciel dégagé — tenue sur toute la scène"
                     />
                   </div>
-                  <ChampsReglagesCamera creativite={cr} styleCamera={sc} onCreativite={setCr} onStyleCamera={setSc} heritage={resoudreReglages({ projet: reglagesProjet })} idPrefixe="scene" demos={demos} />
                 </div>
 
                 <footer className="sc-popup-pied">

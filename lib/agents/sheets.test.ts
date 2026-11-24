@@ -153,13 +153,14 @@ test("ApresFiche.description : lue, et suffisante pour une écriture (la nouvell
 
 test("ApresFiche.reglages (« Itérer ») : lus, suffisants pour une écriture, valeurs inconnues refusées", async () => {
   const { lireApresFiche, verifierFiche } = await import("./sheets");
-  assert.deepEqual(lireApresFiche({ reglages: { creativite: "bold", styleCamera: 3 } }).reglages, { creativite: "bold" });
+  assert.deepEqual(lireApresFiche({ reglages: { creativite: "extreme", styleCamera: 3 } }).reglages, { creativite: "extreme" });
   assert.equal(lireApresFiche({ reglages: {} }).reglages, undefined);
   const etat = { titre: "t", sections: {}, refs: [], registre: new Map(), aUnRendu: false, generationEnCours: false, dureeGenerationSecondes: 8 };
-  assert.equal(verifierFiche({ reglages: { creativite: "restrained", styleCamera: "aucun" } }, etat), null);
-  assert.equal(verifierFiche({ reglages: { styleCamera: "sitcom" } }, etat), null);
+  assert.equal(verifierFiche({ reglages: { creativite: "extreme" } }, etat), null);
+  assert.equal(verifierFiche({ reglages: { creativite: "balanced" } }, etat), null);
   assert.match(verifierFiche({ reglages: { creativite: "folle" } }, etat) ?? "", /Créativité inconnue/);
-  assert.match(verifierFiche({ reglages: { styleCamera: "kubrick" } }, etat) ?? "", /Style de mise en scène inconnu/);
+  // « bold » and « restrained » were retired (ADR 0001)
+  assert.match(verifierFiche({ reglages: { creativite: "bold" } }, etat) ?? "", /Créativité inconnue/);
 });
 
 // --- an inconsistency ALREADY there (a cited label whose reference was unlinked) no longer blocks an unrelated correction (2026-10-14) ---

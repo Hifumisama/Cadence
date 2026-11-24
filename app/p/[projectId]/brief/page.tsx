@@ -14,8 +14,6 @@ import { MEDIA_ROOT, assetMediaSrc, posterSrc } from "@/lib/media";
 import { slugStyle, fichierApercuStyle } from "@/lib/styles/library";
 import { apercusDuStyle } from "@/lib/styles/styles-db";
 import type { StyleBriefVue, VignetteStyle } from "@/components/brief/StyleBrief";
-import { demosMiseEnScene } from "@/lib/media";
-import { ReglagesCameraProjet } from "@/components/brief/ProjectCameraSettings";
 
 export const dynamic = "force-dynamic";
 
@@ -71,7 +69,6 @@ export default async function BriefPage({ params }: { params: Promise<{ projectI
           </p>
         ) : null}
         {redige ? <BriefDossier projectId={pid} nomProjet={projet.nom} brief={brief} style={styleVue} identiteFigee={identiteFigee} registre={registre} affiche={posterSrc("projects", pid, projet.posterFichier)} episodeId={episode?.id ?? null} resume={episode?.resume ?? ""} /> :<BriefVide projectId={pid} nomProjet={projet.nom} brief={brief} />}
-        <ReglagesCameraProjet projectId={pid} creativite={projet.creativite} styleCamera={projet.styleCamera} demos={demosMiseEnScene()} />
       </main>
     </>
   );

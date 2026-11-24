@@ -2,9 +2,7 @@ import { libelleAsset, slugifyCode } from "../assets/assetCode";
 import { LANGUE_AUTO } from "./engine-language";
 import { MAX_REFS_VISUELLES } from "../clips/clip-continuity";
 import { SHOT_MIN_FICHE_SECONDES } from "../clips/clip-checks";
-import { estCreativite, estProfilPerso, STYLE_AUCUN, type Creativite } from "./settings";
-import { PROFILS_PERSO } from "./character-profiles";
-import { STYLES_CAMERA } from "./styles-camera";
+import { estCreativite, type Creativite } from "./settings";
 
 /** A clip's Open H3 IR brief (step 1 of the integration plan, docs/PLAN_INTEGRATION_OPEN_H3_IR.md): the Cadence → `BriefIn` mapping, the
  * body of `POST /v1/briefs` of the `open-h3-ir` package. Pure: everything needed is already loaded (lib/h3ir/brief-clip.ts), no database or disk access.
@@ -48,11 +46,8 @@ export type BriefH3ir = {
   megapixels: number;
   dialogue: DialogueBrief[];
   shots?: number;
-  /** Absent = « balanced », the package's default. */
+  /** Absent = « balanced », the package's default; `"extreme"` = a temps fort (lib/h3ir/settings.ts). */
   creativity?: Creativite;
-  director?: string;
-  /** A custom profile (character-profiles.ts): in place of `director`, never with it. */
-  director_profile?: { name: string; notes: string };
   effort: "standard";
   seed?: number;
 };
@@ -85,9 +80,8 @@ export type EntreeBrief = {
   references: ReferenceEntree[];
 };
 
-/** `director`: one of the 7 profiles, `"aucun"` or empty = no staging style. `creativity`: one of the 4 levels (`balanced` = the package's default, the key is then not sent).
- * The values inherited from the project, the scene or the clip are resolved BEFORE (lib/h3ir/settings.ts, `chargerBriefPlan`). */
-export type OptionsBrief = { shots?: number | null; director?: string | null; creativity?: string | null };
+/** `creativity`: `balanced` (the package's default, the key is then not sent) or `extreme` (a temps fort). Resolved BEFORE from the clip (lib/h3ir/settings.ts, `creativiteDuPlan`). */
+export type OptionsBrief = { shots?: number | null; creativity?: string | null };
 
 /** Which file sent is which Cadence asset: the compiler's manifest only knows fingerprints, `liens` (with the `fichiers` of the Python bridge,
  * fingerprint → path) gives each reference back its asset (lib/h3ir/conversion.ts). `type`: that of the clip's reference (`plan_refs.type`). */
@@ -224,13 +218,6 @@ export function briefDepuisPlan(entree: EntreeBrief, options: OptionsBrief = {})
   if (creativite) {
     if (!estCreativite(creativite)) return refuser(`Créativité inconnue : « ${creativite} ».`);
     if (creativite !== "balanced") brief.creativity = creativite;
-  }
-  const camera = options.director?.trim();
-  if (camera && camera !== STYLE_AUCUN && estProfilPerso(camera)) {
-    brief.director_profile = PROFILS_PERSO[camera];
-  } else if (camera && camera !== STYLE_AUCUN) {
-    if (!(STYLES_CAMERA as readonly string[]).includes(camera)) return refuser(`Style de mise en scène inconnu : « ${camera} ».`);
-    brief.director = camera;
   }
   const seed = Number(entree.plan.seed);
   if (entree.plan.seed != null && Number.isSafeInteger(seed)) brief.seed = seed;

@@ -4,7 +4,7 @@
 
 ## Cutting and cadence
 
-- **Intense action that feels flat, energy unreadable** → too few cuts for its intensity. Lever: `creativite` up one step (`bold`), or a `styleMiseEnScene` with fast cutting; the intent says the action beat by beat.
+- **Intense action that feels flat, energy unreadable** → too few cuts for its intensity. Lever: `creativite` to `extreme` if this plan carries a strong moment of the film (a temps fort); the intent says the action beat by beat.
 - **A beat ignored or smoothed away** → the plan is too short for what it holds (a shot under ~1.5 s is skipped). Lever: `dureeSecondes` up, or remove a beat from the intent.
 - **Several beats melted into one smooth movement** → the intent tells them as one sentence. Lever: the intent tells each beat as its own sentence, in order.
 - **Fight: no exchange, or 4–5 actions smeared together** → too many blows for the time. Lever: fewer blows in the intent (one linked exchange of 2–4 blows), or more duration.
@@ -13,7 +13,7 @@
 - **Contact of a blow never seen** → the cut lands on one character at the instant of the blow. Lever: the intent says both are in frame at contact.
 - **A named martial move does nothing** → the name alone does not drive the render. Lever: the intent describes the body mechanics and the receiver's reaction.
 - **The plan blurs** → too much in it. Lever: cut the intent down; never add.
-- **Calm without weight** → slow cadence with no contrast. Lever: `styleMiseEnScene` (a contemplative style) and say it in `verification`; the contrast comes from the neighbour plan, which you do not touch.
+- **Calm without weight** → slow cadence with no contrast. Lever: the intent (a slower gesture, a held look); the contrast comes from the neighbour plan, which you do not touch.
 
 ## Light and end state
 
@@ -26,10 +26,10 @@
 
 ## Camera and close-ups
 
-- **The background scrolls in a close-up** → walking or travel mentioned in a tight plan. Lever: remove the travel from the intent; `creativite` down (`restrained`) for a held frame.
-- **The camera rushes a reveal** → a push-in style on a reveal. Lever: `styleMiseEnScene` with a held or slow camera, or `creativite` down.
+- **The background scrolls in a close-up** → walking or travel mentioned in a tight plan. Lever: remove the travel from the intent; if the plan is a temps fort, `creativite` back to `balanced` for a calmer camera.
+- **The camera rushes a reveal** → a push-in on a reveal. Lever: say in the intent that the camera holds still; if the plan is a temps fort, `creativite` back to `balanced`.
 - **A moving character freezes** → precision words (planted, square, exact) in the intent. Lever: remove them from the intent.
-- **Camera too wild / too static for the request** → the settings, not the text. Lever: `creativite` (restrained < balanced < bold < extreme) and `styleMiseEnScene`; never a camera sentence in the intent.
+- **Camera too wild / too static for the request** → the settings, not the text. Lever: `creativite` (`balanced` for a calmer plan, `extreme` for a temps fort); a precise camera move goes in the intent as a plain visible fact, never as a camera sentence.
 
 ## Identity, sets, props
 

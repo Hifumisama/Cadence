@@ -1,10 +1,10 @@
+import { estTempsFort } from "@/lib/h3ir/settings";
 import { getEpisode, getEtatPlans, getProject, getScenarioData } from "@/lib/queries";
 import { getPelliculePlans } from "@/lib/clips/queries-clip-sheet";
 import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { demandes, plans } from "@/db/schema";
-import { demosMiseEnScene } from "@/lib/media";
 import { VueScenario } from "@/components/screenplay/ScreenplayView";
 import { srcRendu } from "@/components/clip/Thumbnail";
 import { intentionsPerimees } from "@/lib/clips/stale-intention";
@@ -71,17 +71,18 @@ export default async function TournagePage({
       href: `${base}/montage/${plan.uuid}`,
       ficheEnCours: ficheParPlan.get(plan.uuid) ?? null,
       intentionChangee: intentions.get(plan.uuid) ?? null,
+      tempsFort: estTempsFort(plan.creativite),
     };
   };
 
   const groupes: SceneVue[] = scenes.map((sc) => {
     const plans = sc.plans.map(versVue);
-    return { id: sc.id, titre: sc.titre, fonction: sc.fonction, ambiance: sc.ambiance, creativite: sc.creativite, styleCamera: sc.styleCamera, duree: plans.reduce((acc, p) => acc + p.duree, 0), plans };
+    return { id: sc.id, titre: sc.titre, fonction: sc.fonction, ambiance: sc.ambiance, duree: plans.reduce((acc, p) => acc + p.duree, 0), plans };
   });
   // A clip belongs to a scene: « Sans scène » only appears if orphan clips remain (old films), so as not to make them invisible.
   if (sansScene.length > 0) {
     const plans = sansScene.map(versVue);
-    groupes.push({ id: null, titre: "Sans scène", fonction: null, ambiance: null, creativite: null, styleCamera: null, duree: plans.reduce((acc, p) => acc + p.duree, 0), plans });
+    groupes.push({ id: null, titre: "Sans scène", fonction: null, ambiance: null, duree: plans.reduce((acc, p) => acc + p.duree, 0), plans });
   }
 
   // The state of the clip sheets: one line in the screenplay bar (its gesture, « Écrire les N fiches », opens a popup).
@@ -90,5 +91,5 @@ export default async function TournagePage({
     nbDeveloppes: etat.nbDeveloppes,
   };
 
-  return <VueScenario projectId={pid} episodeId={eid} reglagesProjet={{ creativite: projet?.creativite ?? null, styleCamera: projet?.styleCamera ?? null }} demos={demosMiseEnScene()} groupes={groupes} sceneInitiale={scene ?? null} ajout={ajout} ajoutScene={ajoutScene} fiches={fiches} />;
+  return <VueScenario projectId={pid} episodeId={eid} groupes={groupes} sceneInitiale={scene ?? null} ajout={ajout} ajoutScene={ajoutScene} fiches={fiches} />;
 }

@@ -191,8 +191,7 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "creativite",
-            "styleMiseEnScene"
+            "creativite"
           ],
           "properties": {
             "creativite": {
@@ -201,37 +200,11 @@
                 "null"
               ],
               "enum": [
-                "restrained",
                 "balanced",
-                "bold",
                 "extreme",
                 null
               ],
-              "description": "null = unchanged. Otherwise the plan's new creativity (one of `reglages.choix.creativite`)."
-            },
-            "styleMiseEnScene": {
-              "type": [
-                "string",
-                "null"
-              ],
-              "enum": [
-                "aucun",
-                "cameron",
-                "tarantino",
-                "anderson",
-                "villeneuve",
-                "bigelow",
-                "wong",
-                "spielberg",
-                "claymation",
-                "anime-nerveux",
-                "anime-contemplatif",
-                "3d-cinema",
-                "sitcom",
-                "horreur",
-                null
-              ],
-              "description": "null = unchanged. Otherwise the plan's new staging style (one of `reglages.choix.styleMiseEnScene`; `aucun` = no style)."
+              "description": "null = unchanged. `extreme` = make the plan a temps fort (every choice pushed to the maximum); `balanced` = back to a normal plan. One of `reglages.choix.creativite`."
             }
           }
         }

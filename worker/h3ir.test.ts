@@ -64,19 +64,19 @@ function deps(surcharge: Partial<DepsH3ir> & { reponses?: ReponsePython[] } = {}
 
 const OPTIONS = () => ({ modele: "gemma", signal: new AbortController().signal });
 
-test("lireEntreeH3ir : le plan est obligatoire, shots et style facultatifs", () => {
-  assert.deepEqual(lireEntreeH3ir({ planUuid: "u", shots: 3, director: "wong", creativity: "bold" }), { planUuid: "u", shots: 3, director: "wong", creativity: "bold" });
-  assert.deepEqual(lireEntreeH3ir({ planUuid: "u" }), { planUuid: "u", shots: null, director: null, creativity: null });
+test("lireEntreeH3ir : le plan est obligatoire, shots et créativité facultatifs", () => {
+  assert.deepEqual(lireEntreeH3ir({ planUuid: "u", shots: 3, creativity: "extreme" }), { planUuid: "u", shots: 3, creativity: "extreme" });
+  assert.deepEqual(lireEntreeH3ir({ planUuid: "u" }), { planUuid: "u", shots: null, creativity: null });
   assert.throws(() => lireEntreeH3ir({}), /sans plan/);
   // Rewrite of « Itérer »: the new description (and its duration) replace those of the clip.
-  assert.deepEqual(lireEntreeH3ir({ planUuid: "u", description: "Mai court.", dureeSecondes: 6 }), { planUuid: "u", shots: null, director: null, creativity: null, description: "Mai court.", dureeSecondes: 6 });
-  assert.deepEqual(lireEntreeH3ir({ planUuid: "u", description: "  ", dureeSecondes: 6.5 }), { planUuid: "u", shots: null, director: null, creativity: null });
+  assert.deepEqual(lireEntreeH3ir({ planUuid: "u", description: "Mai court.", dureeSecondes: 6 }), { planUuid: "u", shots: null, creativity: null, description: "Mai court.", dureeSecondes: 6 });
+  assert.deepEqual(lireEntreeH3ir({ planUuid: "u", description: "  ", dureeSecondes: 6.5 }), { planUuid: "u", shots: null, creativity: null });
   // « Itérer » decisions (2026-11-09): references added / removed and clip settings, kept only when they carry something.
   assert.deepEqual(
-    lireEntreeH3ir({ planUuid: "u", references: { ajouter: ["PROP_lampe", 3], retirer: [] }, reglagesPlan: { creativite: "bold", styleCamera: null } }),
-    { planUuid: "u", shots: null, director: null, creativity: null, references: { ajouter: ["PROP_lampe"], retirer: [] }, reglagesPlan: { creativite: "bold", styleCamera: null } },
+    lireEntreeH3ir({ planUuid: "u", references: { ajouter: ["PROP_lampe", 3], retirer: [] }, reglagesPlan: { creativite: "extreme" } }),
+    { planUuid: "u", shots: null, creativity: null, references: { ajouter: ["PROP_lampe"], retirer: [] }, reglagesPlan: { creativite: "extreme" } },
   );
-  assert.deepEqual(lireEntreeH3ir({ planUuid: "u", references: { ajouter: [], retirer: [] }, reglagesPlan: {} }), { planUuid: "u", shots: null, director: null, creativity: null });
+  assert.deepEqual(lireEntreeH3ir({ planUuid: "u", references: { ajouter: [], retirer: [] }, reglagesPlan: {} }), { planUuid: "u", shots: null, creativity: null });
 });
 
 test("executerH3ir : la description de remplacement va au chargement du brief ; sans elle, rien n'est surchargé", async () => {
@@ -89,20 +89,20 @@ test("executerH3ir : la description de remplacement va au chargement du brief ; 
   });
   await executerH3ir({ projectId: 7, entree: { planUuid: "u1", description: "Mai court.", dureeSecondes: 6 } }, OPTIONS(), d);
   await executerH3ir({ projectId: 7, entree: { planUuid: "u1" } }, OPTIONS(), deps({ charger: async (_p, _u, _o, s) => (vus.push(s), BRIEF_OK) }).d);
-  await executerH3ir({ projectId: 7, entree: { planUuid: "u1", references: { ajouter: ["PROP_lampe"], retirer: ["DEC_x"] }, reglagesPlan: { creativite: "restrained" } } }, OPTIONS(), deps({ charger: async (_p, _u, _o, s) => (vus.push(s), BRIEF_OK) }).d);
+  await executerH3ir({ projectId: 7, entree: { planUuid: "u1", references: { ajouter: ["PROP_lampe"], retirer: ["DEC_x"] }, reglagesPlan: { creativite: "balanced" } } }, OPTIONS(), deps({ charger: async (_p, _u, _o, s) => (vus.push(s), BRIEF_OK) }).d);
   assert.deepEqual(vus, [
     { description: "Mai court.", dureeSecondes: 6 },
     undefined,
-    { description: null, dureeSecondes: null, references: { ajouter: ["PROP_lampe"], retirer: ["DEC_x"] }, reglages: { creativite: "restrained", styleCamera: null } },
+    { description: null, dureeSecondes: null, references: { ajouter: ["PROP_lampe"], retirer: ["DEC_x"] }, reglages: { creativite: "balanced" } },
   ]);
 });
 
 test("executerH3ir : brief → traduction (une fois, intent français) → compilation avec l'intent anglais", async () => {
   const { d, appels } = deps();
   const etapes: string[] = [];
-  const r = await executerH3ir({ projectId: 7, entree: { planUuid: "u1", shots: 2, director: "wong", creativity: "bold" } }, { ...OPTIONS(), surEtape: (t) => etapes.push(t) }, d);
+  const r = await executerH3ir({ projectId: 7, entree: { planUuid: "u1", shots: 2, creativity: "extreme" } }, { ...OPTIONS(), surEtape: (t) => etapes.push(t) }, d);
 
-  assert.deepEqual(appels.briefs, [{ uuid: "u1", options: { shots: 2, director: "wong", creativity: "bold" } }]);
+  assert.deepEqual(appels.briefs, [{ uuid: "u1", options: { shots: 2, creativity: "extreme" } }]);
   assert.equal(appels.traduction.length, 1);
   assert.equal(appels.traduction[0]!.skill, SKILL_TRADUCTION);
   assert.equal(appels.traduction[0]!.entree, BRIEF.intent, "la traduction reçoit l'intent français");

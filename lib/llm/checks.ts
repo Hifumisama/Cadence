@@ -78,9 +78,11 @@ export function controleurPourSkill(skill: string, entree: unknown): Controleur 
     const noms = nomsPersonnagesDeLEntree(entree);
     const e = (entree ?? {}) as Parameters<typeof controlerLiaisonPremierPlan>[0];
     return (json) => {
-      const sortie = json as { plans?: { titre?: string; description?: string; liaison?: string }[] };
+      const sortie = json as { plans?: { titre?: string; description?: string; liaison?: string; tempsFort?: boolean }[] };
       const plans = sortie.plans;
+      const nbTempsFort = (plans ?? []).filter((p) => p.tempsFort === true).length;
       return [
+        ...(nbTempsFort > 1 ? [`Un seul plan de la scène porte le temps fort (tempsFort: true), pas ${nbTempsFort} : le temps fort tient dans un seul plan.`] : []),
         ...controlerStructureScenario({ scenes: [{ plans }] }),
         ...controlerLiaisonPremierPlan(e, sortie),
         ...constatsImmobilite((plans ?? []).map((p) => ({ plan: `Le plan « ${p.titre ?? "?"} »`, description: p.description ?? "" })), noms).map((c) => c.message),

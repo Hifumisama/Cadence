@@ -156,15 +156,14 @@ test("briefDepuisPlan : un effet visuel part en style (référence faible), un p
   );
 });
 
-test("briefDepuisPlan : shots et style de caméra sont facultatifs, bornés et contrôlés", () => {
+test("briefDepuisPlan : shots est facultatif, borné et contrôlé ; plus de style de mise en scène", () => {
   assert.equal("shots" in briefDepuisPlan(entree()).brief!, false);
   assert.equal("director" in briefDepuisPlan(entree()).brief!, false);
-  const avec = briefDepuisPlan(entree(), { shots: 3, director: "villeneuve" }).brief!;
+  assert.equal("director_profile" in briefDepuisPlan(entree()).brief!, false);
+  const avec = briefDepuisPlan(entree(), { shots: 3 }).brief!;
   assert.equal(avec.shots, 3);
-  assert.equal(avec.director, "villeneuve");
   assert.match(briefDepuisPlan(entree(), { shots: 7 }).refus ?? "", /1 à 6/); // 8 s / 1,2 = 6
   assert.match(briefDepuisPlan(entree(), { shots: 0 }).refus ?? "", /entier/);
-  assert.match(briefDepuisPlan(entree(), { director: "kubrick" }).refus ?? "", /inconnu/);
 });
 
 test("briefDepuisPlan : refus sans image, avec une référence sans fichier, au-delà de 6 références, sans description", () => {
@@ -178,43 +177,27 @@ test("briefDepuisPlan : refus sans image, avec une référence sans fichier, au-
 });
 
 test("briefDepuisPlan : aucune clé hors du contrat du service", () => {
-  const CLES_BRIEF = new Set(["intent", "assets", "seconds", "aspect", "megapixels", "dialogue", "onscreen_text", "shots", "loras", "silent", "constraints", "creativity", "director", "director_profile", "effort", "seed", "transcripts", "answer"]);
+  const CLES_BRIEF = new Set(["intent", "assets", "seconds", "aspect", "megapixels", "dialogue", "onscreen_text", "shots", "loras", "silent", "constraints", "creativity", "effort", "seed", "transcripts", "answer"]);
   const CLES_ASSET = new Set(["path", "sha256", "url", "note", "replaces", "kind", "role", "sizing", "seconds", "frames", "paired_video_path", "paired_video_sha256", "provenance"]);
   const CLES_DIALOGUE = new Set(["text", "language", "speaker", "voiceover"]);
-  const { brief } = briefDepuisPlan(entree(), { shots: 2, director: "wong" });
+  const { brief } = briefDepuisPlan(entree(), { shots: 2, creativity: "extreme" });
   assert.ok(brief);
   for (const k of Object.keys(brief)) assert.ok(CLES_BRIEF.has(k), `clé inconnue du brief : ${k}`);
   for (const a of brief.assets) for (const k of Object.keys(a)) assert.ok(CLES_ASSET.has(k), `clé inconnue d'un asset : ${k}`);
   for (const d of brief.dialogue) for (const k of Object.keys(d)) assert.ok(CLES_DIALOGUE.has(k), `clé inconnue d'un dialogue : ${k}`);
 });
 
-test("briefDepuisPlan : créativité (clé omise si « balanced », le défaut du paquet) et style « aucun » = pas de director", () => {
+test("briefDepuisPlan : créativité (clé omise si « balanced », le défaut du paquet ; « extreme » = temps fort)", () => {
   assert.equal("creativity" in briefDepuisPlan(entree()).brief!, false);
   assert.equal("creativity" in briefDepuisPlan(entree(), { creativity: "balanced" }).brief!, false);
   assert.equal(briefDepuisPlan(entree(), { creativity: "extreme" }).brief!.creativity, "extreme");
   assert.match(briefDepuisPlan(entree(), { creativity: "folle" }).refus ?? "", /Créativité inconnue/);
-  // « aucun » and empty do not set a director; a profile sets it.
-  assert.equal("director" in briefDepuisPlan(entree(), { director: "aucun" }).brief!, false);
-  assert.equal("director" in briefDepuisPlan(entree(), { director: "" }).brief!, false);
-  assert.equal(briefDepuisPlan(entree(), { director: "wong" }).brief!.director, "wong");
+  // « restrained » and « bold » no longer exist (ADR 0001).
+  assert.match(briefDepuisPlan(entree(), { creativity: "bold" }).refus ?? "", /Créativité inconnue/);
 });
 
 test("briefDepuisPlan : le plafond de shots suit la durée nominale (le paquet refuse sur elle) et le plancher de 1,2 s", () => {
   // 6 s / 1,2 = 5 shots at most; 5 passes, 6 is refused (even if the effective duration of 6,583 s would allow 5).
   assert.equal(briefDepuisPlan(entree({ plan: { description: DESCRIPTION, dureeSecondes: 6, seed: "1" } }), { shots: 5 }).brief!.shots, 5);
   assert.match(briefDepuisPlan(entree({ plan: { description: DESCRIPTION, dureeSecondes: 6, seed: "1" } }), { shots: 6 }).refus ?? "", /1 à 5/);
-});
-
-test("briefDepuisPlan : un profil perso part en director_profile (jamais en director), un réalisateur en director, « aucun » rien ; un inconnu est refusé", async () => {
-  const { PROFILS_PERSO } = await import("./character-profiles");
-  const perso = briefDepuisPlan(entree(), { director: "claymation" });
-  assert.equal(perso.refus, null);
-  assert.deepEqual(perso.brief?.director_profile, PROFILS_PERSO.claymation);
-  assert.equal(perso.brief?.director, undefined);
-  const livre = briefDepuisPlan(entree(), { director: "wong" });
-  assert.equal(livre.brief?.director, "wong");
-  assert.equal(livre.brief?.director_profile, undefined);
-  const aucun = briefDepuisPlan(entree(), { director: "aucun" });
-  assert.deepEqual([aucun.brief?.director, aucun.brief?.director_profile], [undefined, undefined]);
-  assert.match(briefDepuisPlan(entree(), { director: "kubrick" }).refus ?? "", /inconnu/);
 });

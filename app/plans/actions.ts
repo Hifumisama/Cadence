@@ -14,7 +14,7 @@ import { resolve } from "node:path";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN, MAX_REFS, WORKFLOW_IMPORT_MANUEL } from "@/lib/clips/clip-checks";
 import { estLiaison } from "@/lib/clips/clip-link";
 import { descriptionSeraitPerdue, intentionChangee, memeDescription, normaliserGuillemetsRepliques } from "@/lib/clips/intent";
-import { creativiteOuNull, styleCameraOuNull } from "@/lib/h3ir/settings";
+import { estTempsFort, valeurTempsFort } from "@/lib/h3ir/settings";
 import { declarerRefDansLePrompt, retirerRefDuPlan, roleDeLaRef } from "@/lib/clips/clip-references";
 import { emplacementLibre } from "@/lib/clips/references";
 import type { RefLabel } from "@/lib/clips/clip-checks";
@@ -386,10 +386,20 @@ type ValeursScenario = {
   dureeSecondes?: number;
   /** Link with the previous clip (lib/clips/clip-link.ts); an unknown value writes nothing. */
   liaison?: string;
-  /** Open H3 IR (lib/h3ir/settings.ts): absent = not touched; `null` or empty = the clip inherits from its scene, then from the project; style « aucun » = no style. */
+  /** Open H3 IR (lib/h3ir/settings.ts): absent = not touched; `"extreme"` = the clip is a temps fort; anything else (`null`, `"balanced"`) = a normal clip. */
   creativite?: string | null;
-  styleCamera?: string | null;
 };
+
+/** Marks a clip as a TEMPS FORT, or clears the mark (lib/h3ir/settings.ts): its sheet is then compiled with every choice pushed to the maximum. Nothing is recompiled here:
+ * the next sheet written for the clip (« Générer la fiche », « Itérer ») takes it into account. */
+export async function definirTempsFort(planId: number, actif: boolean): Promise<{ ok: true } | { ok: false; erreur: string }> {
+  const valide = verifier(z.tuple([idSchema, z.boolean()]), [planId, actif]);
+  if (!valide.ok) return valide;
+  const [plan] = await db.update(plans).set({ creativite: valeurTempsFort(actif), updatedAt: new Date() }).where(eq(plans.id, planId)).returning({ id: plans.id });
+  if (!plan) return { ok: false, erreur: "Ce plan n'existe plus." };
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
 
 /** Editing of the screenplay fields — stays open even after development into
  * a clip sheet (user feedback 2026-09-27): nothing prevents coming back
@@ -404,7 +414,6 @@ export async function updatePlanScenario(planId: number, valeurs: ValeursScenari
         dureeSecondes: z.number().optional(),
         liaison: z.string().max(40).optional(),
         creativite: z.string().max(40).nullish(),
-        styleCamera: z.string().max(80).nullish(),
       }),
     ]),
     [planId, valeurs],
@@ -421,8 +430,8 @@ export async function updatePlanScenario(planId: number, valeurs: ValeursScenari
       description: valeurs.description ? normaliserGuillemetsRepliques(valeurs.description) : null,
       ...(duree !== undefined ? { dureeGenerationSecondes: duree, dureeMontageSecondes: duree } : {}),
       ...(estLiaison(valeurs.liaison) ? { liaison: valeurs.liaison } : {}),
-      ...(valeurs.creativite !== undefined ? { creativite: creativiteOuNull(valeurs.creativite) } : {}),
-      ...(valeurs.styleCamera !== undefined ? { styleCamera: styleCameraOuNull(valeurs.styleCamera) } : {}),
+      // Temps fort: `"extreme"`; anything else clears it (lib/h3ir/settings.ts).
+      ...(valeurs.creativite !== undefined ? { creativite: valeurTempsFort(estTempsFort(valeurs.creativite)) } : {}),
       updatedAt: new Date(),
     })
     .where(eq(plans.id, planId));

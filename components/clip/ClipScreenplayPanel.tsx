@@ -1,16 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updatePlanScenario } from "@/app/plans/actions";
+import { definirTempsFort, updatePlanScenario } from "@/app/plans/actions";
 import { DUREE_GENERATION_MAX, DUREE_GENERATION_MIN } from "@/lib/clips/clip-checks";
 import { GenererFiche } from "@/components/clip/GenerateSheet";
 import type { Liaison } from "@/lib/clips/clip-link";
 import { intentAffichee } from "@/lib/clips/intent";
-import { ChampsReglagesCamera } from "@/components/h3ir/CameraSettingsFields";
 import { CurseurDuree } from "@/components/clip/DurationCursor";
-import type { DemoDispo } from "@/lib/h3ir/demos";
 import "../plan/atelier.css";
-import { LIBELLE_CREATIVITE, LIBELLE_NIVEAU, RESUME_STYLE_CAMERA, infobulleChoix, resoudreReglages, type ReglagesBruts } from "@/lib/h3ir/settings";
+import { AIDE_TEMPS_FORT, LIBELLE_TEMPS_FORT, estTempsFort, valeurTempsFort } from "@/lib/h3ir/settings";
 import {
   ScenarioNarratifFields,
   type ChampsNarratifs,
@@ -21,10 +19,21 @@ type Valeurs = ChampsNarratifs & {
   /** The clip's RENDER duration (`plans.duree_generation_secondes`, which the montage duration follows); null: outside the current bounds (earlier clip), we don't touch it until a value is chosen. */
   dureeSecondes: number | null;
   liaison: Liaison;
-  /** Open H3 IR: empty = the clip inherits from its scene, then from the project (lib/h3ir/settings.ts). Must be part of `initial`, otherwise each save would reset them to zero. */
+  /** Open H3 IR (lib/h3ir/settings.ts): `"extreme"` = the clip is a temps fort, empty = a normal clip. Must be part of `initial`, otherwise each save would reset it. */
   creativite: string;
-  styleCamera: string;
 };
+
+/** The « Temps fort » switch of a clip: every choice of its sheet pushed to the maximum (camera, framing, contrasts). Same look as the link switch. */
+function InterrupteurTempsFort({ actif, onChange, id, disabled = false }: { actif: boolean; onChange: (actif: boolean) => void; id: string; disabled?: boolean }) {
+  return (
+    <button type="button" role="switch" className="pl-interrupteur" aria-checked={actif} aria-labelledby={id} disabled={disabled} title={AIDE_TEMPS_FORT} onClick={() => onChange(!actif)}>
+      <span className="pl-interrupteur-piste" aria-hidden="true">
+        <i />
+      </span>
+      <span id={id}>{LIBELLE_TEMPS_FORT}</span>
+    </button>
+  );
+}
 
 export function PlanScenarioPanel({
   planId,
@@ -35,27 +44,19 @@ export function PlanScenarioPanel({
   demandeEnCours = null,
   dureeGeneration,
   musique = null,
-  reglagesProjet,
-  reglagesScene = null,
   premierPlan = false,
-  demos,
 }: {
   planId: number;
   projectId: number;
   planUuid: string;
   brouillon: boolean;
   initial: Valeurs;
-  /** Creativity and staging style of the project and of the clip's scene: what the clip inherits when it sets nothing. */
-  reglagesProjet: ReglagesBruts;
-  reglagesScene?: ReglagesBruts | null;
   /** The « Générer la fiche » request already running on this clip, if there is one. */
   demandeEnCours?: number | null;
   /** The clip's current render duration, even outside the bounds (earlier clip): the badge flags it. */
   dureeGeneration?: number;
   /** First clip of the episode: nothing before it, so the link cannot be set. */
   premierPlan?: boolean;
-  /** Staging demo videos (lib/media.ts), for the style choice window. */
-  demos?: Record<string, DemoDispo>;
   /** The clip's music timecode, if there is one. */
   musique?: string | null;
 }) {
@@ -97,10 +98,22 @@ export function PlanScenarioPanel({
   };
   const lie = champs.liaison === "suite";
 
-  const heritage = resoudreReglages({ projet: reglagesProjet, scene: reglagesScene });
+  const tempsFort = estTempsFort(champs.creativite);
+  const [enregistrementTempsFort, startTempsFort] = useTransition();
+  // From the header (outside « Modifier »): one click writes it right away; the sheet follows at its next writing.
+  const basculerTempsFort = (actif: boolean) => {
+    const avant = champs.creativite;
+    setChamps((c) => ({ ...c, creativite: valeurTempsFort(actif) ?? "" }));
+    startTempsFort(async () => {
+      const r = await definirTempsFort(planId, actif);
+      if (!r.ok) {
+        setChamps((c) => ({ ...c, creativite: avant }));
+        setErreur(r.erreur);
+      } else setErreur(null);
+    });
+  };
 
   if (!brouillon && !editionOuverte) {
-    const reglages = resoudreReglages({ projet: reglagesProjet, scene: reglagesScene, plan: { creativite: initial.creativite, styleCamera: initial.styleCamera } });
     // The displayed intent: without the « Consigne de l'auteur » (it duplicates the narrative when the author respects it; traduction-intent always reads it from the database) nor the old « État en fin de plan ».
     const intent = intentAffichee(initial.description);
     const horsBornes = dureeGeneration != null && (dureeGeneration < DUREE_GENERATION_MIN || dureeGeneration > DUREE_GENERATION_MAX);
@@ -123,18 +136,9 @@ export function PlanScenarioPanel({
                 <span>Lié au plan précédent</span> <b>{initial.liaison === "suite" ? "Oui" : "Non"}</b>
               </li>
             )}
-            {reglages.origine.styleCamera !== "defaut" ? (
-              <li title="Style de mise en scène d'Open H3 IR pour ce plan. Se règle ici (Modifier), sur la scène ou sur le projet.">
-                <span>Mise en scène</span> <b title={reglages.styleCamera ? infobulleChoix(reglages.styleCamera) : undefined}>{reglages.styleCamera ? RESUME_STYLE_CAMERA[reglages.styleCamera] : "aucun style"}</b>
-                {reglages.origine.styleCamera !== "plan" ? <em> · {LIBELLE_NIVEAU[reglages.origine.styleCamera]}</em> : null}
-              </li>
-            ) : null}
-            {reglages.origine.creativite !== "defaut" ? (
-              <li title="Créativité d'Open H3 IR pour ce plan. Se règle ici (Modifier), sur la scène ou sur le projet.">
-                <span>Créativité</span> <b>{LIBELLE_CREATIVITE[reglages.creativite]}</b>
-                {reglages.origine.creativite !== "plan" ? <em> · {LIBELLE_NIVEAU[reglages.origine.creativite]}</em> : null}
-              </li>
-            ) : null}
+            <li className={tempsFort ? "is-temps-fort" : undefined}>
+              <InterrupteurTempsFort id={`temps-fort-${planId}`} actif={tempsFort} onChange={basculerTempsFort} disabled={enregistrementTempsFort} />
+            </li>
             {musique ? (
               <li>
                 <span>Musique</span> <b className="num">{musique}</b>
@@ -147,7 +151,7 @@ export function PlanScenarioPanel({
                 {lu ? "Réduire" : "Tout lire"}
               </button>
             ) : null}
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditionOuverte(true)} title="Titre, durée de rendu, liaison, mise en scène">
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditionOuverte(true)} title="Titre, durée de rendu, liaison">
               Modifier
             </button>
           </span>
@@ -203,15 +207,12 @@ export function PlanScenarioPanel({
             </span>
           </div>
         )}
-        <ChampsReglagesCamera
-          creativite={champs.creativite}
-          styleCamera={champs.styleCamera}
-          onCreativite={(creativite) => setChamps((c) => ({ ...c, creativite }))}
-          onStyleCamera={(styleCamera) => setChamps((c) => ({ ...c, styleCamera }))}
-          heritage={heritage}
-          idPrefixe="plan"
-          demos={demos}
-        />
+        {brouillon ? (
+          <div className="field-group">
+            <InterrupteurTempsFort id={`temps-fort-form-${planId}`} actif={tempsFort} onChange={(actif) => setChamps((c) => ({ ...c, creativite: valeurTempsFort(actif) ?? "" }))} />
+            <span className="tiny-note">{AIDE_TEMPS_FORT}</span>
+          </div>
+        ) : null}
         {brouillon ? (
           <ScenarioNarratifFields valeurs={champs} onChange={majNarratif} />
         ) : (

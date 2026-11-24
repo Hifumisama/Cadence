@@ -27,7 +27,7 @@ const LIBELLES: Record<VueCreation["etapes"][number]["statut"], string> = {
 /** The first draft of the screenplay as the end screen states it: the first episode's scenes (name and number of clips), and where to read it. */
 export type PremierJet = { scenarioHref: string; nbPlans: number; dureeSecondes: number; scenes: { titre: string; nbPlans: number }[] };
 
-/** The same nine steps as the design (`ETAPES_CONCEPTION`): the summaries follow them (`resumesCadre`). */
+/** The same eight steps as the design (`ETAPES_CONCEPTION`): the summaries follow them (`resumesCadre`). */
 const NOMS_ETAPES: readonly string[] = ETAPES_CONCEPTION;
 
 /** Scene 8 of the design: the preparation's progress, step by step (the installer, lib/agents/creation.ts). Same data and same
@@ -42,15 +42,12 @@ export function AvanceeScene({
   conception,
   genre = "",
   style,
-  miseEnScene,
   premierJet,
 }: {
   projectId: number;
   nomProjet: string;
   /** The screenplay's first draft (scenes written), for the end screen; null when the project has no episode. */
   premierJet: PremierJet | null;
-  /** The project's staging in a few words (`resumeMiseEnScene`), for the ribbon. */
-  miseEnScene: string;
   initial: VueCreation | null;
   /** Where the reference images stand (lib/assets/project-images.ts): the final clap says what is really done. */
   imagesInitial: EtatImages;
@@ -103,7 +100,7 @@ export function AvanceeScene({
     [conception, genre],
   );
   const resumes = conception
-    ? [...resumesCadre(conception, style.nom, miseEnScene), "fait", "fait"]
+    ? [...resumesCadre(conception, style.nom), "fait", "fait"]
     : [];
 
   const pct = vue && vue.total ? Math.round((vue.faites / vue.total) * 100) : 0;

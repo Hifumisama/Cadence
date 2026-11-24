@@ -5,7 +5,7 @@ import { test } from "node:test";
 import { controleurPourSkill } from "../llm/checks";
 import { chargerSkill } from "../llm/skills";
 import { valider } from "../llm/validation";
-import { MISES_EN_SCENE, STYLE_AUCUN, CREATIVITES } from "../h3ir/settings";
+import { CREATIVITES } from "../h3ir/settings";
 import {
   contexteDepuisEntree,
   controlerSortieIterationPlan,
@@ -38,7 +38,7 @@ const ctx = (over: Partial<ContexteIteration> = {}): ContexteIteration => ({
   ],
   dureeGenerationSecondes: 6,
   dureeReelleSecondes: null,
-  reglages: { creativite: "balanced", styleMiseEnScene: STYLE_AUCUN },
+  reglages: { creativite: "balanced" },
   ...over,
 });
 
@@ -47,7 +47,7 @@ const decisions = (over: Partial<DecisionsSortie> = {}): DecisionsSortie => ({
   dureeSecondes: null,
   references: { ajouter: [], retirer: [] },
   manquants: [],
-  reglages: { creativite: null, styleMiseEnScene: null },
+  reglages: { creativite: null },
   ...over,
 });
 
@@ -59,7 +59,7 @@ const sortie = (over: Partial<SortieIterationPlan> = {}, dec: Partial<DecisionsS
   confiance: "moyenne",
   verification: "La caméra accompagne Mai.",
   abandon: { propose: false, raison: "" },
-  decisions: decisions({ reglages: { creativite: "bold", styleMiseEnScene: null }, ...dec }),
+  decisions: decisions({ reglages: { creativite: "extreme" }, ...dec }),
   ...over,
 });
 
@@ -75,7 +75,7 @@ test("le schéma de sortie accepte des décisions types (réglage, intent, réf�
     dureeSecondes: 8,
     references: { ajouter: ["PROP_lampe"], retirer: ["DEC_clairiere"] },
     manquants: [{ code: "DEC_clairiere_nuit", type: "decor", parent: "DEC_clairiere", description: "La clairière de nuit.", raison: "Aucune image de nuit." }],
-    reglages: { creativite: "restrained", styleMiseEnScene: "sitcom" },
+    reglages: { creativite: "extreme" },
   });
   const v2 = valider(schema, tout);
   assert.ok(v2.ok, v2.ok ? "" : v2.erreurs.join(" ; "));
@@ -92,7 +92,7 @@ test("le schéma liste exactement les valeurs de réglage de lib/h3ir/settings.t
   const brut = JSON.parse(readFileSync(join(process.cwd(), "agents/skills/iteration-plan/assets/sortie.schema.json"), "utf-8"));
   const r = brut.properties.decisions.properties.reglages.properties;
   assert.deepEqual(r.creativite.enum.filter((v: unknown) => v !== null), [...CREATIVITES]);
-  assert.deepEqual([...r.styleMiseEnScene.enum.filter((v: unknown) => v !== null)].sort(), [STYLE_AUCUN, ...MISES_EN_SCENE].sort());
+  assert.equal("styleMiseEnScene" in r, false, "le style de mise en scène n'existe plus (ADR 0001)");
 });
 
 test("le skill est générique (aucun nom de projet) et lit sa propre copie du lexique", () => {
@@ -103,41 +103,39 @@ test("le skill est générique (aucun nom de projet) et lit sa propre copie du l
 });
 
 test("un réglage seul : décision effective, rien d'autre ne bouge ; la même valeur que l'actuelle n'est pas une décision", () => {
-  assert.deepEqual(decisionsEffectives(sortie(), ctx()), { reglages: { creativite: "bold" } });
+  assert.deepEqual(decisionsEffectives(sortie(), ctx()), { reglages: { creativite: "extreme" } });
   assert.equal(raisonSansEcriture(sortie(), ctx()), null);
   assert.deepEqual(erreurs(sortie()), []);
   // the current creativity given again: nothing to recompile
-  const meme = sortie({}, { reglages: { creativite: "balanced", styleMiseEnScene: STYLE_AUCUN } });
+  const meme = sortie({}, { reglages: { creativite: "balanced" } });
   assert.equal(decisionsEffectives(meme, ctx()), null);
   assert.match(raisonSansEcriture(meme, ctx()) ?? "", /aucune décision/);
-  // a style: it REPLACES the clip's one ("aucun" → sitcom; sitcom → aucun)
-  assert.deepEqual(decisionsEffectives(sortie({}, { reglages: { creativite: null, styleMiseEnScene: "sitcom" } }), ctx()), { reglages: { styleCamera: "sitcom" } });
-  assert.deepEqual(
-    decisionsEffectives(sortie({}, { reglages: { creativite: null, styleMiseEnScene: STYLE_AUCUN } }), ctx({ reglages: { creativite: "balanced", styleMiseEnScene: "sitcom" } })),
-    { reglages: { styleCamera: STYLE_AUCUN } },
-  );
+  // back from a temps fort to a normal clip: it REPLACES the clip's value (extreme → balanced)
+  assert.deepEqual(decisionsEffectives(sortie({}, { reglages: { creativite: "balanced" } }), ctx({ reglages: { creativite: "extreme" } })), { reglages: { creativite: "balanced" } });
 });
 
 test("réglage inconnu : erreur de contrat (renvoi) et jamais retenu", () => {
-  const s = sortie({}, { reglages: { creativite: "folle", styleMiseEnScene: "kubrick" } });
-  assert.deepEqual(erreurs(s), ["reglage-inconnu", "reglage-inconnu"]);
+  const s = sortie({}, { reglages: { creativite: "folle" } });
+  assert.deepEqual(erreurs(s), ["reglage-inconnu"]);
+  // « bold » and « restrained » were retired (ADR 0001)
+  assert.deepEqual(erreurs(sortie({}, { reglages: { creativite: "bold" } })), ["reglage-inconnu"]);
   assert.equal(decisionsEffectives(s, ctx()), null);
 });
 
 test("intent : la nouvelle description COMPLÈTE est retenue, sans ancien état de fin ; identique à l'actuelle, ce n'est rien", () => {
-  const s = sortie({}, { nouvelleDescription: DESC_APRES, reglages: { creativite: null, styleMiseEnScene: null } });
+  const s = sortie({}, { nouvelleDescription: DESC_APRES, reglages: { creativite: null } });
   assert.deepEqual(decisionsEffectives(s, ctx()), { description: DESC_APRES });
   assert.deepEqual(erreurs(s), []);
-  const avecEtat = sortie({}, { nouvelleDescription: `${DESC_APRES}\n\nÉtat en fin de plan : Mai debout.`, reglages: { creativite: null, styleMiseEnScene: null } });
+  const avecEtat = sortie({}, { nouvelleDescription: `${DESC_APRES}\n\nÉtat en fin de plan : Mai debout.`, reglages: { creativite: null } });
   assert.equal(decisionsEffectives(avecEtat, ctx())!.description, DESC_APRES);
-  const identique = sortie({}, { nouvelleDescription: DESC_AVANT, reglages: { creativite: null, styleMiseEnScene: null } });
+  const identique = sortie({}, { nouvelleDescription: DESC_AVANT, reglages: { creativite: null } });
   assert.equal(decisionsEffectives(identique, ctx()), null);
   // the current one still carries the old end state: the same without it is not a change
   assert.equal(decisionsEffectives(identique, ctx({ description: `${DESC_AVANT}\n\nÉtat en fin de plan : Mai assise.` })), null);
 });
 
 test("intent : une réplique perdue est une alerte (la consigne peut la retirer), pas un renvoi", () => {
-  const sans = sortie({}, { nouvelleDescription: "Mai attend devant le feu, les mains tendues vers les flammes, puis se lève sans un mot.", reglages: { creativite: null, styleMiseEnScene: null } });
+  const sans = sortie({}, { nouvelleDescription: "Mai attend devant le feu, les mains tendues vers les flammes, puis se lève sans un mot.", reglages: { creativite: null } });
   assert.deepEqual(erreurs(sans), []);
   assert.ok(alertes(sans).includes("description-repliques"));
 });
@@ -154,18 +152,18 @@ const FRAGMENT_FEU =
 
 test("bug du plan « Le feu » : un intent réduit à un fragment est refusé (renvoi), jamais écrit, et ne fait rien recompiler", () => {
   const c = ctx({ description: DESC_FEU });
-  const fragment = sortie({}, { nouvelleDescription: FRAGMENT_FEU, reglages: { creativite: null, styleMiseEnScene: null } });
+  const fragment = sortie({}, { nouvelleDescription: FRAGMENT_FEU, reglages: { creativite: null } });
   assert.ok(erreurs(fragment, c).includes("description-incomplete"));
   assert.equal(decisionsEffectives(fragment, c), null);
   assert.match(raisonSansEcriture(fragment, c) ?? "", /incomplète/);
   // the only sentence changed: refused likewise
-  assert.ok(erreurs(sortie({}, { nouvelleDescription: "Mai se retourne vers la forêt.", reglages: { creativite: null, styleMiseEnScene: null } }), c).includes("description-incomplete"));
+  assert.ok(erreurs(sortie({}, { nouvelleDescription: "Mai se retourne vers la forêt.", reglages: { creativite: null } }), c).includes("description-incomplete"));
   // a fragment with another lever: the other lever passes, the intent does not change
   const mixte = sortie({}, { nouvelleDescription: FRAGMENT_FEU, dureeSecondes: 8 });
-  assert.deepEqual(decisionsEffectives(mixte, c), { dureeSecondes: 8, reglages: { creativite: "bold" } });
+  assert.deepEqual(decisionsEffectives(mixte, c), { dureeSecondes: 8, reglages: { creativite: "extreme" } });
   // the complete description, retouched, passes
   const complete = DESC_FEU.replace("Elle sourit, soulagée", "Elle sourit, puis se retourne vers la forêt").replace(/\n\nÉtat en fin de plan[\s\S]*$/, "");
-  const bonne = sortie({}, { nouvelleDescription: complete, reglages: { creativite: null, styleMiseEnScene: null } });
+  const bonne = sortie({}, { nouvelleDescription: complete, reglages: { creativite: null } });
   assert.deepEqual(erreurs(bonne, c), []);
   assert.equal(decisionsEffectives(bonne, c)!.description, complete);
   // the diagnosis keeps nothing of it either
@@ -173,20 +171,20 @@ test("bug du plan « Le feu » : un intent réduit à un fragment est refusé (r
 });
 
 test("durée : 4 à 10 s, différente de l'actuelle ; hors bornes = erreur de contrat", () => {
-  assert.equal(decisionsEffectives(sortie({}, { dureeSecondes: 9, reglages: { creativite: null, styleMiseEnScene: null } }), ctx())!.dureeSecondes, 9);
-  assert.equal(decisionsEffectives(sortie({}, { dureeSecondes: 6, reglages: { creativite: null, styleMiseEnScene: null } }), ctx()), null, "la même durée ne change rien");
+  assert.equal(decisionsEffectives(sortie({}, { dureeSecondes: 9, reglages: { creativite: null } }), ctx())!.dureeSecondes, 9);
+  assert.equal(decisionsEffectives(sortie({}, { dureeSecondes: 6, reglages: { creativite: null } }), ctx()), null, "la même durée ne change rien");
   for (const hors of [3, 12, 7.5]) {
-    const s = sortie({}, { dureeSecondes: hors, reglages: { creativite: null, styleMiseEnScene: null } });
+    const s = sortie({}, { dureeSecondes: hors, reglages: { creativite: null } });
     assert.equal(decisionsEffectives(s, ctx()), null, `${hors} s est ignoré`);
     assert.ok(erreurs(s).includes("duree-invalide"));
   }
 });
 
 test("références : ajouter / retirer par code du registre ; les erreurs de contrat", () => {
-  const s = sortie({}, { references: { ajouter: ["PROP_lampe"], retirer: ["DEC_clairiere"] }, reglages: { creativite: null, styleMiseEnScene: null } });
+  const s = sortie({}, { references: { ajouter: ["PROP_lampe"], retirer: ["DEC_clairiere"] }, reglages: { creativite: null } });
   assert.deepEqual(erreurs(s), []);
   assert.deepEqual(decisionsEffectives(s, ctx()), { references: { ajouter: ["PROP_lampe"], retirer: ["DEC_clairiere"] } });
-  const r = (ajouter: string[], retirer: string[] = []) => erreurs(sortie({}, { references: { ajouter, retirer }, reglages: { creativite: null, styleMiseEnScene: null } }));
+  const r = (ajouter: string[], retirer: string[] = []) => erreurs(sortie({}, { references: { ajouter, retirer }, reglages: { creativite: null } }));
   assert.deepEqual(r(["PROP_inventee"]), ["ajout-inconnu"]);
   assert.deepEqual(r(["VOICE_mai"]), ["ajout-nature"]);
   assert.deepEqual(r(["VOIX_off"]), ["ajout-nature"]);
@@ -197,13 +195,13 @@ test("références : ajouter / retirer par code du registre ; les erreurs de con
   const pleine = ctx({ refs: Array.from({ length: 6 }, (_, i) => ({ type: "picture" as const, slot: i + 1, asset: i === 0 ? "CHAR_mai" : `DEC_${i}` })) });
   assert.ok(erreurs(sortie({}, { references: { ajouter: ["PROP_lampe"], retirer: [] } }), pleine).includes("trop-d-images"));
   // a references block in error is never kept (the other levers, if any)
-  assert.deepEqual(decisionsEffectives(sortie({}, { references: { ajouter: ["PROP_inventee"], retirer: [] } }), ctx()), { reglages: { creativite: "bold" } });
+  assert.deepEqual(decisionsEffectives(sortie({}, { references: { ajouter: ["PROP_inventee"], retirer: [] } }), ctx()), { reglages: { creativite: "extreme" } });
   // removing then re-adding the same image: nothing changes
-  assert.equal(decisionsEffectives(sortie({}, { references: { ajouter: ["CHAR_mai"], retirer: ["CHAR_mai"] }, reglages: { creativite: null, styleMiseEnScene: null } }), ctx()), null);
+  assert.equal(decisionsEffectives(sortie({}, { references: { ajouter: ["CHAR_mai"], retirer: ["CHAR_mai"] }, reglages: { creativite: null } }), ctx()), null);
 });
 
 test("références : une image ajoutée sans fichier est une ALERTE (la recompilation la refusera, « images manquantes »)", () => {
-  const s = sortie({}, { references: { ajouter: ["PROP_torche"], retirer: [] }, reglages: { creativite: null, styleMiseEnScene: null } });
+  const s = sortie({}, { references: { ajouter: ["PROP_torche"], retirer: [] }, reglages: { creativite: null } });
   assert.deepEqual(erreurs(s), []);
   assert.ok(alertes(s).includes("ajout-sans-image"));
   assert.deepEqual(decisionsEffectives(s, ctx()), { references: { ajouter: ["PROP_torche"], retirer: [] } });
@@ -213,7 +211,7 @@ test("manquants : deux au plus, jamais un code du registre ; seuls, ils suffisen
   const m = (code: string) => ({ code, type: "prop", description: "x", raison: "aucune image" });
   assert.ok(erreurs(sortie({}, { manquants: [m("PROP_a"), m("PROP_b"), m("PROP_c")] })).includes("trop-de-manquants"));
   assert.ok(erreurs(sortie({}, { manquants: [m("PROP_lampe")] })).includes("manquant-existe"));
-  const seuls = sortie({}, { manquants: [{ code: "CHAR_mai_blessee", type: "personnage", parent: "CHAR_mai", description: "Mai blessée.", raison: "Aucune image de cet état." }], reglages: { creativite: null, styleMiseEnScene: null } });
+  const seuls = sortie({}, { manquants: [{ code: "CHAR_mai_blessee", type: "personnage", parent: "CHAR_mai", description: "Mai blessée.", raison: "Aucune image de cet état." }], reglages: { creativite: null } });
   const dec = decisionsEffectives(seuls, ctx());
   assert.deepEqual(dec?.manquants?.map((x) => [x.code, x.type]), [["CHAR_mai_blessee", "personnage"]]);
   assert.equal(raisonSansEcriture(seuls, ctx()), null);
@@ -222,7 +220,7 @@ test("manquants : deux au plus, jamais un code du registre ; seuls, ils suffisen
   assert.equal(d.decisions?.manquants?.[0]?.code, "CHAR_mai_blessee");
   assert.deepEqual(d.affichage!.manquants, [{ code: "CHAR_mai_blessee", raison: "Aucune image de cet état." }]);
   // A missing asset of a type not created outright (an effect) makes no decision: the reason says so.
-  const effet = sortie({}, { manquants: [{ code: "VFX_brume", type: "vfx", description: "Brume.", raison: "x" }], reglages: { creativite: null, styleMiseEnScene: null } });
+  const effet = sortie({}, { manquants: [{ code: "VFX_brume", type: "vfx", description: "Brume.", raison: "x" }], reglages: { creativite: null } });
   assert.equal(decisionsEffectives(effet, ctx()), null);
   assert.match(raisonSansEcriture(effet, ctx()) ?? "", /VFX_brume.*pas valides/);
 });
@@ -240,7 +238,7 @@ test("durée incohérente (mesurée ou jugée) et abandon : aucune décision ret
   assert.match(raisonSansEcriture(abandon, ctx()) ?? "", /abandonner.*marche/);
   assert.ok(alertes(abandon).includes("ignores"));
   assert.equal(diagnosticIteration(abandon, {})!.decisions, null);
-  const decoupage = sortie({ categorie: "decoupage-scenario" }, { reglages: { creativite: null, styleMiseEnScene: null } });
+  const decoupage = sortie({ categorie: "decoupage-scenario" }, { reglages: { creativite: null } });
   assert.match(raisonSansEcriture(decoupage, ctx()) ?? "", /découpage/);
 });
 
@@ -255,45 +253,44 @@ test("le contrôleur du worker lit l'entrée du skill (références, registre av
       { code: "CHAR_mai", type: "personnage", description: "", image: true },
       { code: "PROP_lampe", type: "prop", description: "", image: false },
     ],
-    reglages: { creativite: { actuelle: "bold", regleSur: "ce plan" }, styleMiseEnScene: { actuel: "aucun", regleSur: "le réglage par défaut" } },
+    reglages: { creativite: { actuelle: "extreme" } },
     rendu: { dureeReelleSecondes: 6.04 },
   };
   const c = contexteDepuisEntree(entree);
   assert.equal(c.refs.length, 2);
   assert.equal(c.dureeReelleSecondes, 6.04);
-  assert.deepEqual(c.reglages, { creativite: "bold", styleMiseEnScene: "aucun" });
+  assert.deepEqual(c.reglages, { creativite: "extreme" });
   assert.equal(c.registre!.find((a) => a.code === "PROP_lampe")!.image, false);
   const controler = controleurPourSkill("iteration-plan", entree)!;
-  assert.deepEqual(controler(sortie({}, { reglages: { creativite: "restrained", styleMiseEnScene: null } })), []);
+  assert.deepEqual(controler(sortie({}, { reglages: { creativite: "balanced" } })), []);
   assert.deepEqual(controler(sortie({ confiance: "faible" }, { references: { ajouter: ["PROP_lampe"], retirer: [] } })), [], "une alerte ne renvoie pas");
   const msgs = controler(sortie({}, { references: { ajouter: ["PROP_inventee"], retirer: [] } }));
   assert.equal(msgs.length, 1);
   assert.match(msgs[0]!, /PROP_inventee/);
-  // creativity already "bold" on the clip: giving it again is not a decision
+  // creativity already "extreme" (temps fort) on the clip: giving it again is not a decision
   assert.equal(decisionsEffectives(sortie(), c), null);
 });
 
 test("diagnostic : décisions effectives et affichage avant → après ; notes de l'essai", () => {
   assert.equal(diagnosticIteration(null), null);
   assert.equal(diagnosticIteration({ foo: 1 }), null);
-  const entree = { plan: { intention: DESC_AVANT, dureeVoulueSecondes: 6 }, references: [{ type: "picture", slot: 1, asset: "CHAR_mai" }], registre: [{ code: "CHAR_mai", type: "personnage" }, { code: "PROP_lampe", type: "prop", image: true }], reglages: { creativite: { actuelle: "balanced" }, styleMiseEnScene: { actuel: "aucun" } } };
-  const s = sortie({ entreeLexique: { symptome: "s", cause: "c", formulationQuiTient: "f" } }, { nouvelleDescription: DESC_APRES, dureeSecondes: 8, references: { ajouter: ["PROP_lampe"], retirer: [] }, reglages: { creativite: "bold", styleMiseEnScene: "sitcom" } });
+  const entree = { plan: { intention: DESC_AVANT, dureeVoulueSecondes: 6 }, references: [{ type: "picture", slot: 1, asset: "CHAR_mai" }], registre: [{ code: "CHAR_mai", type: "personnage" }, { code: "PROP_lampe", type: "prop", image: true }], reglages: { creativite: { actuelle: "balanced" } } };
+  const s = sortie({ entreeLexique: { symptome: "s", cause: "c", formulationQuiTient: "f" } }, { nouvelleDescription: DESC_APRES, dureeSecondes: 8, references: { ajouter: ["PROP_lampe"], retirer: [] }, reglages: { creativite: "extreme" } });
   const d = diagnosticIteration(s, entree)!;
   assert.equal(d.confiance, "moyenne");
   assert.deepEqual(d.entreeLexique, { symptome: "s", cause: "c", formulationQuiTient: "f" });
-  assert.deepEqual(d.decisions, { description: DESC_APRES, dureeSecondes: 8, references: { ajouter: ["PROP_lampe"], retirer: [] }, reglages: { creativite: "bold", styleCamera: "sitcom" } });
+  assert.deepEqual(d.decisions, { description: DESC_APRES, dureeSecondes: 8, references: { ajouter: ["PROP_lampe"], retirer: [] }, reglages: { creativite: "extreme" } });
   assert.deepEqual(d.affichage!.intent, { avant: DESC_AVANT, apres: DESC_APRES });
   assert.deepEqual(d.affichage!.duree, { avant: 6, apres: 8 });
   assert.deepEqual(d.affichage!.referencesAjoutees, ["PROP_lampe"]);
   assert.deepEqual(d.affichage!.reglages, [
-    { libelle: "Créativité", avant: "Équilibrée", apres: "Audacieuse" },
-    { libelle: "Style de mise en scène", avant: "aucun style", apres: "Sitcom" },
+    { libelle: "Mise en scène", avant: "Normal", apres: "Temps fort" },
   ]);
   const notes = notesDecisions(d.affichage);
   assert.ok(notes.some((n) => /Intent du plan réécrit/.test(n)));
   assert.ok(notes.includes("Durée : 6 s → 8 s."));
   assert.ok(notes.includes("Références : + PROP_lampe."));
-  assert.ok(notes.includes("Créativité du plan : Équilibrée → Audacieuse."));
+  assert.ok(notes.includes("Mise en scène du plan : Normal → Temps fort."));
   // a result of the OLD contract (passes changes): a diagnosis, without decisions
   const ancien = diagnosticIteration({ dureeCoherente: true, symptome: "x", cause: "y", confiance: "haute", changements: [{ section: "summary", avant: "a", apres: "b" }], abandon: { propose: false, raison: "" } });
   assert.equal(ancien!.decisions, null);
@@ -301,7 +298,7 @@ test("diagnostic : décisions effectives et affichage avant → après ; notes d
 
 test("historique : minimal et honnête (appliquée, non appliquée, sans écriture)", () => {
   const t = (h: number) => new Date(Date.UTC(2026, 9, 2, h));
-  const entree = { plan: { intention: DESC_AVANT, dureeVoulueSecondes: 6 }, reglages: { creativite: { actuelle: "balanced" }, styleMiseEnScene: { actuel: "aucun" } } };
+  const entree = { plan: { intention: DESC_AVANT, dureeVoulueSecondes: 6 }, reglages: { creativite: { actuelle: "balanced" } } };
   const h = historiqueIteration(
     [
       { createdAt: t(12), appliedAt: null, statut: "prete", consigne: "toujours le fond", resultat: sortie(), entree, nbChangements: 0 },

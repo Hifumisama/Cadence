@@ -2,12 +2,12 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "../../db";
-import { assets, briefs, planRefs, plans, projects, scenes } from "../../db/schema";
+import { assets, briefs, planRefs, plans, scenes } from "../../db/schema";
 import { codesEnVoixOff } from "../agents/conversion";
 import { langueDesDialogues } from "./dialogue-language";
 import { cheminAssetMedia, MEDIA_ROOT } from "../media";
 import { briefDepuisPlan, type OptionsBrief, type PersonnageEntree, type ReferenceEntree, type ResultatBrief } from "./brief";
-import { resoudreReglages, STYLE_AUCUN, type ReglagesResolus } from "./settings";
+import { creativiteDuPlan, type Creativite } from "./settings";
 
 /** The absolute path of a file under MEDIA_ROOT if it exists, otherwise null. */
 function cheminSiExiste(relatif: string): string | null {
@@ -15,17 +15,17 @@ function cheminSiExiste(relatif: string): string | null {
   return existsSync(absolu) ? absolu : null;
 }
 
-/** A clip's brief and the settings (creativity, staging style) as they have been resolved, with the level each one comes from. */
-export type ResultatChargement = ResultatBrief & { reglages: ReglagesResolus };
+/** A clip's brief and the creativity it was compiled at (`extreme` = a temps fort, `balanced` otherwise). */
+export type ResultatChargement = ResultatBrief & { reglages: { creativite: Creativite } };
 
 /** What « Itérer » compiles INSTEAD OF what is in the database (lib/agents/service-clips.ts, genererReecriturePlan): nothing is written to the clip before
- * the application of the compiled sheet, which writes everything together. `references`: image codes to add / remove; `reglages`: the value of the CLIP
- * that replaces its own (`null`/absent = its own; `"aucun"` = no style), the scene and the project remain inherited below. */
+ * the application of the compiled sheet, which writes everything together. `references`: image codes to add / remove; `reglages`: the creativity of the CLIP
+ * that replaces its own (`null`/absent = its own: `extreme` = temps fort, otherwise `balanced`). */
 export type SurchargeBrief = {
   description?: string | null;
   dureeSecondes?: number | null;
   references?: { ajouter?: string[]; retirer?: string[] } | null;
-  reglages?: { creativite?: string | null; styleCamera?: string | null } | null;
+  reglages?: { creativite?: string | null } | null;
 };
 
 /** The image references of a clip AFTER additions / removals (by code): `inconnus` (not in the project's registry), `pasDesImages` (voice),
@@ -71,7 +71,6 @@ export async function chargerBriefPlan(
       seed: plans.seed,
       sceneId: plans.sceneId,
       creativite: plans.creativite,
-      styleCamera: plans.styleCamera,
     })
     .from(plans)
     .where(and(eq(plans.uuid, planUuid), eq(plans.projectId, projectId)));
@@ -80,13 +79,8 @@ export async function chargerBriefPlan(
   const [scene] =
     plan.sceneId == null
       ? []
-      : await db.select({ titre: scenes.titre, ambiance: scenes.ambiance, creativite: scenes.creativite, styleCamera: scenes.styleCamera }).from(scenes).where(eq(scenes.id, plan.sceneId));
-  const [projet] = await db.select({ creativite: projects.creativite, styleCamera: projects.styleCamera }).from(projects).where(eq(projects.id, projectId));
-  const reglagesPlan = {
-    creativite: surcharge.reglages?.creativite ?? plan.creativite,
-    styleCamera: surcharge.reglages?.styleCamera ?? plan.styleCamera,
-  };
-  const reglages = resoudreReglages({ projet, scene, plan: reglagesPlan });
+      : await db.select({ titre: scenes.titre, ambiance: scenes.ambiance }).from(scenes).where(eq(scenes.id, plan.sceneId));
+  const reglages = { creativite: creativiteDuPlan(surcharge.reglages?.creativite ?? plan.creativite) };
 
   const lignes = await db
     .select({
@@ -151,9 +145,8 @@ export async function chargerBriefPlan(
     },
     {
       ...options,
-      // A given value wins (the drawer sends the ones chosen there); « aucun » or empty = no style; absent or null = what is resolved in the database.
+      // A given value wins (the drawer sends the one chosen there); absent or null = the clip's own.
       creativity: options.creativity ?? reglages.creativite,
-      director: options.director ?? reglages.styleCamera ?? STYLE_AUCUN,
     },
   );
   return { ...resultat, reglages };

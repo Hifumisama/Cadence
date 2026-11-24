@@ -18,12 +18,17 @@ test("musiqueDePlan : rien sans description", () => {
   assert.equal(musiqueDePlan("It fades out."), null);
 });
 
-test("sectionMusique : « aucune » pose N/A quelle que soit la créativité ; une section N/A compilée reste ; sinon celle du brief", () => {
+test("sectionMusique : la conception décide (« aucune » = N/A, « discrète » ou « présente » = la musique du brief) ; sans intention, une section vide ou N/A compilée reste", () => {
   const brief = "A playful retro-synth funk at 112 BPM";
   assert.equal(sectionMusique("Orchestra swells.", brief, "aucune"), "N/A");
   assert.equal(sectionMusique("Orchestra swells.", "N/A", undefined), "N/A", "le brief dit N/A : pas de musique");
-  assert.equal(sectionMusique("N/A", brief, "discrete"), "N/A", "créativité sobre : la section compilée reste");
-  assert.equal(sectionMusique("", brief, "presente"), "");
+  // The user wants music: the compiler's N/A or empty section does not decide.
+  assert.equal(sectionMusique("N/A", brief, "discrete"), `${brief}. ${CONSIGNE_CONTINUITE_MUSIQUE}`);
+  assert.equal(sectionMusique("", brief, "presente"), `${brief}. ${CONSIGNE_CONTINUITE_MUSIQUE_PRESENTE}`);
+  assert.equal(sectionMusique("N/A", undefined, "discrete"), "N/A", "pas de description au brief : le texte compilé reste");
+  // A project designed before the music intention: the compiled N/A or empty section stays.
+  assert.equal(sectionMusique("N/A", brief, undefined), "N/A");
+  assert.equal(sectionMusique("", brief, undefined), "");
   assert.equal(sectionMusique("Orchestra swells.", brief, "discrete"), `${brief}. ${CONSIGNE_CONTINUITE_MUSIQUE}`);
   assert.equal(sectionMusique("Orchestra swells.", brief, "presente"), `${brief}. ${CONSIGNE_CONTINUITE_MUSIQUE_PRESENTE}`);
   assert.equal(sectionMusique("Orchestra swells.", undefined, undefined), "Orchestra swells.", "pas de musique au brief : le texte compilé reste");

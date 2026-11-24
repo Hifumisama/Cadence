@@ -14,7 +14,6 @@ import {
   etatInitial,
   lireEtatSauvegarde,
   resumeEtape,
-  suivreRecommandation,
   teinteAmbiance,
   versCharge,
   type EtatAssistant,
@@ -23,18 +22,16 @@ import { luminositeAmbiance } from "@/lib/projects/design";
 import { SceneAccueil, SceneDuree, SceneLangue, SceneMusique } from "./Scenes";
 import { Glissiere } from "./Slider";
 import { SceneStyle } from "./SceneStyle";
-import { SceneMiseEnScene } from "./StagingScene";
-import type { DemoDispo } from "@/lib/h3ir/demos";
 import type { MajEtat, StyleVue } from "./types";
 
 /** What is missing to move forward, per step (shown in the action bar while « Continuer » is greyed out). */
 const INVITES: Record<number, string> = { [ETAPE.style]: "Choisis un style, ou écris le tien." };
 
-/** A project's design page: six scenes (welcome, duration, language, style, staging, music: the FRAME only, the genre is decided in the interview), a filmstrip ribbon of the nine steps for navigation,
+/** A project's design page: five scenes (welcome, duration, language, style, music: the FRAME only, the genre is decided in the interview), a filmstrip ribbon of the eight steps for navigation,
  * an ambient light that follows the choices. The state lives here and in the browser session (nothing is created until the screenwriter has been met:
  * abandoning leaves no project). At the last step, the project is created server-side (app/nouveau/actions.ts) with its pre-filled interview
  * sheet, then the interview opens. Plan: docs/PLAN_CONCEPTION_PROJET.md. */
-export function ConceptionAssistant({ styles, demos = {} }: { styles: StyleVue[]; /** The staging demo videos present on storage (lib/media.ts, `demosMiseEnScene`). */ demos?: Record<string, DemoDispo> }) {
+export function ConceptionAssistant({ styles }: { styles: StyleVue[] }) {
   const router = useRouter();
   const [etat, setEtat] = useState<EtatAssistant>(etatInitial);
   const [etape, setEtape] = useState(0);
@@ -69,8 +66,7 @@ export function ConceptionAssistant({ styles, demos = {} }: { styles: StyleVue[]
     }
   }, [etat, restaure]);
 
-  // After each change: as long as the staging has not been chosen by hand, it follows the style's recommendation (lib/projects/design-ui.ts, `suivreRecommandation`).
-  const maj: MajEtat = useCallback((f) => setEtat((e) => suivreRecommandation(f(e))), []);
+  const maj: MajEtat = useCallback((f) => setEtat((e) => f(e)), []);
 
   const aller = useCallback(
     (i: number) => {
@@ -161,7 +157,6 @@ export function ConceptionAssistant({ styles, demos = {} }: { styles: StyleVue[]
         {etape === ETAPE.duree ? <SceneDuree etat={etat} maj={maj} /> : null}
         {etape === ETAPE.langue ? <SceneLangue etat={etat} maj={maj} /> : null}
         {etape === ETAPE.style ? <SceneStyle etat={etat} maj={maj} styles={styles} /> : null}
-        {etape === ETAPE.miseEnScene ? <SceneMiseEnScene etat={etat} maj={maj} demos={demos} /> : null}
         {etape === ETAPE.musique ? <SceneMusique etat={etat} maj={maj} /> : null}
       </div>
 
@@ -184,7 +179,7 @@ export function ConceptionAssistant({ styles, demos = {} }: { styles: StyleVue[]
         <div className="cn-lightbox" role="dialog" aria-modal="true" aria-label="Avant de rencontrer le scénariste" onClick={() => setConfirmer(false)} onKeyDown={(e) => e.key === "Escape" && setConfirmer(false)}>
           <div className="cn-confirmation" onClick={(e) => e.stopPropagation()}>
             <b>Avant de rencontrer le scénariste</b>
-            <p>Une fois l’entretien commencé, <b className="cn-fige">ce cadre est posé</b> : durée, langue, style et musique ne changent plus que si tu le demandes au scénariste, qui te le fera confirmer. La mise en scène se règle encore plus tard (Brief, scène ou plan).</p>
+            <p>Une fois l’entretien commencé, <b className="cn-fige">ce cadre est posé</b> : durée, langue, style et musique ne changent plus que si tu le demandes au scénariste, qui te le fera confirmer.</p>
             <div className="cn-confirmation-actions">
               <button type="button" className="btn" autoFocus onClick={() => setConfirmer(false)}>Revenir aux choix</button>
               <button type="button" className="btn btn-gold" onClick={() => void rencontrer()}>Rencontrer le scénariste</button>

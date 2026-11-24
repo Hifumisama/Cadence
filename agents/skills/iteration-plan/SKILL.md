@@ -1,6 +1,6 @@
 ---
 name: iteration-plan
-description: Analyse the user's instruction on a rendered video plan, diagnose the cause, and decide the smallest change to the plan's sources of truth (intent, duration, reference images, creativity and staging style); the video prompt is then recompiled from them by the application.
+description: Analyse the user's instruction on a rendered video plan, diagnose the cause, and decide the smallest change to the plan's sources of truth (intent, duration, reference images, and whether the plan is a temps fort); the video prompt is then recompiled from them by the application.
 metadata:
   language: instructions in English; output language per field (see "Output language")
 ---
@@ -14,7 +14,7 @@ The plan has only these sources of truth, and your decisions change only them:
 1. **the intent** (`plan.intention`: what happens, in order, then the lines) → `decisions.nouvelleDescription`;
 2. **the duration** (`plan.dureeVoulueSecondes`, 4 to 10 s) → `decisions.dureeSecondes`;
 3. **the reference images** (`references`, chosen from `registre`) → `decisions.references`;
-4. **two settings**: creativity and staging style (`reglages`) → `decisions.reglages`.
+4. **one setting**: is the plan a *temps fort* (`reglages.creativite`) → `decisions.reglages`.
 
 There is no free-text directive that persists. A new value **replaces** the current one: it never adds to it.
 
@@ -35,11 +35,11 @@ When the instruction is about continuity with the previous plan, start from `pla
 
 Pick **one cause**, then the **smallest lever that treats it**, in this order:
 
-1. **A setting** (`reglages`) — camera energy, rhythm, framing taste, light mood:
-   - `creativite`: `restrained` (adds nothing: no music, no extra lines, held camera) < `balanced` (default) < `bold` (more camera, may add lines or on-screen text) < `extreme` (everything pushed: wide fast camera, hard contrasts).
-   - `styleMiseEnScene`: one of `reglages.choix.styleMiseEnScene` (each has its effect written next to it), or `aucun` for no style.
-   - Camera and rhythm requests ("plus de mouvement", "caméra plus posée", "plus nerveux", "plus contemplatif") are answered **here**, never by a camera sentence in the intent.
-   - Give a value only when it differs from the current one (`reglages.creativite.actuelle`, `reglages.styleMiseEnScene.actuel`); otherwise `null`.
+1. **The setting** (`reglages`) — the energy of the whole plan: camera, framing, contrast:
+   - `creativite`: `balanced` (a normal plan: framing, camera and ambience taken care of, without excess) or `extreme` (a **temps fort**: every choice pushed to the maximum: wide and fast camera, framing at the far end, hard contrasts).
+   - Switch to `extreme` only for a plan that carries a strong moment of the film (a clash, a burst, a reveal) and whose render was too timid. Go back to `balanced` when a temps fort moves the camera for nothing. Never as a first answer to a calm plan.
+   - A request about a precise camera move ("travelling avant", "plan fixe") is NOT answered here: it goes in the intent.
+   - Give a value only when it differs from the current one (`reglages.creativite.actuelle`); otherwise `null`.
 2. **References** (`references`) — a character drifts, a place is not recognized, a prop disappears (an image is missing), or a state/pose is imposed (an image is excessive):
    - `ajouter`: registry codes only (search `registre`: it almost always exists, sometimes under another name), image assets only, six images at most in total. An asset with `image: false` has no image yet: the recompilation will wait for it; say so in `verification`.
    - `retirer`: codes of the current image references. At least one image must remain.
@@ -87,7 +87,7 @@ When the cause is a missing image and **no** registry asset fits, suggest it in 
 - **`promptActuel`**: the six sections of the prompt that produced the render (read-only: it helps the diagnosis; you never edit it).
 - **`references`**: the plan's current references (label → asset code, type, role).
 - **`registre`**: the project's assets (code, type, description, `image`: whether its image exists).
-- **`reglages`**: the plan's effective creativity and staging style (`actuelle` / `actuel`, and where it is set), and `choix`: every allowed value with its effect.
+- **`reglages`**: the plan's creativity (`actuelle`: `balanced` or `extreme`), and `choix`: the two allowed values with their effect.
 - **`retourVisionnage`**: the user's instruction. **`historique`**: corrections already tried. **`plansVoisins`**: previous and next plans, read-only.
 - **`rendu`** and the thumbnail sheet (one image per second, each preceded by its instant): only in the first mode.
 - When the user refines: `retourUtilisateur` and `propositionPrecedente`: fix what the feedback targets, keep the rest.
@@ -113,7 +113,7 @@ Example (no thumbnail sheet; the user asked « la caméra suit le personnage, pl
     "dureeSecondes": null,
     "references": { "ajouter": [], "retirer": [] },
     "manquants": [],
-    "reglages": { "creativite": "bold", "styleMiseEnScene": null }
+    "reglages": { "creativite": "extreme" }
   }
 }
 ```

@@ -27,6 +27,8 @@ export type PlanVue = {
   ficheEnCours: number | null;
   /** The clip's text has changed since its sheet (`fiche`) or since its last render (`rendu`); null = nothing to report (lib/clips/stale-intention.ts). */
   intentionChangee: "fiche" | "rendu" | null;
+  /** The clip is a temps fort (lib/h3ir/settings.ts): its sheet is compiled with every choice pushed to the maximum. */
+  tempsFort: boolean;
 };
 
 /** What the « texte modifié » marker of a clip says, by what needs redoing. */
@@ -41,9 +43,6 @@ export type SceneVue = {
   titre: string;
   fonction: string | null;
   ambiance: string | null;
-  /** Open H3 IR (lib/h3ir/settings.ts): null = the scene inherits from the project; style « aucun » = no style despite that of the project. */
-  creativite: string | null;
-  styleCamera: string | null;
   duree: number;
   plans: PlanVue[];
 };
