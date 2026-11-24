@@ -59,16 +59,10 @@ export const APERCUS_STYLES: readonly ApercuStyle[] = [
     scene: `A small fox wearing a knitted scarf and a little boy in short trousers share a picnic under a large oak tree, a basket of apples, a teapot and a kite resting on the grass, a cottage and gentle hills behind them, pale morning light. Wide shot. ${titre("CHILDREN'S BOOK", "in the sky above the oak tree", "hand-drawn storybook")}`,
   },
   {
-    id: "arcane-animation-still",
-    famille: "Animation",
-    titre: "ARCANE",
-    scene: `A dark, narrow undercity alley at night, wet cobblestones, rusted copper pipes and dripping cables, a sickly green-yellow chemical haze. In the lower left corner of the frame, a furious young woman with messy braided hair, bandaged knuckles and a torn jacket punches the brick wall, fragments of brick flying, her face twisted with rage, lit by a flickering magenta light. The whole wall behind her is covered by an enormous spray-painted tag with dripping paint, scribbled doodles, crude smiley faces and arrows around it. Through the end of the alley, a vertical industrial city of stacked shacks, chimneys, bridges and glowing windows rises into the smog. Hand-painted brushstroke textures over 3D forms, painterly lighting, sharp graphic silhouettes, teal shadows against hot pink and amber highlights. ${titre("ARCANE", "as the huge spray-painted tag covering most of the wall, above and right of the woman, fully inside the frame", "dark pink rough spray-paint graffiti with paint drips, chaotic and punk")}`,
-  },
-  {
     id: "cinematic-final-fantasy-3d-render",
     famille: "3D",
     titre: "FINAL FANTASY",
-    scene: `A sun-drenched royal desert city of sandstone palaces, white domes, tall minarets, arched bridges and bustling bazaars with colorful awnings, airships drifting overhead in a pale gold sky, crowds of travelers and strange creatures in the streets. In the foreground on the right, a young adventurer stands on a balcony overlooking the city: ornate fantasy outfit of fitted leather, silver buckles, a short asymmetrical cape, belts and a sword on the back, windswept silver hair, looking toward the horizon. Highly detailed cinematic 3D render, warm golden light, atmospheric haze in depth. ${titre("FINAL FANTASY", "large across the open sky in the upper left, with nothing in front of the letters", "elegant engraved silver, highly legible")}`,
+    scene: `In a neon-lit techno-futuristic city at night, on a rain-slick plaza between towering glass skyscrapers, holographic billboards and hovering vehicles, a beautiful and athletic young martial artist lands a devastating rising uppercut on a hulking armored mech soldier, launching him off his feet. She wears a sleek, form-fitting fantasy combat outfit: a short cropped jacket with silver trim, fitted shorts, fingerless gauntlets glowing with blue energy, tall combat boots, a long ponytail whipping through the air. Shockwave of blue light at the point of impact, shattered pavement, rain droplets frozen mid-air, sparks and debris. Dynamic low angle, motion and power. Highly detailed cinematic 3D render. ${titre("FINAL FANTASY", "large across the dark sky at the top of the image, with nothing in front of the letters", "elegant engraved silver, highly legible")}`,
   },
   {
     id: "3d-render",

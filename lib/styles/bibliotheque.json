@@ -135,29 +135,6 @@
     }
   },
   {
-    "name": "Arcane Animation Still",
-    "descriptor": "A richly painterly animated-illustration style built on visible, confident brushstroke texture layered directly into rendering rather than smoothed away, dramatic chiaroscuro lighting that carves bold graphic shadow across stylized angular form, a fusion of hand-painted textural depth with clean animation-ready linework, moody atmospheric tonal harmony charged with cinematic tension, and a bold, painterly-meets-graphic animation intensity that feels both illustrated and alive. Influenced by: Fortiche Production, League of Legends concept-art tradition, hand-painted texture-projection 3D animation, video-game concept-art tradition, painterly animation technique, cinematic stylized production-design practice.",
-    "categories": [
-      "Character & Concept",
-      "Illustration",
-      "Cartoon & Animation"
-    ],
-    "filtres": {
-      "medium": "Peinture",
-      "rendu": [
-        "texturé / matière",
-        "clair-obscur"
-      ],
-      "palette": [
-        "sombre"
-      ],
-      "epoque": "contemporain",
-      "ambiance": [
-        "dramatique"
-      ]
-    }
-  },
-  {
     "name": "3D Render",
     "descriptor": "A dimensionally precise digital-illustration style built on smooth, volumetric modeling that reads as fully three-dimensional through simulated geometry and light rather than drawn line, meticulously calculated illumination with soft ambient occlusion settling naturally into every contour, polished specular response giving forms convincing physical depth and weight, confident sculptural construction replacing traditional linework entirely, and a technically precise, computer-generated intensity built on simulated physical light behavior. Influenced by: real-time 3D-rendering technique, CGI modeling practice, physically based rendering (PBR) method, contemporary animated-render pipeline.",
     "categories": [
