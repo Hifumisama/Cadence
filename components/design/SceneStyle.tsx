@@ -8,7 +8,7 @@ import { FAMILLES_STYLES } from "@/lib/styles/showcase";
 import { EnteteScene } from "./Scenes";
 import type { PropsScene, StyleVue } from "./types";
 
-/** Style scene (ticket 06, 2026-11-24, mock-up C): one scrolling row per family, each style shown by its showcase image (16:9, its name
+/** Style scene (ticket 06, 2026-11-24, mock-up C): one grid (no family titles since 2026-11-24, the chosen style grows to four cells), each style shown by its showcase image (16:9, its name
  * painted in), and « Créer mon style » at the end. Below, for a free style only, its two fields and the optional
  * image (a library style's prompts are read in the Brief). */
 
@@ -27,33 +27,32 @@ function Apercu({ fichier, classe = "", etiquette, ratio, largeur = 768 }: { fic
 export function SceneStyle({ etat, maj, styles }: PropsScene & { styles: StyleVue[] }) {
   const libreChoisi = etat.style?.source === "libre";
   const choisiId = etat.style?.source === "bibliotheque" ? etat.style.styleId : null;
-  const choisir = (id: string) => maj((e) => ({ ...e, style: { source: "bibliotheque", styleId: id } }));
+  const choisir = (id: string, carte: HTMLElement) => {
+    maj((e) => ({ ...e, style: { source: "bibliotheque", styleId: id } }));
+    // Once it has grown, the chosen card is brought into view.
+    window.setTimeout(() => carte.scrollIntoView({ behavior: "smooth", block: "nearest" }), 260);
+  };
   const nouveauStyle = () => maj((e) => (e.style?.source === "libre" ? e : { ...e, style: { source: "libre", nom: "", promptImage: "", clause: "" } }));
-  const familles = FAMILLES_STYLES.map((nom) => ({ nom, styles: styles.filter((s) => s.famille === nom) })).filter((f) => f.styles.length);
+  // Neighbours stay alike: the styles in family order, without the family titles.
+  const ordonnes = FAMILLES_STYLES.flatMap((nom) => styles.filter((s) => s.famille === nom));
 
   return (
     <>
       <EnteteScene acte="Acte 04" titre={<>Quel <em>style graphique</em> pour ce film ?</>} />
 
-      {familles.map((f, k) => (
-        <section key={f.nom} className="cn-rangee" aria-label={f.nom}>
-          <p className="cn-rangee-titre">{f.nom} <small>{f.styles.length} style{f.styles.length > 1 ? "s" : ""}</small></p>
-          <div className="cn-defile" role="list">
-            {f.styles.map((s) => (
-              <button key={s.id} type="button" role="listitem" className="cn-carte cn-carte-style" aria-pressed={s.id === choisiId} aria-label={s.nom} onClick={() => choisir(s.id)}>
-                <Apercu fichier={s.apercu ? `${s.id}/apercu.webp` : null} ratio="16 / 9" etiquette={s.apercu ? undefined : s.nom} />
-                {s.id === choisiId ? <span className="cn-carte-coche">Choisi</span> : null}
-              </button>
-            ))}
-            {k === familles.length - 1 ? (
-              <button type="button" role="listitem" className="cn-carte-creer" aria-pressed={libreChoisi} onClick={nouveauStyle}>
-                <b>+ Créer mon style</b>
-                <span>Décris-le avec tes mots, avec une image si tu veux.</span>
-              </button>
-            ) : null}
-          </div>
-        </section>
-      ))}
+      {/* One grid, no family titles (2026-11-24: the styles are different enough to speak for themselves); the chosen one takes four cells. */}
+      <div className="cn-grille-styles" role="list">
+        {ordonnes.map((s) => (
+          <button key={s.id} type="button" role="listitem" className="cn-carte cn-carte-style" aria-pressed={s.id === choisiId} aria-label={s.nom} onClick={(e) => choisir(s.id, e.currentTarget)}>
+            <Apercu fichier={s.apercu ? `${s.id}/apercu.webp` : null} ratio="16 / 9" etiquette={s.apercu ? undefined : s.nom} />
+            {s.id === choisiId ? <span className="cn-carte-coche">Choisi</span> : null}
+          </button>
+        ))}
+        <button type="button" role="listitem" className="cn-carte-creer" aria-pressed={libreChoisi} onClick={nouveauStyle}>
+          <b>+ Créer mon style</b>
+          <span>Décris-le avec tes mots, avec une image si tu veux.</span>
+        </button>
+      </div>
 
       {/* The prompts of a library style are read in the Brief: only the free style shows its form here (test feedback 2026-11-24). */}
       {libreChoisi ? (

@@ -12,9 +12,6 @@ import {
   GENRES,
   LANGUES_DIALOGUES,
   SANS_DIALOGUE,
-  dureeDepuisPosition,
-  pasDuree,
-  positionDepuisDuree,
   ficheDepuisConception,
   genresTexte,
   luminositeAmbiance,
@@ -204,21 +201,3 @@ test("entreeTour : le format du projet conçu est dit à l'agent, sans changer l
   assert.match(complet.at(-1)!.content, /Format : un film/);
 });
 
-test("durée : l'échelle du curseur est monotone, réversible et s'arrête à 90 min", () => {
-  assert.equal(dureeDepuisPosition(0), DUREE_MIN_SECONDES);
-  assert.equal(dureeDepuisPosition(250), 180);
-  assert.equal(dureeDepuisPosition(500), 600);
-  assert.equal(dureeDepuisPosition(1000), 5400);
-  let precedente = 0;
-  for (let p = 0; p <= 1000; p += 5) {
-    const d = dureeDepuisPosition(p);
-    assert.ok(d >= precedente, `monotone à ${p}`);
-    assert.ok(d >= DUREE_MIN_SECONDES && d <= DUREE_MAX_SECONDES);
-    assert.equal(d % pasDuree(d), 0, `${d} s est un multiple de son pas`);
-    precedente = d;
-  }
-  // Round trip: a duration on the scale falls back on itself.
-  for (const s of [30, 60, 120, 180, 300, 600, 1800, 3600, 5400]) assert.equal(dureeDepuisPosition(positionDepuisDuree(s)), s);
-  // The keyboard arrows (25 positions) always move the duration.
-  for (let p = 0; p < 975; p += 25) assert.notEqual(dureeDepuisPosition(p + 25), dureeDepuisPosition(p), `bloqué à ${p}`);
-});

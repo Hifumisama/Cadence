@@ -14,52 +14,13 @@ export const SANS_DIALOGUE = "Sans dialogue";
 export const LANGUE_PAR_DEFAUT = "Français";
 
 export const DUREE_MIN_SECONDES = 30;
-export const DUREE_MAX_SECONDES = 5400; // 90 min: a feature film. Beyond 10 min it is experimental (the screenplay of an episode struggles with hundreds of clips).
+export const DUREE_MAX_SECONDES = 1800; // 30 min (2026-11-24: 60 and 90 min removed, not ready for that). Beyond 10 min it is experimental (the screenplay of an episode struggles with hundreds of clips).
 /** Beyond this duration, the screen warns that it is experimental. */
 export const DUREE_EXPERIMENTALE_SECONDES = 600;
 
-/** The duration slider is scaled to the time lived, not to real time: each segment of the track (0 to 1000) covers a range of
- * durations, increasingly wide (30 s → 3 min → 10 min → 30 min → 90 min). Without this, the precision useful for short films would be lost. */
-export const REPERES_DUREE = [
-  { position: 0, secondes: DUREE_MIN_SECONDES },
-  { position: 250, secondes: 180 },
-  { position: 500, secondes: 600 },
-  { position: 750, secondes: 1800 },
-  { position: 1000, secondes: 5400 },
-] as const;
-export const POSITION_DUREE_MAX = 1000;
+/** The duration is set on a stopwatch (test feedback 2026-11-24, the long slider was hard to use): one hand, one turn = 30 min, by steps of 15 s. */
+export const PAS_SECONDES_CADRAN = 15;
 
-/** The duration step according to its size: 15 s up to 10 min, 1 min up to 30 min, 5 min beyond. */
-export function pasDuree(secondes: number): number {
-  return secondes <= 600 ? 15 : secondes <= 1800 ? 60 : 300;
-}
-
-function arrondirDuree(secondes: number): number {
-  const pas = pasDuree(secondes);
-  return Math.min(DUREE_MAX_SECONDES, Math.max(DUREE_MIN_SECONDES, Math.round(secondes / pas) * pas));
-}
-
-/** Slider position (0 to 1000) → duration in seconds, rounded to the step of its range. */
-export function dureeDepuisPosition(position: number): number {
-  const p = Math.min(POSITION_DUREE_MAX, Math.max(0, position));
-  for (let i = 1; i < REPERES_DUREE.length; i++) {
-    const a = REPERES_DUREE[i - 1]!;
-    const b = REPERES_DUREE[i]!;
-    if (p <= b.position) return arrondirDuree(a.secondes + ((p - a.position) / (b.position - a.position)) * (b.secondes - a.secondes));
-  }
-  return DUREE_MAX_SECONDES;
-}
-
-/** Duration in seconds → slider position (reciprocal of `dureeDepuisPosition`). */
-export function positionDepuisDuree(secondes: number): number {
-  const d = Math.min(DUREE_MAX_SECONDES, Math.max(DUREE_MIN_SECONDES, secondes));
-  for (let i = 1; i < REPERES_DUREE.length; i++) {
-    const a = REPERES_DUREE[i - 1]!;
-    const b = REPERES_DUREE[i]!;
-    if (d <= b.secondes) return a.position + ((d - a.secondes) / (b.secondes - a.secondes)) * (b.position - a.position);
-  }
-  return POSITION_DUREE_MAX;
-}
 export const DUREE_PAR_DEFAUT_SECONDES = 120;
 /** The rhythm is no longer a choice: measured on 25 projects, the requested rhythm did not change the clips' length. Every new project is « variable » (what each moment holds decides). */
 export const RYTHME_PAR_DEFAUT: RythmeBrief = "variable";

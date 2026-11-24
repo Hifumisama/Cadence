@@ -200,7 +200,7 @@ dialog.fsy h2 { margin: 0; font-family: var(--font-brand), Georgia, serif; font-
 
 /* Rail de l'entretien (maquette 2026-11-18) : le Synopsis, la jauge de l'essentiel, ce qui reste à creuser. Le détail est dans le Synopsis. */
 .cn-entretien { grid-template-columns: minmax(0, 1fr) 300px; }
-.cn-rail { position: sticky; top: 72px; display: grid; gap: 22px; padding: 20px 18px; border-left: 1px solid var(--line); background: rgba(22, 22, 28, 0.92); }
+.cn-rail { position: sticky; top: calc(var(--cn-haut, 64px) + 132px); display: grid; gap: 22px; padding: 20px 18px; border-left: 1px solid var(--line); background: rgba(22, 22, 28, 0.92); }
 .cn-rail-bloc { display: grid; gap: 10px; }
 .cn-rail-titre { margin: 0; font-size: calc(13px * var(--cn-echelle, 1)); color: var(--ink-3); }
 .cn-rail-ligne { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; }

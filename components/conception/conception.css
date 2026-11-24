@@ -119,10 +119,6 @@
 .cn-grande-duree small { font-size: 0.3em; color: var(--ink-3); margin-left: 0.3em; }
 .cn-note-duree { margin: 0 0 6px; max-width: 75ch; color: var(--ink-2); font-size: calc(14px * var(--cn-echelle, 1)); border-left: 2px solid var(--or-soft); padding-left: 10px; }
 .cn-note-duree b { color: var(--or-glow); font-weight: 500; }
-.cn-regle { position: relative; height: 56px; margin: 18px 0 8px; max-width: none; cursor: ew-resize; user-select: none; touch-action: pan-y; }
-.cn-graduation { position: absolute; inset: 0 0 auto 0; height: 26px; background: repeating-linear-gradient(to right, var(--line-strong) 0 1px, transparent 1px 8px); -webkit-mask: linear-gradient(to bottom, #000 40%, transparent); mask: linear-gradient(to bottom, #000 40%, transparent); }
-.cn-rempli { position: absolute; left: 0; top: 0; height: 100%; border-right: 2px solid var(--or); background: linear-gradient(to right, rgba(201, 162, 75, 0), rgba(201, 162, 75, 0.22)); transition: width 0.15s linear; pointer-events: none; }
-.cn-repere { position: absolute; top: 34px; font-family: var(--font-mono); font-size: calc(10.5px * var(--cn-echelle, 1)); color: var(--ink-3); transform: translateX(-50%); pointer-events: none; }
 .cn-presets { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 .cn-presets button { border: 1px solid var(--line-strong); background: var(--surface); padding: 4px 12px; font-family: var(--font-mono); font-size: calc(12.5px * var(--cn-echelle, 1)); color: var(--ink-2); }
 .cn-presets button:hover { background: var(--surface-2); }
@@ -135,17 +131,7 @@
 .cn-rythme[aria-pressed="true"] { border-color: var(--or); color: var(--or-glow); box-shadow: 0 0 28px -8px rgba(201, 162, 75, 0.5); }
 
 /* 4. Langue */
-.cn-langues { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
-.cn-langue { text-align: left; border: 1px solid var(--line-strong); background: rgba(26, 26, 33, 0.85); padding: 16px 18px; display: grid; gap: 2px; color: var(--ink); transition: all 0.35s var(--cn-ease); }
-.cn-langue b { font-size: 30px; font-weight: 400; line-height: 1.15; font-family: var(--font-brand); }
-.cn-langue span { color: var(--ink-3); font-size: calc(13px * var(--cn-echelle, 1)); }
-.cn-langue:hover { transform: translateY(-3px); border-color: var(--or-soft); }
-.cn-langue[aria-pressed="true"] { border-color: var(--or); color: var(--or-glow); box-shadow: 0 0 30px -8px rgba(201, 162, 75, 0.5); }
 /* Music step: the optional reference (« un peu comme… »). */
-.cn-champ-reference { display: grid; gap: 6px; margin-top: 24px; max-width: 560px; font-family: var(--font-mono); font-size: calc(11px * var(--cn-echelle, 1)); letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-3); }
-.cn-champ-reference small { letter-spacing: 0.08em; text-transform: none; }
-.cn-champ-reference input { font-family: var(--font-brand); font-size: 20px; letter-spacing: 0; text-transform: none; background: transparent; color: var(--ink); border: 0; border-bottom: 1px solid var(--line-strong); padding: 6px 0; width: 100%; }
-.cn-champ-reference input:focus-visible { outline: none; border-bottom-color: var(--or); }
 .cn-note { margin-top: 20px; font-family: var(--font-mono); font-size: calc(12px * var(--cn-echelle, 1)); color: var(--ink-3); }
 
 /* 5. Style : à gauche les filtres et la grille (qui défile dans son cadre, jamais la page), à droite le style choisi, collé. */
@@ -205,7 +191,8 @@
 @media (prefers-reduced-motion: reduce) { .cn-salle *, .cn-salle *::before, .cn-salle *::after, .cn-lightbox { animation: none !important; transition: none !important; } }
 
 /* Écran d'accueil, titre du curseur de ton, bouton « Nouveau style », popup avant le scénariste. */
-.cn-accueil-etapes { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; max-width: 640px; counter-reset: accueil; }
+.cn-accueil-etapes { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 12px; counter-reset: accueil; }
+.cn-accueil-etapes li { flex: 1 1 190px; min-width: 0; }
 .cn-accueil-etapes li { counter-increment: accueil; display: grid; grid-template-columns: 40px 1fr; column-gap: 14px; padding: 14px 16px; border: 1px solid var(--line); background: rgba(14, 14, 19, 0.35); }
 .cn-accueil-etapes li::before { content: counter(accueil, decimal-leading-zero); grid-row: span 2; font-family: var(--font-mono); color: var(--or); align-self: center; }
 .cn-accueil-etapes b { font-weight: 500; color: var(--ink); }
@@ -287,7 +274,10 @@
 .cn-rangee { margin: 0 0 22px; min-width: 0; }
 .cn-rangee-titre { margin: 0 0 8px; font-family: var(--font-mono); font-size: calc(12px * var(--cn-echelle, 1)); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-3); }
 .cn-rangee-titre small { margin-left: 8px; letter-spacing: 0.04em; text-transform: none; font-family: inherit; }
-.cn-defile { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(260px, 24%); gap: 14px; overflow-x: auto; padding: 4px 2px 12px; scroll-snap-type: x proximity; overscroll-behavior-x: contain; }
+.cn-defile { display: flex; align-items: center; gap: 16px; overflow-x: auto; padding: 14px 4px 18px; scroll-snap-type: x proximity; overscroll-behavior-x: contain; }
+.cn-defile > * { flex: 0 0 clamp(280px, 32%, 560px); transition: flex-basis 0.45s var(--cn-ease), box-shadow 0.45s var(--cn-ease); }
+/* The chosen style grows (2026-11-24): to admire it, and to make the choice playful. */
+.cn-defile > .cn-carte-style[aria-pressed="true"] { flex-basis: clamp(420px, 48%, 840px); }
 .cn-defile > * { scroll-snap-align: start; }
 .cn-carte-style { position: relative; }
 .cn-carte-coche { position: absolute; top: 8px; left: 8px; background: var(--or); color: #121217; font-size: calc(12px * var(--cn-echelle, 1)); font-weight: 600; padding: 2px 8px; }
@@ -296,4 +286,195 @@
 .cn-carte-creer span { font-size: calc(13px * var(--cn-echelle, 1)); }
 .cn-carte-creer:hover, .cn-carte-creer[aria-pressed="true"] { border-color: var(--or); color: var(--or-glow); }
 .cn-style-choisi { margin-top: 8px; }
-@media (max-width: 760px) { .cn-defile { grid-auto-columns: 80%; } }
+@media (max-width: 760px) { .cn-defile > * { flex-basis: 80%; } .cn-defile > .cn-carte-style[aria-pressed="true"] { flex-basis: 92%; } }
+
+/* Durée : un chronomètre (2026-11-24). Le cadran à gauche, la durée et les préréglages à droite ; un fond qui vit doucement. */
+.cn-duree-mise { display: grid; grid-template-columns: minmax(0, min(500px, 46vh)) minmax(0, 1fr); gap: clamp(20px, 4vw, 64px); align-items: center; }
+.cn-duree-cote { display: grid; gap: 14px; align-content: center; min-width: 0; }
+.cn-note-chrono { margin: 0; color: var(--ink-3); max-width: 46ch; }
+.cn-chrono { position: relative; width: 100%; max-width: min(500px, 46vh); aspect-ratio: 1; margin: 0 0 0 clamp(12px, 3vw, 48px); }
+.cn-chrono-fond { position: absolute; inset: -12%; pointer-events: none; }
+.cn-chrono-fond i { position: absolute; inset: 0; border-radius: 50%; }
+.cn-chrono-fond i:nth-child(1) { background: conic-gradient(from 0deg, transparent 0 70%, rgba(201, 162, 75, 0.22) 92%, transparent 100%); animation: cn-balaye 9s linear infinite; mask: radial-gradient(circle, #000 52%, transparent 70%); }
+.cn-chrono-fond i:nth-child(2), .cn-chrono-fond i:nth-child(3) { border: 1px solid rgba(201, 162, 75, 0.25); animation: cn-onde 6s ease-out infinite; }
+.cn-chrono-fond i:nth-child(3) { animation-delay: 3s; }
+@keyframes cn-balaye { to { transform: rotate(1turn); } }
+@keyframes cn-onde { from { transform: scale(0.72); opacity: 0.9; } to { transform: scale(1.08); opacity: 0; } }
+.cn-chrono-cadran { position: relative; width: 100%; height: 100%; touch-action: none; user-select: none; cursor: grab; overflow: visible; }
+.cn-chrono-cadran:active { cursor: grabbing; }
+.cn-chrono-boitier { fill: var(--surface-2); stroke: var(--line-strong); stroke-width: 2; }
+.cn-chrono-face { fill: #15151b; stroke: rgba(201, 162, 75, 0.5); stroke-width: 1.5; }
+.cn-chrono-arc { fill: none; stroke: var(--or); stroke-width: 6; stroke-linecap: round; opacity: 0.6; }
+.cn-chrono-cadran line { stroke: var(--ink-3); stroke-width: 2; stroke-linecap: round; }
+.cn-chrono-cadran line.is-fin { stroke-width: 1; opacity: 0.6; }
+.cn-chrono-cadran line.is-fort { stroke: var(--ink); stroke-width: 3; }
+.cn-chrono-chiffre { fill: var(--ink-2); font-family: var(--font-mono); font-size: 20px; }
+.cn-chrono-cadran line.cn-chrono-min { stroke: var(--or-glow); stroke-width: 6; }
+.cn-chrono-bout { fill: var(--or); stroke: var(--or-glow); stroke-width: 2; filter: drop-shadow(0 0 8px rgba(240, 208, 137, 0.7)); }
+.cn-chrono-axe { fill: var(--or-glow); }
+.cn-chrono-prise { outline: none; }
+@media (max-width: 760px) { .cn-duree-mise { grid-template-columns: 1fr; } .cn-chrono { max-width: 340px; margin: 0 auto; } }
+@media (prefers-reduced-motion: reduce) { .cn-chrono-fond i { animation: none; } }
+
+/* Accueil (2026-11-24) : le texte à gauche, un mur d'aperçus de styles qui défile lentement à droite. */
+.cn-accueil { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: clamp(24px, 4vw, 64px); align-items: center; }
+.cn-accueil-texte { min-width: 0; }
+.cn-accueil-texte .cn-sous { max-width: 62ch; }
+.cn-mur { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; height: min(72vh, 720px); overflow: hidden; transform: rotate(-4deg) scale(1.08); mask: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent); }
+.cn-mur-colonne { display: grid; gap: 12px; align-content: start; animation: cn-mur-monte var(--duree, 60s) linear infinite; }
+.cn-mur-colonne:nth-child(2) { animation-direction: reverse; }
+.cn-mur-colonne img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border: 1px solid var(--line-strong); box-shadow: 0 18px 40px -20px rgba(0, 0, 0, 0.8); }
+@keyframes cn-mur-monte { to { transform: translateY(calc(-50% - 6px)); } }
+@media (max-width: 900px) { .cn-accueil { grid-template-columns: 1fr; } .cn-mur { height: 260px; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .cn-mur-colonne { animation: none; } }
+
+/* Langue : le tableau des départs (2026-11-24). Lignes cliquables, la langue choisie bascule en « À L'AFFICHE » à palettes. */
+.cn-tableau { min-width: 0; border: 1px solid var(--line-strong); background: #0c0c10; padding: 10px; display: grid; gap: 4px; box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.7); }
+.cn-tableau-tete, .cn-tableau-ligne { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1.1fr); gap: 14px; align-items: center; padding: 5px 14px; }
+.cn-tableau-tete { font-family: var(--font-mono); font-size: calc(11px * var(--cn-echelle, 1)); letter-spacing: 0.2em; text-transform: uppercase; color: var(--or); border-bottom: 1px solid var(--line); }
+.cn-tableau-ligne { border: 1px solid transparent; background: #131318; color: var(--ink-2); text-align: left; font: inherit; transition: background 0.25s, border-color 0.25s; }
+.cn-tableau-ligne:hover { background: #1a1a21; border-color: var(--line-strong); }
+.cn-tableau-ligne[aria-pressed="true"] { border-color: var(--or); background: rgba(201, 162, 75, 0.08); color: var(--ink); }
+.cn-tableau-langue { font-family: var(--font-brand); font-size: calc(22px * var(--cn-echelle, 1)); color: var(--ink); overflow-wrap: anywhere; }
+.cn-tableau-ville { font-family: var(--font-mono); font-size: calc(13px * var(--cn-echelle, 1)); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
+.cn-tableau-vide { color: var(--line-strong); font-family: var(--font-mono); }
+.cn-palettes { display: inline-flex; gap: 2px; flex-wrap: wrap; }
+.cn-palette { display: inline-grid; place-items: center; min-width: 1.15em; padding: 2px 1px; font-family: var(--font-mono); font-size: calc(15px * var(--cn-echelle, 1)); color: var(--or-glow); background: linear-gradient(to bottom, #22222a 0 49%, #000 49% 51%, #1b1b22 51%); border-radius: 2px; }
+@media (max-width: 600px) { .cn-tableau-tete, .cn-tableau-ligne { grid-template-columns: 1fr auto; } .cn-tableau-ville, .cn-tableau-tete span:nth-child(2) { display: none; } }
+
+/* Musique : la scène (2026-11-24). Les voix à gauche, une onde qui parle toujours ; la platine à droite, sur son socle et sous un projecteur,
+   grandit et s'anime avec la place de la musique. */
+.cn-musique { display: grid; gap: 22px; }
+.cn-scene-son { position: relative; display: grid; grid-template-columns: 1fr 1.3fr; align-items: center; gap: 24px; min-height: min(46vh, 420px); padding: 28px clamp(20px, 4vw, 60px); border: 1px solid var(--line-strong); background: linear-gradient(to bottom, #0d0d12, #15151c 70%, #0b0b0f); overflow: hidden; isolation: isolate; }
+.cn-scene-son::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 26%; background: linear-gradient(to bottom, transparent, rgba(201, 162, 75, 0.05)); border-top: 1px solid rgba(255, 255, 255, 0.04); z-index: -1; }
+.cn-scene-son small { display: block; text-align: center; font-family: var(--font-mono); font-size: calc(11px * var(--cn-echelle, 1)); letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-3); margin-top: 16px; }
+.cn-projecteur { position: absolute; top: -10%; right: 14%; width: 46%; height: 120%; background: conic-gradient(from 180deg at 50% 0%, transparent 160deg, rgba(240, 208, 137, 0.22) 180deg, transparent 200deg); filter: blur(6px); z-index: -1; transition: opacity 0.6s; opacity: 0; }
+.cn-scene-son.is-discrete .cn-projecteur { opacity: 0.45; }
+.cn-scene-son.is-presente .cn-projecteur { opacity: 1; animation: cn-respire 2.4s ease-in-out infinite; }
+@keyframes cn-respire { 50% { filter: blur(10px) brightness(1.4); } }
+/* The voices: a waveform that always speaks. */
+.cn-voix { display: grid; justify-items: center; }
+.cn-voix-onde { display: flex; align-items: center; gap: 5px; height: 140px; padding: 0 22px; border-radius: 999px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--line); transition: transform 0.6s, opacity 0.6s; }
+.cn-voix-onde i { width: 6px; height: 100%; border-radius: 3px; background: linear-gradient(var(--ink-2), var(--ink-3)); transform: scaleY(0.15); animation: cn-parole 1.3s ease-in-out infinite; animation-delay: calc(var(--i) * -0.13s); }
+@keyframes cn-parole { 0%, 100% { transform: scaleY(0.12); } 25% { transform: scaleY(0.7); } 45% { transform: scaleY(0.3); } 65% { transform: scaleY(0.9); } 80% { transform: scaleY(0.2); } }
+/* The turntable on its deck. */
+.cn-platine { position: relative; display: grid; justify-items: center; transform: scale(var(--echelle, 1)); transition: transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.6s; }
+.cn-socle { position: relative; width: 340px; aspect-ratio: 1.3; border-radius: 14px; background: linear-gradient(150deg, #3a2a1c, #22180f); border: 1px solid #4a3725; box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.06), 0 30px 50px -24px #000; transition: box-shadow 0.6s; }
+.cn-plateau { position: absolute; left: 7%; top: 50%; width: 60%; aspect-ratio: 1; transform: translateY(-50%); border-radius: 50%; background: radial-gradient(circle, #2a2a30 60%, #1a1a1f); box-shadow: 0 0 0 4px #121216, 0 10px 20px -8px #000; display: grid; place-items: center; }
+.cn-disque { position: relative; width: 92%; aspect-ratio: 1; border-radius: 50%; background: repeating-radial-gradient(circle, #0d0d10 0 2px, #18181d 2px 4px); display: grid; place-items: center; box-shadow: inset 0 0 0 1px #000; }
+.cn-disque::before { content: ""; position: absolute; inset: 8%; border-radius: 50%; background: conic-gradient(from 20deg, transparent 0 10%, rgba(255, 255, 255, 0.12) 12%, transparent 16% 60%, rgba(255, 255, 255, 0.08) 63%, transparent 68%); }
+.cn-disque span { position: relative; width: 34%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle, #0c0c10 0 8%, transparent 9%), conic-gradient(#8a1f2d, #b02b3e, #8a1f2d); }
+.cn-bras { position: absolute; top: 12%; right: 10%; width: 12px; height: 62%; transform-origin: 50% 6px; transform: rotate(8deg); transition: transform 0.8s var(--cn-ease); }
+.cn-bras::before { content: ""; position: absolute; top: -8px; left: -9px; width: 30px; height: 30px; border-radius: 50%; background: radial-gradient(circle, #ddd, #777); box-shadow: 0 4px 8px #000; }
+.cn-bras i { position: absolute; inset: 0; border-radius: 6px; background: linear-gradient(90deg, #9c9ca6, #e6e6ec 50%, #8a8a94); }
+.cn-bras i::after { content: ""; position: absolute; bottom: -10px; left: -6px; width: 24px; height: 18px; border-radius: 3px; background: #2b2b33; border: 1px solid #555; }
+.cn-led { position: absolute; left: 6%; bottom: 7%; width: 8px; height: 8px; border-radius: 50%; background: #3a1016; transition: background 0.4s, box-shadow 0.4s; }
+.cn-molette { position: absolute; right: 9%; bottom: 8%; width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #bbb, #555); }
+.cn-molette.is-2 { right: 21%; }
+.cn-egaliseur { display: flex; align-items: flex-end; gap: 4px; height: 46px; margin-top: 14px; opacity: 0; transition: opacity 0.5s; }
+.cn-egaliseur i { width: 8px; height: 100%; background: linear-gradient(to top, var(--or), var(--or-glow)); transform-origin: bottom; transform: scaleY(0.1); animation: cn-egal 0.9s ease-in-out infinite alternate; animation-delay: calc(var(--i) * -0.17s); }
+@keyframes cn-egal { from { transform: scaleY(0.12); } to { transform: scaleY(1); } }
+.cn-note-volante { position: absolute; top: 30%; left: 34%; font-size: 34px; color: var(--or-glow); opacity: 0; animation: cn-note 2.8s ease-out infinite; animation-delay: calc(var(--i) * 0.31s); text-shadow: 0 0 14px rgba(240, 208, 137, 0.8); pointer-events: none; }
+@keyframes cn-note { 0% { transform: translate(0, 0) scale(0.5); opacity: 0; } 15% { opacity: 1; } 100% { transform: translate(calc((var(--i) - 4) * 42px), -220px) scale(1.3) rotate(calc((var(--i) - 4) * 9deg)); opacity: 0; } }
+/* The three levels. */
+.cn-scene-son.is-aucune .cn-platine { filter: grayscale(0.9) brightness(0.5); }
+.cn-scene-son.is-aucune .cn-bras { transform: rotate(-4deg); }
+.cn-scene-son:not(.is-aucune) .cn-bras { transform: rotate(26deg); }
+.cn-scene-son:not(.is-aucune) .cn-led { background: #ff4b63; box-shadow: 0 0 10px #ff4b63; }
+.cn-scene-son.is-discrete .cn-disque { animation: cn-tourne 3.2s linear infinite; }
+.cn-scene-son.is-discrete .cn-egaliseur { opacity: 0.45; }
+.cn-scene-son.is-discrete .cn-egaliseur i { animation-duration: 1.6s; }
+.cn-scene-son.is-discrete .cn-voix-onde { transform: scale(1.06); }
+.cn-scene-son.is-presente .cn-disque { animation: cn-tourne 1.3s linear infinite; }
+.cn-scene-son.is-presente .cn-egaliseur { opacity: 1; }
+.cn-scene-son.is-presente .cn-socle { box-shadow: 0 0 80px -10px rgba(240, 208, 137, 0.45), inset 0 2px 0 rgba(255, 255, 255, 0.06), 0 30px 50px -24px #000; }
+.cn-scene-son.is-presente .cn-voix-onde { opacity: 0.75; transform: scale(0.9); }
+@keyframes cn-tourne { to { transform: rotate(1turn); } }
+.cn-musique-choix { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.cn-musique-cran { text-align: left; border: 1px solid var(--line-strong); background: rgba(26, 26, 33, 0.85); padding: 14px 16px; display: grid; gap: 4px; color: var(--ink); font: inherit; }
+.cn-musique-cran b { font-family: var(--font-brand); font-weight: 400; font-size: calc(22px * var(--cn-echelle, 1)); }
+.cn-musique-cran span { color: var(--ink-3); font-size: calc(13px * var(--cn-echelle, 1)); }
+.cn-musique-cran[aria-checked="true"] { border-color: var(--or); color: var(--or-glow); box-shadow: 0 0 30px -8px rgba(201, 162, 75, 0.5); }
+@media (max-width: 760px) { .cn-scene-son { grid-template-columns: 1fr; } .cn-socle { width: 260px; } .cn-musique-choix { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .cn-disque, .cn-note-volante, .cn-voix-onde i, .cn-egaliseur i, .cn-projecteur { animation: none !important; } }
+
+.cn-chrono-prise:focus-visible .cn-chrono-bout { stroke: #fff; stroke-width: 3; }
+.cn-duree-repere { margin: -4px 0 6px; font-family: var(--font-brand); font-size: calc(24px * var(--cn-echelle, 1)); color: var(--ink-2); }
+
+.cn-langue-mise { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: clamp(20px, 3vw, 48px); align-items: start; }
+.cn-carte-postale { position: relative; margin: 0; aspect-ratio: 3 / 2; padding: clamp(20px, 3vw, 40px); background: linear-gradient(160deg, #f3ead6, #e3d3b2); color: #2b2418; box-shadow: 0 30px 60px -24px #000; transform: rotate(-2.5deg); display: grid; align-content: center; gap: 10px; animation: cn-postale 0.6s var(--cn-ease) both; overflow: hidden; }
+.cn-carte-postale::before { content: ""; position: absolute; inset: 10px; border: 1px dashed rgba(43, 36, 24, 0.35); pointer-events: none; }
+@keyframes cn-postale { from { transform: rotate(-9deg) translateY(30px); opacity: 0; } }
+.cn-postale-bonjour { margin: 0; font-family: var(--font-brand); font-size: clamp(48px, 6vw, 96px); line-height: 1; color: #8a1f2d; }
+.cn-postale-mot { margin: 0; font-size: calc(18px * var(--cn-echelle, 1)); color: #4a3f2c; max-width: 30ch; }
+.cn-postale-timbre { position: absolute; top: 22px; right: 22px; padding: 18px 12px; border: 3px dotted #8a1f2d; color: #8a1f2d; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.15em; text-transform: uppercase; background: #f7efde; }
+.cn-postale-cachet { position: absolute; top: 34px; right: 120px; padding: 10px 14px; border: 2px solid rgba(43, 36, 24, 0.45); border-radius: 50%; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(43, 36, 24, 0.55); transform: rotate(-14deg); }
+.cn-carte-postale figcaption { position: absolute; bottom: 18px; right: 24px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(43, 36, 24, 0.55); }
+@media (max-width: 900px) { .cn-langue-mise { grid-template-columns: 1fr; } .cn-carte-postale { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .cn-carte-postale { animation: none; } }
+
+/* Écrans sans défilement (2026-11-24) : accueil, durée, langue, musique tiennent dans la fenêtre. La salle prend exactement la hauteur
+   sous la barre du haut, la scène se partage ce qui reste et son contenu principal s'étire dedans. */
+.cn-salle:has(> .cn-scene[data-ajuste]) { height: calc(100dvh - var(--cn-haut, 64px)); min-height: 0; overflow: clip; }
+.cn-scene[data-ajuste] { display: flex; flex-direction: column; min-height: 0; padding-top: clamp(12px, 3vh, 36px); padding-bottom: clamp(10px, 2vh, 20px); }
+.cn-scene[data-ajuste] .cn-acte { margin-bottom: 4px; }
+.cn-scene[data-ajuste] .cn-titre { font-size: clamp(28px, min(4.6vw, 7vh), 64px); margin-bottom: 6px; }
+.cn-scene[data-ajuste] .cn-sous { margin-bottom: clamp(8px, 2vh, 22px); font-size: calc(clamp(14px, 2vh, 17px) * var(--cn-echelle, 1)); }
+.cn-scene[data-ajuste] > :is(.cn-accueil, .cn-duree-mise, .cn-langue-mise, .cn-musique) { flex: 1; min-height: 0; }
+/* Accueil */
+.cn-scene[data-ajuste] .cn-accueil { align-items: stretch; grid-template-rows: minmax(0, 1fr); }
+.cn-scene[data-ajuste] .cn-accueil-etapes li { padding: clamp(8px, 1.4vh, 14px) 14px; }
+.cn-scene[data-ajuste] .cn-accueil .cn-sous { max-width: 60ch; }
+.cn-scene[data-ajuste] .cn-accueil-texte { display: flex; flex-direction: column; justify-content: center; min-height: 0; }
+.cn-scene[data-ajuste] .cn-mur { height: 100%; }
+.cn-scene[data-ajuste] .cn-glisse.is-geant { margin-top: clamp(12px, 3vh, 36px); height: clamp(64px, 10vh, 104px); }
+/* Durée : le cadran prend la hauteur disponible. */
+.cn-scene[data-ajuste] .cn-duree-mise { grid-template-columns: auto minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.cn-scene[data-ajuste] .cn-duree-cote { min-height: 0; overflow: hidden; }
+.cn-scene[data-ajuste] .cn-chrono { height: 100%; width: auto; max-width: none; max-height: 560px; margin: 0 0 0 clamp(12px, 3vw, 48px); }
+.cn-scene[data-ajuste] .cn-grande-duree { font-size: clamp(48px, min(9vw, 14vh), 130px); }
+/* Langue : les onze lignes se partagent la hauteur du tableau ; la carte postale suit. */
+.cn-scene[data-ajuste] .cn-langue-mise { align-items: stretch; }
+.cn-scene[data-ajuste] .cn-tableau { display: grid; grid-template-rows: auto repeat(11, minmax(0, 1fr)); min-height: 0; padding: 6px 10px; gap: 3px; }
+.cn-scene[data-ajuste] .cn-tableau-ligne { padding-block: 0; min-height: 0; overflow: hidden; }
+.cn-scene[data-ajuste] .cn-tableau-langue { font-size: calc(clamp(15px, 2.4vh, 22px) * var(--cn-echelle, 1)); }
+.cn-scene[data-ajuste] .cn-palette { font-size: calc(clamp(11px, 1.7vh, 15px) * var(--cn-echelle, 1)); padding: 0 1px; }
+.cn-scene[data-ajuste] .cn-carte-postale { align-self: center; width: 100%; max-height: 100%; }
+/* Musique : la scène se partage la hauteur avec les trois crans. */
+.cn-scene[data-ajuste] .cn-musique { display: flex; flex-direction: column; gap: clamp(10px, 2vh, 22px); }
+.cn-scene[data-ajuste] .cn-scene-son { flex: 1; min-height: 0; padding-block: clamp(10px, 2vh, 28px); }
+.cn-scene[data-ajuste] .cn-socle { width: clamp(170px, 32vh, 340px); }
+.cn-scene[data-ajuste] .cn-voix-onde { height: clamp(60px, 12vh, 140px); }
+.cn-scene[data-ajuste] .cn-egaliseur { height: clamp(20px, 4vh, 46px); margin-top: clamp(6px, 1.2vh, 14px); }
+.cn-scene[data-ajuste] .cn-scene-son small { margin-top: clamp(6px, 1.2vh, 16px); }
+.cn-scene[data-ajuste] .cn-musique-cran { padding: clamp(8px, 1.4vh, 14px) 16px; }
+.cn-scene[data-ajuste] .cn-musique + .cn-note { margin-top: clamp(6px, 1.4vh, 16px); }
+@media (max-width: 900px) { .cn-salle:has(> .cn-scene[data-ajuste]) { height: auto; min-height: calc(100dvh - 56px); overflow: visible; } }
+.cn-scene[data-ajuste] .cn-accueil-texte { justify-content: safe center; }
+.cn-scene[data-ajuste] .cn-accueil-etapes li { grid-template-columns: 1fr; row-gap: 2px; }
+.cn-scene[data-ajuste] .cn-accueil-etapes li::before { grid-row: auto; align-self: start; font-size: calc(12px * var(--cn-echelle, 1)); }
+.cn-scene[data-ajuste] .cn-accueil-etapes span { font-size: calc(clamp(12.5px, 1.8vh, 15px) * var(--cn-echelle, 1)); line-height: 1.4; }
+.cn-scene[data-ajuste] .cn-accueil .cn-titre { font-size: clamp(28px, min(4vw, 6vh), 60px); }
+@media (max-height: 820px) {
+  .cn-scene[data-ajuste] .cn-accueil-etapes span { display: none; }
+  .cn-scene[data-ajuste] .cn-accueil .cn-sous { margin-bottom: 10px; }
+}
+@media (max-height: 820px) {
+  .cn-scene[data-ajuste] .cn-musique-cran span { display: none; }
+  .cn-scene[data-ajuste] .cn-socle { width: clamp(150px, 24vh, 340px); }
+  .cn-scene[data-ajuste] .cn-voix-onde { height: clamp(50px, 9vh, 140px); }
+  .cn-scene[data-ajuste] .cn-egaliseur { display: none; }
+}
+
+/* La pellicule des étapes reste visible sous la barre du haut (2026-11-24). Sous 760 px, la barre du haut passe sur plusieurs étages :
+   la pellicule défile alors avec la page. */
+.cn-ruban { position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--cn-haut, 64px)); z-index: 15; background: rgba(14, 14, 19, 0.92); backdrop-filter: blur(10px); }
+@media (max-width: 760px) { .cn-ruban { position: relative; } }
+
+/* Style graphique (2026-11-24) : une seule grille, sans titres de familles ; le style choisi prend quatre cases. */
+.cn-grille-styles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); grid-auto-flow: dense; gap: 14px; }
+.cn-grille-styles > .cn-carte-style[aria-pressed="true"] { grid-column: span 2; grid-row: span 2; }
+.cn-grille-styles > .cn-carte-style[aria-pressed="true"] .cn-apercu { height: 100%; aspect-ratio: auto; }
+@media (max-width: 560px) { .cn-grille-styles > .cn-carte-style[aria-pressed="true"] { grid-column: auto; grid-row: auto; } }
+.cn-scene-son small { font-size: calc(clamp(13px, 1.9vh, 16px) * var(--cn-echelle, 1)); letter-spacing: 0.18em; color: var(--ink-2); }
+.cn-musique-cran { text-align: center; }

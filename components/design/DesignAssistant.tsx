@@ -154,12 +154,9 @@ export function ConceptionAssistant({ styles, demos = {} }: { styles: StyleVue[]
         })}
       </nav>
 
-      <div className={`cn-scene${recule ? " is-recule" : ""}`} data-scene={etape === ETAPE.style ? "style" : undefined} key={etape} ref={scene}>
+      <div className={`cn-scene${recule ? " is-recule" : ""}`} data-scene={etape === ETAPE.style ? "style" : undefined} data-ajuste={([ETAPE.accueil, ETAPE.duree, ETAPE.langue, ETAPE.musique] as number[]).includes(etape) ? "" : undefined} key={etape} ref={scene}>
         {etape === ETAPE.accueil ? (
-          <>
-            <SceneAccueil />
-            <Glissiere geant libelle="Clique pour commencer" onValider={() => aller(ETAPE.duree)} />
-          </>
+          <SceneAccueil apercus={styles.filter((s) => s.apercu).map((s) => s.id)} action={<Glissiere geant libelle="Clique pour commencer" onValider={() => aller(ETAPE.duree)} />} />
         ) : null}
         {etape === ETAPE.duree ? <SceneDuree etat={etat} maj={maj} /> : null}
         {etape === ETAPE.langue ? <SceneLangue etat={etat} maj={maj} /> : null}
