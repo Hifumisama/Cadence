@@ -8,6 +8,14 @@ Production de vidéos par IA, de l'idée au montage. Ce glossaire fixe le vocabu
 Les choix techniques posés dans le formulaire de conception (durée, langue des dialogues, style, mise en scène, musique). Il ne change que par un geste explicite de l'utilisateur.
 _À éviter_ : réglages, paramètres
 
+**Style graphique** :
+Le rendu visuel du film, choisi dans le cadre : un style de la bibliothèque (une sélection courte, choisie à la main) ou un style libre créé par l'utilisateur.
+_À éviter_ : look, rendu, style tout court (ambigu avec le style de mise en scène)
+
+**Aperçu** :
+L'image unique qui présente un style graphique, avec un sujet pensé pour mettre ce style en valeur. Elle doit donner envie, elle ne sert pas à comparer les styles entre eux.
+_À éviter_ : vignette, image de test, sujet
+
 **Entretien** :
 La conversation entre l'utilisateur et le scénariste qui fixe l'histoire avant le scénario. Elle se termine quand l'utilisateur le décide, ou quand l'application juge la fiche complète.
 _À éviter_ : chat, interview, questionnaire
