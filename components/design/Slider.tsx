@@ -4,7 +4,7 @@ import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 
 const SEUIL = 0.88;
 
-/** The « giant slider » that moves from one step to the next: a filmstrip pulled by the tip of the handle (or clicked, or
+/** The « giant slider » that moves from one step to the next: a filmstrip pulled by the tip of the handle (or clicked anywhere, or
  * validated by keyboard: Enter, Space, →). Below the threshold the handle returns; beyond it, the filmstrip tightens and the step changes.
  * At the last step (`action`), the handle is a clapperboard. Always a focusable `role="slider"`: never a mouse-only gesture. */
 export function Glissiere({
@@ -35,7 +35,7 @@ export function Glissiere({
   const inerte = desactive || occupe;
 
   const valider = () => {
-    if (inerte) return;
+    if (inerte || p === 1) return; // already validating: no double call
     setTire(false);
     setP(1);
     window.setTimeout(() => {
@@ -83,6 +83,11 @@ export function Glissiere({
       ref={piste}
       className={`cn-glisse${action ? " is-action" : ""}${danger ? " is-danger" : ""}${geant ? " is-geant" : ""}${inerte ? " is-inerte" : ""}${tire ? " is-tire" : ""}${p >= SEUIL ? " is-pret" : ""}`}
       style={{ "--p": p } as React.CSSProperties}
+      // A click anywhere on the track validates too (test feedback 2026-11-24: people click rather than pull); the handle animates to the end
+      // first. Not on the « danger » variant: there, pulling the handle is the safeguard. The handle handles its own pointer events.
+      onClick={danger ? undefined : (e) => {
+        if (e.target !== poignee.current && !depart.current) valider();
+      }}
     >
       <div className="cn-glisse-rempli" aria-hidden="true" />
       <span className="cn-glisse-texte" aria-hidden="true">

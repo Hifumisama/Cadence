@@ -41,7 +41,7 @@
 .cn-cadre.is-fait::after { content: ""; position: absolute; right: 6px; top: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--or); }
 
 /* Scène */
-.cn-scene { position: relative; z-index: 1; flex: 1; padding: clamp(28px, 6vh, 64px) var(--sp-5) 24px; max-width: 1240px; width: 100%; margin: 0 auto; min-width: 0; animation: cn-entre 0.6s var(--cn-ease) both; }
+.cn-scene { position: relative; z-index: 1; flex: 1; padding: clamp(28px, 6vh, 64px) var(--sp-5) 24px; max-width: none; width: 100%; margin: 0 auto; min-width: 0; animation: cn-entre 0.6s var(--cn-ease) both; }
 .cn-scene.is-recule { animation-name: cn-entre-r; }
 @keyframes cn-entre { from { opacity: 0; transform: translateX(48px) scale(0.99); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
 @keyframes cn-entre-r { from { opacity: 0; transform: translateX(-48px) scale(0.99); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
@@ -52,6 +52,8 @@
 
 /* Barre d'action : un quai collé au bas de la fenêtre, toujours visible (Retour à gauche, la glissière à droite). Le dernier pas est une claquette (« Action ! »). */
 .cn-barre { position: sticky; bottom: 0; z-index: 40; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px var(--sp-5); border-top: 1px solid var(--line-strong); background: rgba(14, 14, 19, 0.94); backdrop-filter: blur(10px); }
+/* « Retour » aussi haut que la glissière (retours 2026-11-24 : trop petit). */
+.cn-barre > .btn { min-height: 60px; padding: 0 26px; font-size: calc(15px * var(--cn-echelle, 1)); }
 .cn-barre-texte { color: var(--ink-2); font-size: calc(15px * var(--cn-echelle, 1)); }
 .cn-barre-texte b.cn-fige { color: var(--ink); text-decoration: underline; text-decoration-color: var(--or-soft); text-underline-offset: 3px; }
 .cn-barre-texte b { color: var(--or-glow); font-weight: 500; }
@@ -84,6 +86,7 @@
 .cn-glisse.is-danger.is-action .cn-glisse-poignee { background-image: repeating-linear-gradient(-55deg, #0e0e13 0 9px, transparent 9px 18px), linear-gradient(160deg, var(--ecarlate-glow), var(--ecarlate)); }
 .cn-glisse.is-danger.is-pret .cn-glisse-poignee { box-shadow: 0 0 34px rgba(255, 79, 109, 0.9); }
 .cn-glisse.is-danger .cn-glisse-texte i { color: var(--ecarlate-glow); }
+.cn-glisse:not(.is-inerte):not(.is-danger) { cursor: pointer; }
 .cn-glisse.is-inerte { opacity: 0.55; }
 .cn-glisse.is-inerte .cn-glisse-poignee { background: var(--surface-3); border-color: var(--line-strong); color: var(--ink-3); box-shadow: none; cursor: not-allowed; }
 .cn-glisse.is-inerte .cn-glisse-texte i { animation: none; }
@@ -105,7 +108,7 @@
 .cn-bulle[aria-pressed="true"] { border-color: var(--or); color: var(--or-glow); box-shadow: 0 0 34px -6px rgba(201, 162, 75, 0.55), inset 0 0 18px -8px rgba(201, 162, 75, 0.6); transform: scale(1.06); }
 .cn-compte { margin-top: 26px; font-family: var(--font-mono); font-size: calc(12.5px * var(--cn-echelle, 1)); color: var(--ink-3); }
 .cn-compte b { color: var(--or); font-weight: 500; }
-.cn-fader { position: relative; height: 90px; margin: 0 auto; max-width: 1000px; cursor: ew-resize; user-select: none; touch-action: pan-y; }
+.cn-fader { position: relative; height: 90px; margin: 0 auto; max-width: none; cursor: ew-resize; user-select: none; touch-action: pan-y; }
 .cn-onde { position: absolute; inset: 0; display: flex; align-items: center; gap: 3px; }
 .cn-onde i { flex: 1; background: var(--line-strong); border-radius: 2px; transition: height 0.35s var(--cn-ease), background 0.3s; }
 .cn-onde i.is-on { background: var(--or); }
@@ -114,9 +117,9 @@
 /* 3. Durée et rythme */
 .cn-grande-duree { font-family: var(--font-brand); font-size: clamp(54px, 10vw, 130px); line-height: 1; margin: 0 0 4px; color: var(--or-glow); }
 .cn-grande-duree small { font-size: 0.3em; color: var(--ink-3); margin-left: 0.3em; }
-.cn-note-duree { margin: 0 0 6px; max-width: 1100px; color: var(--ink-2); font-size: calc(14px * var(--cn-echelle, 1)); border-left: 2px solid var(--or-soft); padding-left: 10px; }
+.cn-note-duree { margin: 0 0 6px; max-width: 75ch; color: var(--ink-2); font-size: calc(14px * var(--cn-echelle, 1)); border-left: 2px solid var(--or-soft); padding-left: 10px; }
 .cn-note-duree b { color: var(--or-glow); font-weight: 500; }
-.cn-regle { position: relative; height: 56px; margin: 18px 0 8px; max-width: 1100px; cursor: ew-resize; user-select: none; touch-action: pan-y; }
+.cn-regle { position: relative; height: 56px; margin: 18px 0 8px; max-width: none; cursor: ew-resize; user-select: none; touch-action: pan-y; }
 .cn-graduation { position: absolute; inset: 0 0 auto 0; height: 26px; background: repeating-linear-gradient(to right, var(--line-strong) 0 1px, transparent 1px 8px); -webkit-mask: linear-gradient(to bottom, #000 40%, transparent); mask: linear-gradient(to bottom, #000 40%, transparent); }
 .cn-rempli { position: absolute; left: 0; top: 0; height: 100%; border-right: 2px solid var(--or); background: linear-gradient(to right, rgba(201, 162, 75, 0), rgba(201, 162, 75, 0.22)); transition: width 0.15s linear; pointer-events: none; }
 .cn-repere { position: absolute; top: 34px; font-family: var(--font-mono); font-size: calc(10.5px * var(--cn-echelle, 1)); color: var(--ink-3); transform: translateX(-50%); pointer-events: none; }
@@ -124,13 +127,6 @@
 .cn-presets button { border: 1px solid var(--line-strong); background: var(--surface); padding: 4px 12px; font-family: var(--font-mono); font-size: calc(12.5px * var(--cn-echelle, 1)); color: var(--ink-2); }
 .cn-presets button:hover { background: var(--surface-2); }
 .cn-presets button[aria-pressed="true"] { color: var(--or-glow); border-color: var(--or); }
-.cn-bande { display: flex; gap: 3px; height: 74px; max-width: 1100px; margin: 26px 0 8px; align-items: stretch; }
-.cn-bande i { display: grid; place-items: center; flex: var(--w, 1) 1 0; min-width: 2px; border: 1px solid var(--line-strong); background: linear-gradient(to bottom, var(--surface-3), var(--surface-2)); font-family: var(--font-mono); font-size: calc(11px * var(--cn-echelle, 1)); color: var(--ink-2); font-style: normal; overflow: hidden; animation: cn-pop 0.5s var(--cn-ease) both; animation-delay: calc(var(--k) * 12ms); }
-.cn-bande i:nth-child(odd) { background: linear-gradient(to bottom, #30303c, #26262f); }
-@keyframes cn-pop { from { transform: scaleY(0); opacity: 0; } to { transform: none; opacity: 1; } }
-.cn-bande-axe { display: flex; justify-content: space-between; max-width: 1100px; font-family: var(--font-mono); font-size: calc(10.5px * var(--cn-echelle, 1)); color: var(--ink-3); margin-bottom: 8px; }
-.cn-bande-legende { font-family: var(--font-mono); font-size: calc(13px * var(--cn-echelle, 1)); color: var(--ink-2); max-width: 1100px; margin: 0; }
-.cn-bande-legende b { color: var(--or-glow); font-weight: 500; }
 .cn-rythmes { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
 .cn-rythme { border: 1px solid var(--line-strong); background: var(--surface); padding: 10px 18px; display: grid; text-align: left; color: var(--ink); transition: all 0.3s var(--cn-ease); }
 .cn-rythme b { font-family: var(--font-brand); font-weight: 400; font-size: 20px; }
@@ -193,7 +189,7 @@
 .cn-carte-corps b { font-family: var(--font-brand); font-weight: 400; font-size: calc(18px * var(--cn-echelle, 1)); line-height: 1.2; }
 .cn-carte-corps span { color: var(--ink-3); font-size: calc(12.5px * var(--cn-echelle, 1)); }
 .cn-aucun { color: var(--ink-3); padding: 28px 4px; }
-.cn-detail { margin-top: 6px; border: 1px solid var(--line-strong); background: rgba(26, 26, 33, 0.9); padding: clamp(16px, 2.5vw, 28px); display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: 1200px; animation: cn-entre 0.5s var(--cn-ease) both; }
+.cn-detail { margin-top: 6px; border: 1px solid var(--line-strong); background: rgba(26, 26, 33, 0.9); padding: clamp(16px, 2.5vw, 28px); display: grid; grid-template-columns: 1fr 1fr; gap: 24px; max-width: none; animation: cn-entre 0.5s var(--cn-ease) both; }
 .cn-detail h3 { font-family: var(--font-brand); font-weight: 400; font-size: 22px; margin: 0 0 6px; }
 .cn-champs { display: grid; gap: 14px; }
 .cn-champ { display: grid; gap: 6px; font-size: calc(13px * var(--cn-echelle, 1)); color: var(--ink-3); }
@@ -217,7 +213,7 @@
   .cn-ruban { padding: 14px 12px 12px; }
   .cn-cadre { min-width: 104px; flex: 0 0 auto; }
   .cn-scene { padding: 20px 16px; }
-  .cn-barre { padding: 10px 16px; gap: 10px; } .cn-barre-texte { order: 3; flex-basis: 100%; font-size: calc(13.5px * var(--cn-echelle, 1)); }
+  .cn-barre { padding: 10px 16px; gap: 10px; } .cn-barre > .btn { min-height: 54px; padding: 0 18px; } .cn-barre-texte { order: 3; flex-basis: 100%; font-size: calc(13.5px * var(--cn-echelle, 1)); }
   .cn-glisse { flex-basis: 220px; height: 54px; } .cn-glisse-texte { font-size: calc(11px * var(--cn-echelle, 1)); letter-spacing: 0.08em; }
   .cn-detail { grid-template-columns: 1fr; }
   .cn-style-mise { grid-template-columns: 1fr; }

@@ -135,7 +135,7 @@ export function DemarrageAssistant({
             <>Le briefing n’est pas encore prêt : <b>continue l’entretien</b>, le clap s’ouvrira ensuite.</>
           )}
         </span>
-        {etape === SCENARIO ? <Glissiere libelle="Glisse : voir le clap" action desactive={!peutClap} onValider={() => aller(CLAP)} /> : null}
+        {etape === SCENARIO ? <Glissiere libelle="Clique : voir le clap" action desactive={!peutClap} onValider={() => aller(CLAP)} /> : null}
       </div>
 
     </div>

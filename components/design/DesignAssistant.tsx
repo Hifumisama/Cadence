@@ -158,7 +158,7 @@ export function ConceptionAssistant({ styles, demos = {} }: { styles: StyleVue[]
         {etape === ETAPE.accueil ? (
           <>
             <SceneAccueil />
-            <Glissiere geant libelle="Glisse pour commencer" onValider={() => aller(ETAPE.duree)} />
+            <Glissiere geant libelle="Clique pour commencer" onValider={() => aller(ETAPE.duree)} />
           </>
         ) : null}
         {etape === ETAPE.duree ? <SceneDuree etat={etat} maj={maj} /> : null}
@@ -175,7 +175,7 @@ export function ConceptionAssistant({ styles, demos = {} }: { styles: StyleVue[]
         </span>
         {erreur ? <span className="cn-erreur" role="alert">{erreur}</span> : null}
         {etape === 0 ? null : <Glissiere
-          libelle={etape < DERNIERE_ETAPE ? "Glisse pour continuer" : "Glisse : rencontrer le scénariste"}
+          libelle={etape < DERNIERE_ETAPE ? "Clique pour continuer" : "Clique : rencontrer le scénariste"}
           action={etape === DERNIERE_ETAPE}
           desactive={!peutContinuer}
           occupe={envoi}

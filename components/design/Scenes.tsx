@@ -1,18 +1,16 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import {
   DUREE_EXPERIMENTALE_SECONDES,
   INTENTIONS_MUSIQUE,
   LANGUES_DIALOGUES,
   LIBELLES_INTENTION_MUSIQUE,
   REFERENCE_MUSIQUE_MAX,
-  PLAGES_RYTHME,
   POSITION_DUREE_MAX,
   REPERES_DUREE,
   SANS_DIALOGUE,
   dureeDepuisPosition,
-  plansEstimes,
   positionDepuisDuree,
 } from "@/lib/projects/design";
 import { minutesSecondes } from "@/lib/projects/design-ui";
@@ -51,17 +49,8 @@ export function SceneAccueil() {
 /* ------------------------------------------------------ 2. Duration and rhythm */
 
 const PRESETS = [60, 120, 180, 300, 600, 1800, 3600, 5400] as const;
-const MAX_CASES = 120;
 
 export function SceneDuree({ etat, maj }: PropsScene) {
-  const plans = plansEstimes(etat.duree, etat.rythme);
-  const plage = PLAGES_RYTHME[etat.rythme];
-  // Beyond MAX_CASES clips, one box stands for several (a strip of several hundred boxes would no longer say anything).
-  const parCase = Math.max(1, Math.ceil(plans.moyen / MAX_CASES));
-  const blocs = useMemo(() => {
-    // Width of each box: the same everywhere, except at the « variable » rhythm where it varies in a stable way (deterministic sequence).
-    return Array.from({ length: Math.ceil(plans.moyen / parCase) }, (_, k) => (etat.rythme === "variable" ? 5 + ((k * 7919) % 11) : (plage.min + plage.max) / 2) * parCase);
-  }, [plans.moyen, parCase, etat.rythme, plage.min, plage.max]);
   const poser = (duree: number) => maj((e) => ({ ...e, duree, dureeChoisie: true }));
   return (
     <>
@@ -92,16 +81,6 @@ export function SceneDuree({ etat, maj }: PropsScene) {
           <button key={s} type="button" aria-pressed={etat.duree === s} onClick={() => poser(s)}>{minutesSecondes(s)}</button>
         ))}
       </div>
-      <div className="cn-bande" aria-hidden="true" key={`${etat.duree}-${etat.rythme}`}>
-        {blocs.map((w, k) => (
-          <i key={k} title={`Plan ${k + 1} · ≈ ${w} s`} style={{ ["--w" as string]: w, ["--k" as string]: Math.min(k, 40) }}>
-            {blocs.length <= 30 || k % 5 === 4 ? k + 1 : ""}
-          </i>
-        ))}
-      </div>
-      <div className="cn-bande-axe" aria-hidden="true"><span>0 s</span><span>{parCase === 1 ? "1 case = 1 plan, largeur = durée" : `1 case ≈ ${parCase} plans`}</span></div>
-      <p className="cn-bande-legende">≈ <b>{plans.min} à {plans.max} plans</b> · compter <b>{plans.moyen}</b> en moyenne</p>
-      <p className="cn-note">Chaque plan dure de {plage.min} à {plage.max} s selon ce que la scène demande. La durée est un point de départ : le scénario peut la dépasser ou rester en deçà, et tu ajustes ensuite plan par plan.</p>
     </>
   );
 }
@@ -138,7 +117,6 @@ export function SceneLangue({ etat, maj }: PropsScene) {
           <span>Musique et sons seulement</span>
         </button>
       </div>
-      <p className="cn-note">Les dix langues que le modèle vidéo sait parler. Les prompts restent écrits en anglais.</p>
     </>
   );
 }
