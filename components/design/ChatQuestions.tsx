@@ -37,6 +37,8 @@ export function ChatQuestions({ carte, actions, envoyer }: { carte: QuestionsCar
         <b>{carte.sujet}</b>
         <span className="cq-meta">{n} question{n > 1 ? "s" : ""}</span>
       </div>
+      {/* The questions scroll inside the card (test feedback 2026-11-23): its title and « Répondre » stay in view. */}
+      <div className="cq-corps">
       {carte.questions.map((q, i) => (
         <fieldset key={i} className="cq-question" disabled={!actions}>
           <legend><span className="cq-num">{i + 1}.</span> {q.question}</legend>
@@ -53,6 +55,7 @@ export function ChatQuestions({ carte, actions, envoyer }: { carte: QuestionsCar
           </label>
         </fieldset>
       ))}
+      </div>
       {actions ? (
         <div className="cq-pied">
           <button type="submit" className="btn cq-repondre" disabled={!message}>Répondre</button>

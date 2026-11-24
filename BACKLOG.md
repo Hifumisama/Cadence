@@ -21,6 +21,13 @@ Chaque chantier a sa fiche : problème · réussi si… · on arrête si… · b
 3. **Phase 6 du projet 259** : rejouer un projet complet de bout en bout après les phases 1 à 5.
 
 ## À valider par toi (codé, pas encore vu en vrai)
+- **Retours de test de l'entretien, 2026-11-23** (branche `retours-entretien-2026-11-23`, 5 commits). Termes dans `GLOSSARY.md`. À vérifier dans un vrai entretien :
+  - « Terminer l'entretien » quand l'essentiel manque : le scénariste complète-t-il vraiment tout, moments compris ?
+  - la carte synopsis arrive en premier (3 à 5 phrases sans la fin) ; ensuite, ton → héros → basculement → moments → fin : plus de fin demandée d'emblée ;
+  - ton des relances : plus de « il manque », « il faut » ni de question reposée ;
+  - la carte « changement de direction » ne sort que sur une vraie contradiction, avec deux boutons ;
+  - polices (échelle `--cn-echelle: 1.12` dans `conception.css`, à régler d'un chiffre) et carte de questions qui défile en elle-même, saisie toujours visible.
+  - Limite connue : un premier message très complet peut encore remplir la fiche sans carte synopsis (l'ordre guide le scénariste, il ne bloque pas la clôture).
 - **Refonte de la conception** : tests T16 à T23. Jamais vu en vrai : la carte de questions (le scénariste a posé des questions ouvertes à ces tours). Une fois, la page ne s'est pas rafraîchie seule en fin de tour.
 - **Machine à états de revue** (31b0cee) : un projet créé par l'installateur et un « Itérer » sur un clip. Ensuite, supprimer la colonne `coche` (faible).
 
