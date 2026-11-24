@@ -19,7 +19,7 @@ uniquement (statuts, validation).
 ## Commandes
 
 - `npm run dev:setup` (Postgres Docker + migrations), puis `npm run dev:all` (web + worker sur l'hôte).
-- `npm run typecheck`, `npm test`, `npm run lint`.
+- `npm run typecheck`, `npm test`, `npm run knip` (code mort). Pas de linter pour l'instant (`next lint` n'existe plus avec cette version de Next, et le dépôt n'a ni ESLint ni config).
 - `npm run db:generate` / `npm run db:migrate`.
 
 ## Règles non négociables

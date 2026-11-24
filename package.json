@@ -8,7 +8,6 @@
     "build": "next build",
     "start": "next start",
     "clean": "node -e \"require('fs').promises.rm('.next',{recursive:true,force:true})\"",
-    "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "knip": "knip",
     "test": "tsx --test \"lib/**/*.test.ts\" worker/*.test.ts worker/comfyui/*.test.ts",

@@ -21,7 +21,7 @@ L'utilisateur donne des intentions, pas de la grammaire de cinéma, et veut gard
 ## Mesures
 
 - **T13 (2026-11-17)**, un plan rendu en 4 réglages, jugé à l'aveugle : balanced sans style > balanced + style > extreme + style > extreme sans style. La créativité est la cause principale ; le style ne joue pas dans un sens constant. `extreme` sur un film entier = « caméra pour rien ».
-- **Banc du 2026-11-24** (`essais/open-h3-ir/` : dossier de travail local, non versionné, avec le script, les 12 prompts compilés, les vidéos et la clé de l'aveugle ; projet 268 « Banc · Open H3 IR » dans la base du poste de dev), 4 plans neufs de 10 s (phare, duel, cuisine, couloir à découpage imposé), 12 rendus, 8 paires jugées à l'aveugle (3 questions : intention, caméra, « je la garderais »), une seed par plan commune à ses bras :
+- **Banc du 2026-11-24** (`essais/open-h3-ir/` : dossier de travail local, non versionné, avec le script, les 12 prompts compilés, les vidéos et la clé de l'aveugle ; projet 268 « Banc · Open H3 IR », supprimé de la base une fois les tests terminés), 4 plans neufs de 10 s (phare, duel, cuisine, couloir à découpage imposé), 12 rendus, 8 paires jugées à l'aveugle (3 questions : intention, caméra, « je la garderais »), une seed par plan commune à ses bras :
   - **Banc A, Open H3 IR contre « LLM seul »** (même modèle, mêmes images, guide officiel H3 `ref-en.txt` en entrée, aucune règle ni contrôle) : **Open H3 IR gagne 4/4**. Remarques : duplication et incohérence d'actions avec le LLM seul, voix mal retranscrites, bruitage incohérent, glissade moins nette.
   - **Banc B, sans style contre avec style du genre** (Villeneuve, anime d'action, Wong Kar-wai, horreur lente) : **sans style gagne 4/4**. Remarques : duplication et incohérence (phare), lancière qui « pare avec sa tête » (duel).
   - Le « LLM seul » écrit sa fiche 2 à 3 fois plus vite (26 à 69 s contre 90 à 180 s) ; les trois bras respectent le découpage imposé du couloir.
@@ -38,7 +38,7 @@ L'utilisateur donne des intentions, pas de la grammaire de cinéma, et veut gard
 
 ## Ce qui est incertain
 
-- **Le temps fort n'a pas été mesuré.** `extreme` n'a été essayé que sur un film entier (T13, il avait perdu). Le placer sur le seul plan fort n'est qu'une hypothèse de T13 (« extreme réservé aux temps forts »). Un petit banc (3 temps forts, balanced contre extreme, à l'aveugle) reste à faire. En attendant, l'interrupteur est manuel et le scénariste n'en pose qu'un par scène.
+- **Le temps fort n'a pas eu de banc dédié.** `extreme` n'a été mesuré à l'aveugle que sur un film entier (T13, il avait perdu). Sur un plan précis, l'utilisateur l'a essayé à d'autres moments, hors banc, et le juge très utile pour mettre l'accent sur une action : c'est un retour d'usage, pas une mesure. Cela suffit pour garder l'interrupteur manuel et le placement d'un seul temps fort par scène par le scénariste ; si ce placement automatique se révélait mauvais à l'usage, le bon réflexe serait de retirer la pose automatique et de garder le bouton.
 - Le banc est petit : 4 plans, une seule seed, un seul LLM (Swift 27B quantifié). Un 8/8 unanime laisse peu de place au hasard, mais ne dit rien des autres modèles ni des plans très longs.
 - Les articles n'ont été lus qu'en résumé.
 

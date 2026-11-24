@@ -32,7 +32,7 @@ Chaque chantier a sa fiche : problème · réussi si… · on arrête si… · b
 - **Machine à états de revue** (31b0cee) : un projet créé par l'installateur et un « Itérer » sur un clip. Ensuite, supprimer la colonne `coche` (faible).
 
 ## Bouche-trous (moins de 30 min, pour les attentes de rendu)
-- `npm run lint` cassé : `next lint` n'existe plus, aucune config ESLint.
+- **Linter** : le script `lint` (`next lint`) a été retiré, il ne pouvait pas marcher (aucun ESLint, aucune config). Ajouter ESLint est une dépendance à valider (voir « Bibliothèque ou code maison » dans CLAUDE.md).
 - Regénérer les assets repassés « sans image » (projets 208 et 210, en local).
 - Affichage des dialogues en “ ” dans les vignettes et le tiroir (affichage seulement ; changer le stockage = haut risque).
 
@@ -42,7 +42,6 @@ Chaque chantier a sa fiche : problème · réussi si… · on arrête si… · b
 - Carte d'un monde inventé : la règle « aucun texte » venait des lettres illisibles de Krea ; H3 écrit proprement.
 
 ## À décider avec toi
-- **Banc du temps fort** : `extreme` n'a jamais été mesuré sur un seul plan fort (T13 l'a mesuré sur un film entier, et il avait perdu). Un petit banc à l'aveugle (3 temps fort, balanced contre extreme) validerait ou corrigerait le placement fait par le scénariste. Voir l'ADR 0001.
 - **Limite de 3 personnages qui parlent par plan** (`scenario-episode`, `scenario-scene`) : garder, relever ou retirer, maintenant que les voix n'existent plus. Ni le paquet ni le guide H3 n'imposent de limite.
 - **Relecture du scénario** : chantier à part entière (3 propositions appliquées sur 9). À cadrer avant toute décision.
 
