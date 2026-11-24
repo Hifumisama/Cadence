@@ -26,7 +26,7 @@ export const APERCUS_STYLES: readonly ApercuStyle[] = [
     id: "ghibli-style",
     famille: "Anime & manga",
     titre: "GHIBLI",
-    scene: `A girl in a yellow raincoat rides an old bicycle down a winding country road between wind-swept green hills, a small red-roofed bakery and a wooden windmill behind her, towering white summer clouds in a deep blue sky, tall grass bending in the breeze. Wide shot. ${titre("GHIBLI", "across the sky among the clouds", "soft hand-painted white")}`,
+    scene: `A girl in a yellow raincoat rides an old bicycle down a winding country road between wind-swept green hills, a small red-roofed bakery and a wooden windmill behind her, towering white summer clouds in a deep blue sky, tall grass bending in the breeze. Wide shot. ${titre("GHIBLI", "in the foreground, across the lower third of the image, in front of the hills, as if painted on the landscape", "soft hand-painted white, six letters G-H-I-B-L-I clearly separated")}`,
   },
   {
     id: "akira-toriyama-style",
@@ -38,7 +38,7 @@ export const APERCUS_STYLES: readonly ApercuStyle[] = [
     id: "one-piece-style",
     famille: "Anime & manga",
     titre: "ONE PIECE",
-    scene: `A cheerful young navigator with a green bandana and a telescope stands on the bow of a small wooden ship with a patched purple sail, pointing at the horizon, turquoise sea and a tropical island shaped like a sleeping turtle ahead, seagulls overhead. Wide shot from below. ${titre("ONE PIECE", "on a flapping banner tied to the mast", "bold hand-inked adventure")}`,
+    scene: `A beautiful young pirate woman with long wavy red hair, a confident grin, a tricorn hat, a white blouse, a red sash and tall boots, stands on the bow of a small wooden ship with a patched purple sail, one foot on the railing, sword raised toward a tropical island shaped like a sleeping turtle, turquoise sea, seagulls overhead, clean bold linework. Wide shot from below. ${titre("ONE PIECE", "on a flapping banner tied to the mast", "bold hand-inked adventure")}`,
   },
   {
     id: "analog-photography",
@@ -62,19 +62,19 @@ export const APERCUS_STYLES: readonly ApercuStyle[] = [
     id: "arcane-animation-still",
     famille: "Animation",
     titre: "ARCANE",
-    scene: `A young inventor with short blue-dyed hair and a mechanical gauntlet stands in a cluttered underground workshop, glowing blue crystals humming in glass tubes, pipes and steam, a grimy industrial city visible through a round window, warm lamp light against cold neon. Medium shot. ${titre("ARCANE", "as a glowing painted neon sign on the workshop wall", "painterly")}`,
+    scene: `A dark, narrow undercity alley at night, wet cobblestones, rusted copper pipes and dripping cables, a sickly green-yellow chemical haze. In the lower left corner of the frame, a furious young woman with messy braided hair, bandaged knuckles and a torn jacket punches the brick wall, fragments of brick flying, her face twisted with rage, lit by a flickering magenta light. The whole wall behind her is covered by an enormous spray-painted tag with dripping paint, scribbled doodles, crude smiley faces and arrows around it. Through the end of the alley, a vertical industrial city of stacked shacks, chimneys, bridges and glowing windows rises into the smog. Hand-painted brushstroke textures over 3D forms, painterly lighting, sharp graphic silhouettes, teal shadows against hot pink and amber highlights. ${titre("ARCANE", "as the huge spray-painted tag covering most of the wall, above and right of the woman, fully inside the frame", "dark pink rough spray-paint graffiti with paint drips, chaotic and punk")}`,
   },
   {
     id: "cinematic-final-fantasy-3d-render",
     famille: "3D",
     titre: "FINAL FANTASY",
-    scene: `A swordswoman in an ornate silver and midnight-blue coat stands on a crystal bridge above a sea of clouds, holding a long glowing blade, a colossal floating citadel behind her, shafts of golden light breaking through the clouds, her coat and hair moving in the wind. Epic wide shot. ${titre("FINAL FANTASY", "in the clouds above the citadel", "elegant engraved silver")}`,
+    scene: `A sun-drenched royal desert city of sandstone palaces, white domes, tall minarets, arched bridges and bustling bazaars with colorful awnings, airships drifting overhead in a pale gold sky, crowds of travelers and strange creatures in the streets. In the foreground on the right, a young adventurer stands on a balcony overlooking the city: ornate fantasy outfit of fitted leather, silver buckles, a short asymmetrical cape, belts and a sword on the back, windswept silver hair, looking toward the horizon. Highly detailed cinematic 3D render, warm golden light, atmospheric haze in depth. ${titre("FINAL FANTASY", "large across the open sky in the upper left, with nothing in front of the letters", "elegant engraved silver, highly legible")}`,
   },
   {
     id: "3d-render",
     famille: "3D",
     titre: "3D RENDER",
-    scene: `A small vintage robot made of polished copper and white ceramic waters a tiny potted plant on a clean studio table, a desk lamp, a stack of books and a glass sphere beside it, soft studio lighting, smooth gradient background. Medium shot. ${titre("3D RENDER", "as large three-dimensional letters standing on the table behind the robot", "glossy extruded 3D")}`,
+    scene: `A cheerful little fox mascot with big round eyes and a tiny yellow scarf skates through a bright toy city on a skateboard, jumping over a puddle, balloons, small rounded buildings and a toy train around it, confetti in the air, soft studio lighting, glossy materials. Medium wide shot. ${titre("3D RENDER", "as large glossy three-dimensional letters floating in the sky above the city, nothing in front of them", "glossy extruded 3D")}`,
   },
   {
     id: "pixar-animation",
@@ -92,7 +92,7 @@ export const APERCUS_STYLES: readonly ApercuStyle[] = [
     id: "cel-shading",
     famille: "Animation",
     titre: "CEL SHADING",
-    scene: `A young courier with a big messenger bag sprints across rooftops of a colorful harbor town, leaping over a gap, a red lighthouse and sailboats below, bright cartoon sky with puffy clouds, seagulls scattering. Dynamic wide shot. ${titre("CEL SHADING", "across the sky", "bold outlined graphic")}`,
+    scene: `Two athletic young women in colorful streetwear race on hoverboards through a sunny futuristic harbor city, one leaping over a market stall in mid-air, the other carving a sharp turn with sparks under her board, fruit and paper flying, a red lighthouse, sailboats and seagulls, speed lines and dynamic motion. Dramatic low wide angle. ${titre("CEL SHADING", "across the sky", "bold outlined graphic")}`,
   },
   {
     id: "modern-cartoon",
@@ -110,13 +110,13 @@ export const APERCUS_STYLES: readonly ApercuStyle[] = [
     id: "alphonse-mucha-masterwork",
     famille: "Illustration",
     titre: "MUCHA",
-    scene: `A woman with long flowing auburn hair crowned with lilies holds a lantern, standing before a large circular halo of ornamental arabesques, stars and moon phases, her draped robe falling in graceful folds, flowers and vines framing the composition, landscape format. ${titre("MUCHA", "in an ornamental cartouche at the top of the composition", "Art Nouveau")}`,
+    scene: `A young woman with long flowing auburn hair and a crown of lilies walks through a blooming spring garden at golden hour, holding a lantern, a stone fountain, a flowering cherry tree and a city of domes in the distance, her draped robe moving in the breeze, a decorative halo and vines framing her softly. A living scene with depth and atmosphere, not a flat poster, landscape format. ${titre("MUCHA", "in an ornamental cartouche at the top of the composition", "Art Nouveau")}`,
   },
   {
     id: "castlevania-concept-art",
     famille: "Illustration",
     titre: "CASTLEVANIA",
-    scene: `A lone alchemist woman in a long weathered crimson coat, holding a lantern and a silver staff, climbs a stone stairway toward an enormous gothic cathedral on a cliff, a huge blood-red moon behind its spires, crows swirling, dead trees and broken statues along the path. Epic wide shot. ${titre("CASTLEVANIA", "in the sky beside the red moon", "ornate gothic blackletter")}`,
+    scene: `A lone alchemist woman in a long weathered crimson coat, holding a lantern and a silver staff, climbs a stone stairway toward an enormous gothic cathedral on a cliff, a huge blood-red moon behind its spires, crows swirling, dead trees and broken statues along the path. Epic wide shot. ${titre("CASTLEVANIA", "large across the dark upper sky, glowing pale silver against the night, very high contrast", "ornate gothic blackletter")}`,
   },
   {
     id: "8-bit-style",
