@@ -21,6 +21,10 @@
       "Bash(git reset --hard:*)"
     ]
   },
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.anthropic.com",
+    "ANTHROPIC_CUSTOM_HEADERS": ""
+  },
   "hooks": {
     "PreToolUse": [
       {
