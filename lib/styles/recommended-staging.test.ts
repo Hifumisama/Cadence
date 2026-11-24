@@ -12,8 +12,9 @@ test("recommandations : chaque clé est un style de la bibliothèque, chaque val
   }
 });
 
-test("recommandations : conservatrices (une minorité des styles), et le nom d'un style ne vaut jamais une clé héritée de l'objet", () => {
-  assert.ok(Object.keys(MISE_EN_SCENE_RECOMMANDEE).length < bibliothequeStyles().length / 4);
+test("recommandations : un style retiré ou inconnu n'en a pas, et le nom d'un style ne vaut jamais une clé héritée de l'objet", () => {
+  const ids = new Set(bibliothequeStyles().map((s) => s.id));
+  assert.ok(Object.keys(MISE_EN_SCENE_RECOMMANDEE).every((id) => ids.has(id)), "aucune recommandation pour un style retiré");
   assert.equal(miseEnSceneRecommandee("claymation"), "claymation");
   assert.equal(miseEnSceneRecommandee("ghibli-style"), "anime-contemplatif");
   assert.equal(miseEnSceneRecommandee("van-gogh-style"), null);

@@ -6,7 +6,7 @@ export * from "./filters";
 
 /** Style library offered when creating a project. Source: `bibliotheque.json` (versioned, it is the file
  * to sort by hand: removing an entry is enough to remove it from the application). Each style has a long prompt (the
- * descriptor, in English, which goes to the image model). Its presentation images are the common scenes of `subjects.ts`
+ * descriptor, in English, which goes to the image model). Its presentation image is its showcase (`showcase.ts`)
  * rendered in this style. The short clause for video (H3) is an optional field: as long as an entry has none,
  * the application cannot offer it as a ready-to-use style (see `styleUtilisable`). */
 
@@ -51,10 +51,13 @@ export function bibliothequeStyles(): StyleBibliotheque[] {
   return construireBibliotheque(brut as unknown as EntreeBrute[]).map((s) => (s.clause ? s : clausesProduites[s.id] ? { ...s, clause: clausesProduites[s.id] } : s));
 }
 
-/** Path relative to MEDIA_ROOT of a style's presentation image for a subject (`subjects.ts`). */
-export function cheminApercuStyle(id: string, sujet: string): string {
-  return `styles/${id}/${sujet}.webp`;
+/** Path relative to MEDIA_ROOT of a style's showcase image (`showcase.ts`: one 16:9 image per style, its name painted in). */
+export function cheminApercuStyle(id: string): string {
+  return `styles/${id}/apercu.webp`;
 }
+
+/** The same, relative to the `styles/` media folder (what a brief's `style.image` and the /api/media/styles route take). */
+export const fichierApercuStyle = (id: string): string => `${id}/apercu.webp`;
 
 /** A library style can be used as is for a project when it has its short clause. */
 export function styleUtilisable(s: StyleBibliotheque): boolean {

@@ -5,7 +5,7 @@ import "./brief.css";
 import { useState } from "react";
 import { urlMiniature } from "@/lib/thumbnails";
 
-/** An image to show for the style: the project's presentation image, or the preview of a common scene (`lib/styles/subjects.ts`). */
+/** An image to show for the style: the project's presentation image, or the showcase image of a library style (`lib/styles/showcase.ts`). */
 export type VignetteStyle = { id: string; libelle: string; teste: string; /** « 2:3 », « 16:9 »… */ aspect: string; /** Chemin sous `/api/media/styles/`. */ fichier: string };
 
 export type StyleBriefVue = {

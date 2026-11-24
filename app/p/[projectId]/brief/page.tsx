@@ -11,9 +11,8 @@ import { db } from "@/db";
 import { lireConception } from "@/lib/projects/design-db";
 import { plansSansFicheApresCreation } from "@/lib/agents/creation-view";
 import { MEDIA_ROOT, assetMediaSrc, posterSrc } from "@/lib/media";
-import { slugStyle } from "@/lib/styles/library";
+import { slugStyle, fichierApercuStyle } from "@/lib/styles/library";
 import { apercusDuStyle } from "@/lib/styles/styles-db";
-import { SUJETS_APERCU } from "@/lib/styles/subjects";
 import type { StyleBriefVue, VignetteStyle } from "@/components/brief/StyleBrief";
 import { demosMiseEnScene } from "@/lib/media";
 import { ReglagesCameraProjet } from "@/components/brief/ProjectCameraSettings";
@@ -79,17 +78,14 @@ export default async function BriefPage({ params }: { params: Promise<{ projectI
 }
 
 /** The project style as the page shows it: its name, its two clauses, and its images — the presentation image set at creation (free style), then the
- * previews of the common scenes (`lib/styles/subjects.ts`, already generated) when the style is a library style (chosen at design time, or whose
+ * showcase image (`lib/styles/showcase.ts`, already generated) when the style is a library style (chosen at design time, or whose
  * name matches a library entry). A free style without an image has no thumbnail. */
 async function vueStyle(style: { nom?: string; clause?: string; promptImage?: string; image?: string } | undefined, styleId: string | null): Promise<StyleBriefVue> {
   const id = styleId ?? (style?.nom?.trim() ? slugStyle(style.nom) : null);
   const vignettes: VignetteStyle[] = [];
-  if (style?.image && existsSync(join(MEDIA_ROOT, "styles", style.image))) vignettes.push({ id: "presentation", libelle: "Présentation", teste: "", aspect: "2:3", fichier: style.image });
+  if (style?.image && existsSync(join(MEDIA_ROOT, "styles", style.image))) vignettes.push(style.image.endsWith("/apercu.webp") ? { id: "apercu", libelle: "Aperçu", teste: "", aspect: "16:9", fichier: style.image } : { id: "presentation", libelle: "Présentation", teste: "", aspect: "2:3", fichier: style.image });
   if (id) {
-    const apercus = await apercusDuStyle(id);
-    for (const s of SUJETS_APERCU) {
-      if (apercus.includes(s.id)) vignettes.push({ id: s.id, libelle: s.libelle, teste: s.teste, aspect: s.aspect, fichier: `${id}/${s.id}.webp` });
-    }
+    if ((await apercusDuStyle(id)).length && style?.image !== fichierApercuStyle(id)) vignettes.push({ id: "apercu", libelle: "Aperçu", teste: "", aspect: "16:9", fichier: fichierApercuStyle(id) });
   }
   return { nom: style?.nom?.trim() ?? "", promptImage: style?.promptImage?.trim() ?? "", clause: style?.clause?.trim() ?? "", vignettes };
 }

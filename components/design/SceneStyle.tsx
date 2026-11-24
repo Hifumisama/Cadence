@@ -1,182 +1,78 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { deposerImageStyleLibre } from "@/app/nouveau/actions";
 import { referencesNommees } from "@/lib/projects/design";
 import { urlMiniature } from "@/lib/thumbnails";
-import { AXES_FILTRE, filtrerStyles, valeursFiltre, type AxeFiltre } from "@/lib/styles/filters";
-import { SUJETS_APERCU, type SujetApercu } from "@/lib/styles/subjects";
+import { FAMILLES_STYLES } from "@/lib/styles/showcase";
 import { EnteteScene } from "./Scenes";
 import type { PropsScene, StyleVue } from "./types";
 
-/** Style scene: the library (scrolling gallery or list, filters, search) and the free style. A « Sujet » setting changes
- * at once the image of ALL styles (same scene everywhere: the only difference is the style). A library style
- * is chosen as is (its two prompts are shown, without being editable); the free style is two text fields (the image
- * prompt and the short clause) and, if wanted, a 2:3 image. */
-
-const LIBELLES_AXES: Record<AxeFiltre, string> = { medium: "Famille", rendu: "Rendu", palette: "Palette", epoque: "Époque", ambiance: "Ambiance" };
-const AXES_AFFINER = AXES_FILTRE.filter((a) => a !== "medium");
+/** Style scene (ticket 06, 2026-11-24, mock-up C): one scrolling row per family, each style shown by its showcase image (16:9, its name
+ * painted in), and « Créer mon style » at the end. Below, the chosen style: its two prompts (read only) for a library style, the two fields
+ * and the optional image for a free style. */
 
 const urlStyle = (fichier: string) => `/api/media/styles/${fichier}`;
 
-/** Gallery shape according to the subject's format: the cards widen for landscape scenes. */
-const formeDe = (s: SujetApercu) => (s.aspect === "2:3" ? "portrait" : s.aspect === "1:1" ? "carre" : "paysage");
-const ratioCss = (s: SujetApercu) => s.aspect.replace(":", " / ");
-
-function Apercu({ fichier, classe = "", etiquette, ratio }: { fichier: string | null; classe?: string; etiquette?: string; ratio?: string }) {
+function Apercu({ fichier, classe = "", etiquette, ratio, largeur = 768 }: { fichier: string | null; classe?: string; etiquette?: string; ratio?: string; largeur?: 96 | 192 | 384 | 768 }) {
   return (
     <span className={`cn-apercu${fichier ? "" : " is-vide"} ${classe}`} style={{ display: "block", ...(ratio ? { aspectRatio: ratio } : {}) }}>
       {/* eslint-disable-next-line @next/next/no-img-element -- the image comes from media storage, already resized by the route */}
-      {fichier ? <img src={urlMiniature(urlStyle(fichier), 384)} alt="" loading="lazy" decoding="async" /> : null}
+      {fichier ? <img src={urlMiniature(urlStyle(fichier), largeur)} alt="" loading="lazy" decoding="async" /> : null}
       {etiquette ? <em>{etiquette}</em> : null}
     </span>
   );
 }
 
-type Entree = { id: string; nom: string; sous: string; fichier: string | null; libre: boolean; style?: StyleVue };
-
 export function SceneStyle({ etat, maj, styles }: PropsScene & { styles: StyleVue[] }) {
-  const [recherche, setRecherche] = useState("");
-  const [famille, setFamille] = useState<string | null>(null);
-  const [affiner, setAffiner] = useState(false);
-  const [axes, setAxes] = useState<Partial<Record<AxeFiltre, string[]>>>({});
-  const [agrandi, setAgrandi] = useState<Entree | null>(null);
-  const [sujetId, setSujetId] = useState(SUJETS_APERCU[0]!.id);
-  const sujet = SUJETS_APERCU.find((s) => s.id === sujetId) ?? SUJETS_APERCU[0]!;
-  const fichierDe = (s: StyleVue) => (s.images.includes(sujet.id) ? `${s.id}/${sujet.id}.webp` : null);
-
-  const criteres = useMemo(() => ({ recherche, filtres: { ...axes, ...(famille ? { medium: [famille] } : {}) } }), [recherche, axes, famille]);
-  const visibles = useMemo(() => filtrerStyles(styles, criteres), [styles, criteres]);
-  const familles = useMemo(() => valeursFiltre(styles, "medium"), [styles]);
-  const nbAffinages = Object.values(axes).reduce((n, v) => n + (v?.length ?? 0), 0);
-
-  const entrees: Entree[] = [
-    ...visibles.map((s) => ({ id: s.id, nom: s.nom, sous: s.filtres.medium, fichier: fichierDe(s), libre: false, style: s })),
-  ];
   const libreChoisi = etat.style?.source === "libre";
-  const choisi = (en: Entree) => etat.style?.source === "bibliotheque" && etat.style.styleId === en.id;
+  const choisiId = etat.style?.source === "bibliotheque" ? etat.style.styleId : null;
+  const choisir = (id: string) => maj((e) => ({ ...e, style: { source: "bibliotheque", styleId: id } }));
   const nouveauStyle = () => maj((e) => (e.style?.source === "libre" ? e : { ...e, style: { source: "libre", nom: "", promptImage: "", clause: "" } }));
-  /** One click chooses the style; a second click on the already chosen style enlarges it. */
-  const cliquer = (en: Entree) => {
-    if (choisi(en)) {
-      if (en.fichier) setAgrandi(en);
-      return;
-    }
-    maj((e) => ({ ...e, style: { source: "bibliotheque", styleId: en.id } }));
-  };
-  const bascule = (axe: AxeFiltre, valeur: string) =>
-    setAxes((a) => {
-      const courantes = a[axe] ?? [];
-      return { ...a, [axe]: courantes.includes(valeur) ? courantes.filter((v) => v !== valeur) : [...courantes, valeur] };
-    });
-
-  const selection = etat.style?.source === "bibliotheque" ? styles.find((s) => s.id === (etat.style as { styleId: string }).styleId) : null;
+  const selection = choisiId ? styles.find((s) => s.id === choisiId) : null;
+  const familles = FAMILLES_STYLES.map((nom) => ({ nom, styles: styles.filter((s) => s.famille === nom) })).filter((f) => f.styles.length);
 
   return (
     <>
       <EnteteScene acte="Acte 04" titre={<>Quel <em>style graphique</em> pour ce film ?</>} />
 
-      <div className="cn-style-mise">
-        <div className="cn-style-gauche">
-          <div className="cn-sujets" role="group" aria-label="Sujet des aperçus">
-            <span className="cn-sujets-titre">Sujet</span>
-            {SUJETS_APERCU.map((s) => (
-              <button key={s.id} type="button" className="cn-puce" aria-pressed={s.id === sujet.id} title={s.teste} onClick={() => setSujetId(s.id)}>
-                {s.libelle}
+      {familles.map((f, k) => (
+        <section key={f.nom} className="cn-rangee" aria-label={f.nom}>
+          <p className="cn-rangee-titre">{f.nom} <small>{f.styles.length} style{f.styles.length > 1 ? "s" : ""}</small></p>
+          <div className="cn-defile" role="list">
+            {f.styles.map((s) => (
+              <button key={s.id} type="button" role="listitem" className="cn-carte cn-carte-style" aria-pressed={s.id === choisiId} aria-label={s.nom} onClick={() => choisir(s.id)}>
+                <Apercu fichier={s.apercu ? `${s.id}/apercu.webp` : null} ratio="16 / 9" etiquette={s.apercu ? undefined : s.nom} />
+                {s.id === choisiId ? <span className="cn-carte-coche">Choisi</span> : null}
               </button>
             ))}
-            <span className="cn-sujets-note">{sujet.teste}</span>
-          </div>
-
-          <div className="cn-filtres">
-            <div className="cn-filtres-ligne">
-              <input type="search" placeholder="Chercher un style…" aria-label="Chercher un style" value={recherche} onChange={(e) => setRecherche(e.target.value)} />
-              <button type="button" className="cn-puce" aria-pressed={famille === null} onClick={() => setFamille(null)}>Tous<small>{styles.length}</small></button>
-              {familles.map((m) => (
-                <button key={m.valeur} type="button" className="cn-puce" aria-pressed={famille === m.valeur} onClick={() => setFamille(famille === m.valeur ? null : m.valeur)}>
-                  {m.valeur}<small>{m.effectif}</small>
-                </button>
-              ))}
-              <button type="button" className="cn-puce" aria-expanded={affiner} onClick={() => setAffiner((v) => !v)}>
-                Affiner{nbAffinages ? <small>{nbAffinages}</small> : null}
+            {k === familles.length - 1 ? (
+              <button type="button" role="listitem" className="cn-carte-creer" aria-pressed={libreChoisi} onClick={nouveauStyle}>
+                <b>+ Créer mon style</b>
+                <span>Décris-le avec tes mots, avec une image si tu veux.</span>
               </button>
-              <button type="button" className="btn cn-nouveau-style" aria-pressed={libreChoisi} onClick={nouveauStyle}>+ Nouveau style</button>
-            </div>
-            {affiner ? (
-              <>
-                {AXES_AFFINER.map((axe) => (
-                  <div key={axe} className="cn-axe">
-                    <span>{LIBELLES_AXES[axe]}</span>
-                    <div className="cn-filtres-ligne">
-                      {valeursFiltre(styles, axe).map((v) => (
-                        <button key={v.valeur} type="button" className="cn-puce" aria-pressed={(axes[axe] ?? []).includes(v.valeur)} onClick={() => bascule(axe, v.valeur)}>
-                          {v.valeur}<small>{v.effectif}</small>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                {nbAffinages ? <div><button type="button" className="cn-lien" onClick={() => setAxes({})}>Effacer les filtres</button></div> : null}
-              </>
             ) : null}
           </div>
+        </section>
+      ))}
 
-          {visibles.length === 0 ? <p className="cn-aucun">Aucun style de la bibliothèque ne correspond. Tu peux créer un nouveau style.</p> : null}
-          <div className="cn-galerie-panneau">
-            <div className="cn-galerie" role="list" data-forme={formeDe(sujet)} style={{ ["--ar" as string]: ratioCss(sujet) }}>
-              {entrees.map((en) => (
-                <button key={en.id} type="button" role="listitem" className="cn-carte" aria-pressed={choisi(en)} title={choisi(en) && en.fichier ? "Cliquer encore pour agrandir" : undefined} onClick={() => cliquer(en)}>
-                  <Apercu fichier={en.fichier} etiquette={en.fichier ? undefined : "pas d’aperçu"} />
-                  <span className="cn-carte-corps"><b>{en.nom}</b><span>{en.sous}</span></span>
-                </button>
-              ))}
+      <div className="cn-style-choisi" aria-label="Style choisi">
+        {libreChoisi ? (
+          <DetailLibre etat={etat} maj={maj} />
+        ) : selection ? (
+          <div className="cn-detail">
+            <div className="cn-champs">
+              <h3>{selection.nom}</h3>
+              <label className="cn-champ">Prompt image (génère les images de référence)<textarea readOnly rows={6} value={selection.descriptor} /></label>
+              <label className="cn-champ">Clause courte envoyée à la vidéo<textarea readOnly rows={3} value={selection.clause} /></label>
+              <p className="cn-note" style={{ margin: 0 }}>Les styles de la bibliothèque ne se modifient pas : pour écrire le tien, choisis « Créer mon style ».</p>
             </div>
+            <Usage />
           </div>
-        </div>
-
-        <aside className="cn-style-droite" aria-label="Style choisi">
-          {etat.style?.source === "libre" ? (
-            <DetailLibre etat={etat} maj={maj} />
-          ) : selection ? (
-            <div className="cn-detail">
-              <div className="cn-champs">
-                <h3>{selection.nom}</h3>
-                {selection.images.includes(sujet.id) ? (
-                  <button type="button" className="cn-grand" aria-label="Agrandir l’aperçu" onClick={() => setAgrandi({ id: selection.id, nom: selection.nom, sous: selection.filtres.medium, fichier: fichierDe(selection), libre: false, style: selection })}>
-                    <Apercu fichier={fichierDe(selection)} ratio={ratioCss(sujet)} />
-                  </button>
-                ) : null}
-                <label className="cn-champ">Prompt image (génère les images de référence)<textarea readOnly rows={6} value={selection.descriptor} /></label>
-                <label className="cn-champ">Clause courte envoyée à la vidéo<textarea readOnly rows={3} value={selection.clause} /></label>
-                <p className="cn-note" style={{ margin: 0 }}>Les styles de la bibliothèque ne se modifient pas : pour écrire les tiens, crée un « Nouveau style ».</p>
-              </div>
-              <Usage />
-            </div>
-          ) : (
-            <p className="cn-vide-style">Choisis un style : son aperçu et ses deux prompts (l’un pour les images, l’autre pour la vidéo) s’affichent ici. Un second clic sur le style choisi l’agrandit.</p>
-          )}
-        </aside>
+        ) : (
+          <p className="cn-vide-style">Choisis un style dans les rangées : ses deux prompts (l’un pour les images, l’autre pour la vidéo) s’affichent ici.</p>
+        )}
       </div>
-
-      {agrandi ? (
-        <div className="cn-lightbox" role="dialog" aria-modal="true" aria-label={`Aperçu du style ${agrandi.nom}`} onClick={() => setAgrandi(null)} onKeyDown={(e) => e.key === "Escape" && setAgrandi(null)}>
-          <div className="cn-lightbox-corps" data-forme={formeDe(sujet)} onClick={(e) => e.stopPropagation()}>
-            <Apercu fichier={agrandi.fichier} ratio={ratioCss(sujet)} etiquette={agrandi.fichier ? undefined : "pas d’aperçu"} />
-            <b>{agrandi.nom}</b>
-            <span>{agrandi.sous}</span>
-            {agrandi.style ? (
-              <div className="cn-sujets" role="group" aria-label="Sujet de l’aperçu">
-                {SUJETS_APERCU.map((s) => (
-                  <button key={s.id} type="button" className="cn-puce" aria-pressed={s.id === sujet.id} onClick={() => { setSujetId(s.id); setAgrandi({ ...agrandi, fichier: agrandi.style!.images.includes(s.id) ? `${agrandi.id}/${s.id}.webp` : null }); }}>
-                    {s.libelle}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-            <button type="button" className="btn" autoFocus onClick={() => setAgrandi(null)}>Fermer</button>
-          </div>
-        </div>
-      ) : null}
     </>
   );
 }

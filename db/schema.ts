@@ -658,7 +658,7 @@ export const agentConversations = pgTable("agent_conversations", {
 
 // The style library of a project's design. SEEDED from lib/styles/library.json + clauses.json (db/seed-styles.ts,
 // re-run at each `db:migrate`): the JSON remains the source to sort by hand, the database is what the application reads. `apercus`: the
-// subjects (lib/styles/subjects.ts) whose image exists under `styles/<id>/<sujet>.webp`; the images remain files (MEDIA_ROOT).
+// `["apercu"]` when the showcase image exists under `styles/<id>/apercu.webp` (lib/styles/showcase.ts); the images remain files (MEDIA_ROOT).
 export const styles = pgTable("styles", {
   id: varchar("id", { length: 120 }).primaryKey(),
   nom: varchar("nom", { length: 200 }).notNull(),

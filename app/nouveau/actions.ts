@@ -1,5 +1,7 @@
 "use server";
 
+import { fichierApercuStyle } from "@/lib/styles/library";
+
 import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -12,7 +14,6 @@ import { resoudreStyle, validerConception } from "@/lib/projects/design";
 import { ecrireConception, poserStyleDuProjet } from "@/lib/projects/design-db";
 import { reglagesDepuisCharge } from "@/lib/h3ir/settings";
 import { MEDIA_ROOT, TAILLE_MAX_UPLOAD_ASSET } from "@/lib/media";
-import { SUJET_AFFICHE_CLAP } from "@/lib/styles/subjects";
 import { listerStyles } from "@/lib/styles/styles-db";
 import { z } from "zod";
 import { verifier } from "@/lib/validation/args";
@@ -70,8 +71,8 @@ export async function creerProjetConcu(brut: unknown): Promise<{ ok: true; proje
   }
   const style = resoudreStyle(conception, bibliotheque);
   if (!style.ok) return { ok: false, erreur: style.erreur };
-  // For a library style, the image is its preview (if it has been generated): the brief keeps the path relative to the `styles/` folder.
-  const image = conception.style.source === "libre" ? conception.style.image : `${conception.style.styleId}/${SUJET_AFFICHE_CLAP}.webp`;
+  // For a library style, the image is its showcase (if it has been generated): the brief keeps the path relative to the `styles/` folder.
+  const image = conception.style.source === "libre" ? conception.style.image : fichierApercuStyle(conception.style.styleId);
 
   // Staging (creativity, style) is not part of the design: it lives in the project, where the Brief modifies it afterwards (lib/h3ir/settings.ts).
   const { projectId } = await creerProjetSansRedirection({ nom: "Sans titre", ...reglagesDepuisCharge(brut) });

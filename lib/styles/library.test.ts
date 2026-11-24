@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { APERCUS_STYLES } from "./showcase";
 import {
   bibliothequeStyles,
   construireBibliotheque,
@@ -24,7 +25,8 @@ test("construireBibliotheque : deux noms au même identifiant sont refusés", ()
 
 test("la bibliothèque livrée : identifiants uniques, champs présents, filtres cohérents", () => {
   const styles = bibliothequeStyles();
-  assert.ok(styles.length >= 40, `bibliothèque trop petite : ${styles.length}`);
+  // A short library chosen by hand (ticket 06, 2026-11-24): every style has its showcase, every showcase its style.
+  assert.deepEqual(styles.map((s) => s.id).sort(), APERCUS_STYLES.map((a) => a.id).sort());
   assert.equal(new Set(styles.map((s) => s.id)).size, styles.length);
   for (const s of styles) {
     assert.ok(s.descriptor.trim().length > 40, `${s.id} : descripteur vide`);
