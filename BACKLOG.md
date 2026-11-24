@@ -37,11 +37,12 @@ Chaque chantier a sa fiche : problème · réussi si… · on arrête si… · b
 - Affichage des dialogues en “ ” dans les vignettes et le tiroir (affichage seulement ; changer le stockage = haut risque).
 
 ## Idées (boîte de réception, non triées)
-- **Retours UX de la conception, 2026-11-24** : 7 tickets dans `.scratch/conception-ux/issues/`. 5 prêts à coder, petits et sans risque (largeur pleine, étape Durée allégée, bouton Retour, glissière cliquable, étape Langue allégée). 2 à griller en séance dédiée : refonte des styles graphiques (06) et de la mise en scène (07).
+- **Retours UX de la conception, 2026-11-24** : 7 tickets dans `.scratch/conception-ux/issues/`. 5 prêts à coder, petits et sans risque (largeur pleine, étape Durée allégée, bouton Retour, glissière cliquable, étape Langue allégée). Le ticket 07 (mise en scène) est clos par l'ADR `docs/adr/0001-open-h3-ir-garde-style-retire.md` : Open H3 IR gardé, style de mise en scène retiré, créativité réduite à un « temps fort » par plan. 06 (styles graphiques) reste à griller.
 - Rejouer avec H3 Image les cas « ne pas éditer » hérités de Qwen (absence, changement de point de vue) : H3 reconstruit une scène autour d'une référence.
 - Carte d'un monde inventé : la règle « aucun texte » venait des lettres illisibles de Krea ; H3 écrit proprement.
 
 ## À décider avec toi
+- **Banc du temps fort** : `extreme` n'a jamais été mesuré sur un seul plan fort (T13 l'a mesuré sur un film entier, et il avait perdu). Un petit banc à l'aveugle (3 temps fort, balanced contre extreme) validerait ou corrigerait le placement fait par le scénariste. Voir l'ADR 0001.
 - **Limite de 3 personnages qui parlent par plan** (`scenario-episode`, `scenario-scene`) : garder, relever ou retirer, maintenant que les voix n'existent plus. Ni le paquet ni le guide H3 n'imposent de limite.
 - **Relecture du scénario** : chantier à part entière (3 propositions appliquées sur 9). À cadrer avant toute décision.
 

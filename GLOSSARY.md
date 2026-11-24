@@ -5,12 +5,12 @@ Production de vidéos par IA, de l'idée au montage. Ce glossaire fixe le vocabu
 ## Conception et entretien
 
 **Cadre** :
-Les choix techniques posés dans le formulaire de conception (durée, langue des dialogues, style, mise en scène, musique). Il ne change que par un geste explicite de l'utilisateur.
+Les choix techniques posés dans le formulaire de conception (durée, langue des dialogues, style graphique, musique). Il ne change que par un geste explicite de l'utilisateur.
 _À éviter_ : réglages, paramètres
 
 **Style graphique** :
 Le rendu visuel du film, choisi dans le cadre : un style de la bibliothèque (une sélection courte, choisie à la main) ou un style libre créé par l'utilisateur.
-_À éviter_ : look, rendu, style tout court (ambigu avec le style de mise en scène)
+_À éviter_ : look, rendu, style tout court
 
 **Aperçu** :
 L'image unique qui présente un style graphique, avec un sujet pensé pour mettre ce style en valeur. Elle doit donner envie, elle ne sert pas à comparer les styles entre eux.
@@ -33,7 +33,8 @@ Les actions visibles du film, dans l'ordre, environ une toutes les dix secondes.
 _À éviter_ : beats, étapes
 
 **Temps fort** :
-Le moment le plus intense de la séquence (transformation, éclat, révélation), choisi par l'utilisateur.
+Le moment le plus intense de la séquence (transformation, éclat, révélation), choisi par l'utilisateur. Il tient dans un seul plan, et ce plan est lui aussi appelé « temps fort » : le scénariste le marque, l'utilisateur peut le marquer ou le démarquer d'un clic dans l'atelier du plan, et sa fiche est alors compilée en poussant chaque choix au maximum (caméra ample et rapide, cadrages francs, contrastes durs). Un plan sans marque est compilé de façon équilibrée.
+_À éviter_ : extrême, boost, intensité (le mot de l'interface est « Temps fort »)
 
 **Changement de direction** :
 L'utilisateur contredit un point qu'il avait écrit ou validé d'un clic, ou bien le cadre. Un point qu'il avait laissé au scénariste peut changer sans que ce soit un changement de direction. C'est le seul cas où on lui demande de choisir entre l'ancienne et la nouvelle version.
