@@ -431,6 +431,32 @@ export const DEPENDANCES_CHANGEMENT: Record<string, string[]> = {
 
 const enTexte = (v: unknown): string => (typeof v === "string" ? v : JSON.stringify(v ?? ""));
 
+/** The new value CONTRADICTS the old one (test feedback 2026-11-23: the card came up for every precision): a text that no longer contains the
+ * old one, a list item (by name) removed, or one of its fields replaced. A text that grows, a new item, a field filled in: a precision. Pure. */
+export function contredit(avant: unknown, apres: unknown): boolean {
+  if (valeurVide(avant)) return false;
+  if (valeurVide(apres)) return true;
+  if (typeof avant === "string" || typeof avant === "number") {
+    if (typeof apres !== "string" && typeof apres !== "number") return true;
+    const a = normaliser(String(avant));
+    return !` ${normaliser(String(apres))} `.includes(` ${a} `);
+  }
+  if (Array.isArray(avant)) {
+    if (!Array.isArray(apres)) return true;
+    const nom = (x: unknown): string => normaliser(chaine(objet(x).nom));
+    return avant.some((x) => {
+      if (!x || typeof x !== "object") return !apres.some((y) => !contredit(x, y));
+      const suite = apres.find((y) => nom(y) !== "" && nom(y) === nom(x));
+      return suite === undefined || contredit(x, suite);
+    });
+  }
+  if (typeof avant === "object") {
+    if (!apres || typeof apres !== "object" || Array.isArray(apres)) return true;
+    return Object.entries(avant as Record<string, unknown>).some(([k, v]) => k !== "statut" && contredit(v, (apres as Record<string, unknown>)[k]));
+  }
+  return enTexte(avant) !== enTexte(apres);
+}
+
 /** The sections a `dit` source of the patch proves with a quote of the LAST user message. Pure. */
 export function sectionsCitees(sortie: unknown, messagesUtilisateur: string[]): Set<string> {
   const citees = new Set<string>();
@@ -450,9 +476,12 @@ export function changementsDeFiche(avant: Fiche, apres: Fiche, sortie: unknown, 
   if (!citees.size) return [];
   const res: ChangementFiche[] = [];
   for (const cle of SECTIONS_PATCHABLES) {
-    if (SECTIONS_INFORMATIVES.includes(cle) || cle === "titre") continue;
-    const regle = avant.statuts[cle] === "fourni" || avant.statuts[cle] === "delegue";
-    if (!regle || !citees.has(cle) || valeurVide(avant.contenu[cle]) || enTexte(avant.contenu[cle]) === enTexte(apres.contenu[cle])) continue;
+    // The moments are re-validated on their own card (« Valider la séquence »): no second confirmation on top.
+    if (SECTIONS_INFORMATIVES.includes(cle) || cle === "titre" || cle === "moments") continue;
+    // Only what the USER said or validated (test feedback 2026-11-23): a point left to the screenwriter changes without a card.
+    if (avant.statuts[cle] !== "fourni" || !citees.has(cle) || valeurVide(avant.contenu[cle])) continue;
+    // A precision or an addition is not a change of direction: only a value the user had that is replaced or removed.
+    if (!contredit(avant.contenu[cle], apres.contenu[cle])) continue;
     const libelle = REQUIS.find((r) => r.cle === cle)?.libelle.replace(/ \(.*\)$/, "") ?? cle;
     res.push({ cle, libelle, avant: enTexte(avant.contenu[cle]), apres: enTexte(apres.contenu[cle]) });
   }

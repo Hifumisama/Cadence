@@ -70,7 +70,8 @@ const LIBELLES_CARTE: Record<string, string> = { dureeEpisodeSecondes: "durée d
 const libelleSection = (cle: string): string => LIBELLES_CARTE[cle] ?? (SECTIONS_BRIEF.find((x) => x.cle === cle)?.libelle ?? cle).replace(/ \(.*\)$/, "").toLowerCase();
 
 const duree = (s: number): string => (s < 60 ? `${s} s` : `${Math.floor(s / 60)} min${s % 60 ? ` ${String(s % 60).padStart(2, "0")}` : ""}`);
-const court = (t: string, n = 140): string => (t.length > n ? `${t.slice(0, n - 1).trimEnd()}…` : t);
+// Long enough to read a whole sentence (test feedback 2026-11-23: « on n'avait aucune idée de ce que ça bougeait »).
+const court = (t: string, n = 360): string => (t.length > n ? `${t.slice(0, n - 1).trimEnd()}…` : t);
 
 /** A section's value in a few words, for the card. */
 export function apercu(cle: string, v: unknown): string {
@@ -104,7 +105,7 @@ const CHAMPS: Record<string, string> = {
   role: "rôle",
 };
 /** Beyond this many detailed differences, the card says the section changed as a whole (a list of ten lines is no longer a card). */
-const MAX_POINTS_DETAILLES = 3;
+const MAX_POINTS_DETAILLES = 5;
 const norm = (t: unknown): string => (typeof t === "string" ? sansAccents(t).replace(/\s+/g, " ") : "");
 const meme = (a: unknown, b: unknown): boolean => JSON.stringify(sansStatut(a)) === JSON.stringify(sansStatut(b));
 function sansStatut(v: unknown): unknown {
@@ -160,6 +161,13 @@ export function pointsCadre(fiche: Fiche, sortie: unknown, verrous: readonly str
     .filter((d): d is { cle: string; valeur: number | string } => d.valeur !== null && d.valeur !== fiche.contenu[d.cle]);
 }
 
+/** What a dependent section becomes if the new idea is taken. */
+const CONSEQUENCES: Record<string, string> = {
+  moments: "les moments du film seront réécrits pour suivre",
+  musique: "la musique sera revue pour suivre le nouveau ton",
+  lieux: "l'aspect des lieux sera revu pour suivre le nouveau ton",
+};
+
 /** The card for this turn, or null when nothing settled changed. `changements`: story changes (`changementsDeFiche`); `cadre`: `pointsCadre`. */
 export function carteChangement(avant: Fiche, changements: ChangementFiche[], cadre: { cle: string; valeur: number | string }[]): CarteChangement | null {
   if (!changements.length && !cadre.length) return null;
@@ -174,11 +182,12 @@ export function carteChangement(avant: Fiche, changements: ChangementFiche[], ca
   ];
   const changees = new Set(points.map((p) => p.cle));
   const dependantes = [...new Set(changements.flatMap((c) => DEPENDANCES_CHANGEMENT[c.cle] ?? []))].filter((k) => !changees.has(k));
+  // What taking the new idea does, in plain sentences (test feedback 2026-11-23).
   const aRevoir = [
-    ...dependantes.map(libelleSection),
+    ...dependantes.map((k) => CONSEQUENCES[k] ?? `${libelleSection(k)} sera revu pour suivre`),
     // A new duration changes how many moments are needed (unless the moments are already to be revised).
-    ...(cadre.some((c) => c.cle === "dureeEpisodeSecondes") && !dependantes.includes("moments") ? ["le nombre de moments"] : []),
-    ...(cadre.some((c) => c.cle === "langueDialogues") ? ["les répliques"] : []),
+    ...(cadre.some((c) => c.cle === "dureeEpisodeSecondes") && !dependantes.includes("moments") ? ["le nombre de moments suivra la nouvelle durée (un toutes les dix secondes environ)"] : []),
+    ...(cadre.some((c) => c.cle === "langueDialogues") ? ["les répliques seront écrites dans la nouvelle langue"] : []),
   ];
   const carte: CarteChangement = { points, aRevoir };
   if (cadre.length) carte.cadre = Object.fromEntries(cadre.map((c) => [c.cle, c.valeur])) as CarteChangement["cadre"];

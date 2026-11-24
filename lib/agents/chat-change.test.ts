@@ -12,7 +12,7 @@ import {
   pointsDetailles,
   valeurCadre,
 } from "./chat-change";
-import { SECTIONS_CADRE, appliquerNotes, changementsDeFiche, type Fiche } from "./sheet";
+import { SECTIONS_CADRE, appliquerNotes, changementsDeFiche, contredit, type Fiche } from "./sheet";
 import type { Conception } from "../projects/design";
 
 const avant: Fiche = {
@@ -60,8 +60,9 @@ test("carteChangement : l'histoire et le cadre, avec ce qu'il faut revoir ; rien
   );
   assert.equal(carte.points[0]!.libelle, "durée du film");
   assert.ok(carte.aRevoir.some((r) => /moments/.test(r)), "les moments dépendent du ton");
-  assert.ok(!carte.aRevoir.includes("le nombre de moments"), "pas de doublon avec les moments à revoir");
-  assert.deepEqual(carteChangement(avant, [], cadre)!.aRevoir, ["le nombre de moments"]);
+  assert.ok(!carte.aRevoir.some((r) => r.startsWith("le nombre de moments")), "pas de doublon avec les moments à revoir");
+  assert.ok(carte.aRevoir.includes("les moments du film seront réécrits pour suivre"), "les conséquences en phrases");
+  assert.deepEqual(carteChangement(avant, [], cadre)!.aRevoir, ["le nombre de moments suivra la nouvelle durée (un toutes les dix secondes environ)"]);
   assert.deepEqual(carte.cadre, { dureeEpisodeSecondes: 180 });
   assert.equal(carte.restaurer!.contenu.genreTon, "Drame mélancolique");
   assert.equal(carteChangement(avant, [], []), null);
@@ -106,7 +107,8 @@ test("apercu : noms des listes, durée lisible, texte court", () => {
   assert.equal(apercu("lieux", [{ nom: "Le Jardin" }, { nom: "La Gare" }]), "Le Jardin, La Gare");
   assert.equal(apercu("dureeEpisodeSecondes", 150), "2 min 30");
   assert.equal(apercu("arc", ""), "—");
-  assert.ok(apercu("arc", "x".repeat(300)).length <= 140);
+  assert.equal(apercu("arc", "x".repeat(300)), "x".repeat(300), "une phrase entière se lit (retours 2026-11-23)");
+  assert.ok(apercu("arc", "x".repeat(500)).length <= 360);
 });
 
 test("pointsDetailles : un personnage comparé champ par champ, les moments rang par rang (projet 264)", () => {
@@ -120,6 +122,27 @@ test("pointsDetailles : un personnage comparé champ par champ, les moments rang
   const m = pointsDetailles("moments", ["Elle arrive.", "Elle peint.", "Elle part."], ["Elle arrive.", "Elle danse.", "Elle part."])!;
   assert.deepEqual(m.map((p) => [p.libelle, p.avant, p.apres]), [["moment 2", "Elle peint.", "Elle danse."]]);
   // Too many differences: the section is shown as a whole.
-  assert.equal(pointsDetailles("moments", ["a", "b", "c", "d"], ["w", "x", "y", "z"]), null);
+  assert.equal(pointsDetailles("moments", ["a", "b", "c", "d", "e", "f"], ["u", "v", "w", "x", "y", "z"]), null);
   assert.equal(pointsDetailles("genreTon", "a", "b"), null);
+});
+
+test("contredit : une précision ou un ajout n'est pas un changement de direction (retours 2026-11-23)", () => {
+  assert.ok(!contredit("Drame", "Drame mélancolique"), "le texte s'enrichit");
+  assert.ok(contredit("Drame mélancolique", "Comédie joyeuse"));
+  assert.ok(!contredit([{ nom: "Mia", age: "25 ans" }], [{ nom: "Mia", age: "25 ans", tenue: { coupe: "robe" } }, { nom: "Léo" }]), "un champ rempli, un personnage ajouté");
+  assert.ok(contredit([{ nom: "Mia", age: "25 ans" }], [{ nom: "Mia", age: "60 ans" }]), "un champ remplacé");
+  assert.ok(contredit([{ nom: "Mia" }, { nom: "Léo" }], [{ nom: "Mia" }]), "un personnage retiré");
+  assert.ok(!contredit(undefined, "x"));
+});
+
+test("changementsDeFiche : seulement un point écrit ou validé par l'utilisateur, jamais les moments (re-validés sur leur carte)", () => {
+  const delegue: Fiche = { ...avant, statuts: { ...avant.statuts, genreTon: "delegue" } };
+  const apres = appliquerNotes(delegue, sortie, messages, undefined, SECTIONS_CADRE);
+  assert.deepEqual(changementsDeFiche(delegue, apres, sortie, messages), [], "laissé au scénariste : il met à jour sans carte");
+  const precis = { modifications: { genreTon: "Drame mélancolique et lumineux" }, sources: [{ section: "genreTon", origine: "dit", citation: "et lumineux" }] };
+  const msg = ["Une danseuse", "Drame mélancolique et lumineux"];
+  assert.deepEqual(changementsDeFiche(avant, appliquerNotes(avant, precis, msg), precis, msg), [], "une précision");
+  const seq = { modifications: { moments: ["Elle rit", "Elle s'envole"] }, sources: [{ section: "moments", origine: "dit", citation: "Elle rit" }] };
+  const msgSeq = ["Une danseuse", "Elle rit, puis elle s'envole"];
+  assert.deepEqual(changementsDeFiche(avant, appliquerNotes(avant, seq, msgSeq), seq, msgSeq), []);
 });

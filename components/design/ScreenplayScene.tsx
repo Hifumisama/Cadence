@@ -14,7 +14,6 @@ import { ChatSequence } from "./ChatSequence";
 import { ChatChange } from "./ChatChange";
 import { ChatQuestions } from "./ChatQuestions";
 import { traceMessage, type ViaMessage } from "@/lib/agents/chat-trace";
-import { messageDecision } from "@/lib/agents/chat-change";
 import { MESSAGE_ARRET } from "@/lib/agents/sheet";
 import { MESSAGE_VALIDER_SYNOPSIS, etatSynopsis } from "@/lib/agents/chat-synopsis";
 import { ChatSynopsis } from "./ChatSynopsis";
@@ -166,10 +165,6 @@ export function ScenarioScene({ conv, rafraichir }: { conv: VueConversation; raf
                     actions={i === conv.messages.length - 1 && !actif && !occupe}
                     garder={() => void trancher(i, "garder")}
                     prendre={() => void trancher(i, "nouveau")}
-                    melanger={() => {
-                      setTexte((t) => t || messageDecision(m.changement!, "melange"));
-                      saisie.current?.focus();
-                    }}
                   />
                 ) : null}
                 {m.questions ? (

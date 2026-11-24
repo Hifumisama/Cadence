@@ -2,23 +2,22 @@
 
 import type { CarteChangement, ChoixChangement } from "@/lib/agents/chat-change";
 
-const DECIDE: Record<ChoixChangement, string> = { garder: "Ancienne version gardée", nouveau: "Nouvelle direction prise", melange: "Mélange proposé" };
+const DECIDE: Record<ChoixChangement, string> = { garder: "Ancienne version gardée", nouveau: "Nouvelle idée prise", melange: "Mélange proposé" };
 
-/** The « changement de direction » card under the screenwriter's message (mock-up C1, 2026-11-18): before → after, what must be revised,
- * and three choices. Read only once chosen, or once the conversation went on. */
+/** The « changement de direction » card under the screenwriter's message (mock-up C1, 2026-11-18): before → now, what taking the new idea does,
+ * and two choices (test feedback 2026-11-23: the « mélange » button was unclear; a mix is simply written in the chat). Read only once chosen, or
+ * once the conversation went on. */
 export function ChatChange({
   carte,
   actions,
   garder,
   prendre,
-  melanger,
 }: {
   carte: CarteChangement;
   /** The buttons work (last message, nothing running, not chosen yet). */
   actions: boolean;
   garder: () => void;
   prendre: () => void;
-  melanger: () => void;
 }) {
   const sujets = [...new Set(carte.points.map((p) => p.sujet ?? p.libelle))].join(" · ");
   // The exact subject of each line (« Mia (personnage) · tenue ») is shown as soon as it says more than the title.
@@ -47,7 +46,12 @@ export function ChatChange({
           </div>
         ))}
       </div>
-      {carte.aRevoir.length ? <p className="cc-revoir">À revoir si tu prends le nouveau : <span>{carte.aRevoir.join(" · ")}</span></p> : null}
+      {carte.aRevoir.length ? (
+        <div className="cc-revoir">
+          <p>Si tu prends la nouvelle idée :</p>
+          <ul>{carte.aRevoir.map((r) => <li key={r}>{r}</li>)}</ul>
+        </div>
+      ) : null}
       <div className="cc-pied">
         {decide ? (
           <span className="cc-decide is-choisi">
@@ -56,9 +60,8 @@ export function ChatChange({
           </span>
         ) : actions ? (
           <>
-            <button type="button" className="btn" onClick={garder}>Garder l’ancien</button>
-            <button type="button" className="btn cc-prendre" onClick={prendre}>Prendre le nouveau</button>
-            <button type="button" className="btn" onClick={melanger}>Un mélange…</button>
+            <button type="button" className="btn" onClick={garder}>Garder l’ancienne</button>
+            <button type="button" className="btn cc-prendre" onClick={prendre}>Prendre la nouvelle</button>
           </>
         ) : (
           <span className="cc-decide">Tranché dans la conversation.</span>

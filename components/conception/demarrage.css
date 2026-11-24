@@ -259,7 +259,9 @@ dialog.fsy h2 { margin: 0; font-family: var(--font-brand), Georgia, serif; font-
 .cc-valeur.is-avant { color: var(--ink-2); }
 .cc-fleche { display: flex; align-items: center; justify-content: center; color: var(--ink-4); }
 .cc-revoir { margin: 0; padding: 0 16px 14px; font-size: 13px; color: var(--ink-3); }
-.cc-revoir span { color: var(--or-glow); }
+.cc-revoir p { margin: 0 0 4px; }
+.cc-revoir ul { margin: 0; padding-left: 18px; color: var(--ink-2); }
+.cc-revoir li { overflow-wrap: anywhere; }
 .cc-pied { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); }
 .cc-pied .cc-prendre { background: var(--or); border-color: var(--or); color: #121217; font-weight: 600; }
 .cc-pied .cc-prendre:hover { background: var(--or-glow); border-color: var(--or-glow); }
