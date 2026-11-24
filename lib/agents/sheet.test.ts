@@ -145,7 +145,7 @@ test("complète : l'essentiel dit ET au moins deux messages de l'utilisateur ; s
   assert.equal(ficheComplete(f, 2), true);
   const sansFin: Fiche = { ...f, statuts: { ...f.statuts, fin: "deduit" } };
   assert.equal(ficheComplete(sansFin, 5), false);
-  assert.deepEqual(manquesFiche(sansFin), [REQUIS[1]!.libelle]);
+  assert.deepEqual(manquesFiche(sansFin), [REQUIS.find((r) => r.cle === "fin")!.libelle]);
   assert.equal(ficheComplete({ ...f, contenu: { ...f.contenu, personnages: [] } }, 5), false, "présent ET dit");
 });
 

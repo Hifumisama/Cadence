@@ -118,7 +118,7 @@ test("ficheDepuisConception : tout est fourni, il ne reste à trancher que l'arc
   assert.equal(fiche.contenu.dureeEpisodeSecondes, 180);
   assert.equal(fiche.contenu.rythme, "rapide");
   assert.ok(Object.values(fiche.statuts).every((s) => s === "fourni"));
-  assert.deepEqual(entreeNotes([], fiche).aTrancher, ["arc", "fin", "personnages", "moments"]);
+  assert.deepEqual(entreeNotes([], fiche).aTrancher, ["arc", "personnages", "moments", "fin"], "dans l'ordre de l'entretien : la fin vient après les moments");
   assert.equal(entreeNotes([], fiche).momentsRequis, 18, "180 s : dix-huit moments");
   assert.equal(manquesFiche(fiche).length, 4);
   assert.equal(ficheComplete(fiche, 5), false, "la fiche n'est pas complète sans l'arc, la fin, le héros et les moments");

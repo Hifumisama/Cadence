@@ -7,7 +7,7 @@ import { FilmSequence } from "./FilmSequence";
 
 const RYTHMES: Record<string, string> = { lent: "lent", mesure: "mesuré", soutenu: "soutenu", rapide: "rapide", variable: "variable" };
 
-/** « Synopsis du film » button and its large popup, read like a film sheet (mock-up « Maquettes entretien », 2026-11-18): title, the story
+/** « Fiche du film » button and its large popup (named « Synopsis du film » until 2026-11-23: the synopsis is now its first rubric, see GLOSSARY.md), read like a film sheet (mock-up « Maquettes entretien », 2026-11-18): title, the story
  * in a few lines and the frame as tags; then the sequence on the left (by acts or direct clips), characters, places and what remains on the
  * right. No poster: it only exists once the brief is validated. Native modal <dialog>: focus kept inside, Escape and a click on the backdrop
  * close it. */
@@ -31,23 +31,24 @@ export function FilmSynopsis({ synopsis, resteADefinir = [] }: { synopsis: Synop
     <>
       <button type="button" className="btn fsy-ouvrir" aria-haspopup="dialog" onClick={() => setOpen(true)}>
         <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 8h8M8 12h8M8 16h5" /></svg>
-        Synopsis du film
+        Fiche du film
       </button>
       <dialog ref={ref} className="fsy" aria-labelledby={titreId} onClose={() => setOpen(false)} onClick={(e) => e.target === ref.current && setOpen(false)}>
         {open ? (
           <>
             <header className="fsy-tete">
               <div className="fsy-entete">
-                <p className="fsy-sur">Synopsis du film</p>
+                <p className="fsy-sur">Fiche du film</p>
                 <h2 id={titreId}>{s.titre || "Sans titre pour l’instant"}</h2>
-                {s.arc ? <p className="fsy-pitch">{s.arc}</p> : <p className="fsy-discret">L’histoire n’est pas encore racontée.</p>}
+                <p className="fsy-rubrique">Synopsis</p>
+                {s.arc ? <p className="fsy-pitch">{s.arc}</p> : <p className="fsy-discret">Le synopsis n’est pas encore écrit.</p>}
                 {s.fin ? <p className="fsy-discret">La fin : {s.fin.charAt(0).toLowerCase() + s.fin.slice(1)}</p> : null}
                 <ul className="fsy-etiquettes">
                   {etiquettes.map((e) => <li key={e}>{e}</li>)}
                   <li className={s.musique ? "" : "is-manque"} title={s.musique || undefined}>{s.musique ? "Musique notée" : "Musique : à proposer"}</li>
                 </ul>
               </div>
-              <button type="button" className="fsy-fermer" onClick={() => setOpen(false)} aria-label="Fermer le synopsis">
+              <button type="button" className="fsy-fermer" onClick={() => setOpen(false)} aria-label="Fermer la fiche du film">
                 <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 6l12 12M18 6L6 18" /></svg>
               </button>
             </header>

@@ -94,6 +94,7 @@ async function versVueConversation(c: typeof agentConversations.$inferSelect): P
       ...(m.choix ? { choix: m.choix } : {}),
       ...(m.choisis ? { choisis: m.choisis } : {}),
       ...(m.sequence ? { sequence: m.sequence } : {}),
+      ...(m.synopsis ? { synopsis: m.synopsis } : {}),
       ...(m.questions ? { questions: m.questions } : {}),
       ...(m.changement ? { changement: carteVue(m.changement) } : {}),
       ...(m.decision ? { decision: m.decision } : {}),

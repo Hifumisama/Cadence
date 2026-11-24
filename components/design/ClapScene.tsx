@@ -106,7 +106,7 @@ export function ClapScene({
   /** The usual duration of a preparation (the last finished ones): said under the launch button. */
   estimation?: { nb: number; bas: number; median: number; haut: number } | null;
   notes: NoteAffichee[];
-  /** The whole sheet, for the « Synopsis du film » popup (sequence of moments included). */
+  /** The whole sheet, for the « Fiche du film » popup (sequence of moments included). */
   synopsis?: SynopsisFilm | null;
   /** The interview has what it takes to launch the preparation (the screenwriter has the essentials, or the user has spoken). */
   pret: boolean;

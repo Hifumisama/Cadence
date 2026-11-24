@@ -152,6 +152,7 @@ dialog.fsy::backdrop { background: rgba(8, 8, 11, 0.82); }
 .fsy-tete { display: flex; align-items: flex-start; gap: 24px; padding: 26px 30px 20px; border-bottom: 1px solid var(--line); }
 .fsy-entete { flex: 1 1 auto; min-width: 0; display: grid; gap: 10px; }
 .fsy-sur { margin: 0; font-family: var(--font-mono), monospace; font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-4); }
+.fsy-rubrique { margin: 10px 0 0; font-family: var(--font-mono), monospace; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--or); }
 dialog.fsy h2 { margin: 0; font-family: var(--font-brand), Georgia, serif; font-size: 34px; line-height: 1.15; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--ink); }
 .fsy-pitch { margin: 0; max-width: 68ch; font-size: 17px; line-height: 1.55; color: var(--ink-2); white-space: pre-wrap; overflow-wrap: anywhere; }
 .fsy-etiquettes { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
@@ -280,6 +281,8 @@ dialog.fsy h2 { margin: 0; font-family: var(--font-brand), Georgia, serif; font-
 .cs-barre span { flex: 1 1 0; background: var(--line-strong); }
 .cs-barre span.is-fort { background: var(--or); }
 .cs-liste { list-style: none; margin: 0; padding: 6px 0; }
+/* Carte synopsis : le texte seul, lisible. */
+.cs-synopsis { margin: 0; padding: 12px 16px; font-size: 15px; line-height: 1.6; color: var(--ink); overflow-wrap: anywhere; white-space: pre-wrap; }
 .cs-liste li { display: grid; grid-template-columns: 28px 76px minmax(0, 1fr) auto; gap: 10px; align-items: baseline; padding: 8px 16px; }
 .cs-etoile { align-self: center; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--ink-4); cursor: pointer; }
 .cs-etoile:hover { color: var(--or); border-color: var(--line); }

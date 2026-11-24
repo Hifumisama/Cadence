@@ -88,6 +88,8 @@ export type MessageConversation = {
   choix?: Choix;
   choisis?: string[];
   sequence?: SequenceProposee;
+  /** The proposed synopsis card (lib/agents/chat-synopsis.ts). */
+  synopsis?: string;
   /** The grouped questions card (lib/agents/chat-questions.ts). */
   questions?: QuestionsCarte;
   /** The « changement de direction » card under a screenwriter's message (lib/agents/chat-change.ts); the view drops what only the server needs. */

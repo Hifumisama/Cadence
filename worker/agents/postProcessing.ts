@@ -6,10 +6,11 @@ import { sortieVersBrief } from "../../lib/agents/brief";
 import { ecrireBrouillon } from "../../lib/agents/brief-db";
 import { entreeTour, messageBriefPret } from "../../lib/agents/brief-input";
 import { contenuPourLlm, normaliserSequence, sequenceValidee } from "../../lib/agents/chat-sequence";
+import { normaliserSynopsis, synopsisValide } from "../../lib/agents/chat-synopsis";
 import { appliquerNotes, changementsDeFiche, detailsAPreciser, ficheComplete, manquesEssentiels, manquesFiche } from "../../lib/agents/sheet";
 import { ficheCourante, enregistrerFiche } from "../../lib/agents/sheet-db";
 import { informationsFormat, verrousDeConception } from "../../lib/projects/design";
-import { arretDemande, demandeAuScenariste } from "../../lib/agents/sheet";
+import { arretDemande, demandeAuScenariste, valeurVide } from "../../lib/agents/sheet";
 import { carteChangement, normaliserCarteChangement, pointsCadre } from "../../lib/agents/chat-change";
 import { normaliserQuestions } from "../../lib/agents/chat-questions";
 import { lireConception } from "../../lib/projects/design-db";
@@ -109,7 +110,13 @@ async function postNotes(tx: Tx, run: RunAgent, sortie: unknown) {
   const notee = appliquerNotes(avant, sortie, utilisateur, messages, verrousDeConception(conception));
   // The card's « Valider la séquence »: the sheet takes exactly that list, its strong moment marked, whatever the notes copied.
   const validee = sequenceValidee((conv.messages as MessageConversation[]) ?? []);
-  const fiche = validee ? { ...notee, contenu: { ...notee.contenu, moments: validee }, statuts: { ...notee.statuts, moments: "fourni" as const } } : notee;
+  const avecSequence = validee ? { ...notee, contenu: { ...notee.contenu, moments: validee }, statuts: { ...notee.statuts, moments: "fourni" as const } } : notee;
+  // The card's « Valider le synopsis »: the notes write it into `arc` (keeping an ending already said); the code makes it the user's.
+  const synopsis = synopsisValide((conv.messages as MessageConversation[]) ?? []);
+  const fiche =
+    synopsis !== null
+      ? { ...avecSequence, contenu: { ...avecSequence.contenu, arc: valeurVide(avecSequence.contenu.arc) ? synopsis : avecSequence.contenu.arc }, statuts: { ...avecSequence.statuts, arc: "fourni" as const } }
+      : avecSequence;
   // The tone or the heart that changes is applied at once (the user said it); the card can put it back (« Garder l'ancien »).
   const complete = await enregistrerFiche(tx, conv, fiche, utilisateur);
   // A settled point the user just changed (the story, or the frame of a designed project): the screenwriter says it and a card under his
@@ -143,7 +150,7 @@ async function postNotes(tx: Tx, run: RunAgent, sortie: unknown) {
 
 const majuscule = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
-async function postTour(tx: Tx, run: RunAgent, sortie: { reponse: string; resteADefinir?: string[]; choix?: unknown; sequence?: unknown; questions?: unknown }) {
+async function postTour(tx: Tx, run: RunAgent, sortie: { reponse: string; resteADefinir?: string[]; choix?: unknown; sequence?: unknown; questions?: unknown; synopsis?: unknown }) {
   if (run.conversationId == null) return;
   const [conv] = await tx.select().from(agentConversations).where(eq(agentConversations.id, run.conversationId));
   if (!conv) return; // conversation overwritten in the meantime: the turn is lost, without error
@@ -151,6 +158,8 @@ async function postTour(tx: Tx, run: RunAgent, sortie: { reponse: string; resteA
   const choix = normaliserChoix(sortie.choix);
   // The proposed sequence: its own card under the message (lib/agents/chat-sequence.ts); malformed, it is dropped.
   const sequence = normaliserSequence(sortie.sequence);
+  // The proposed synopsis: its own card (lib/agents/chat-synopsis.ts); malformed, it is dropped.
+  const synopsis = normaliserSynopsis(sortie.synopsis);
   // The change card was built by the notes step (postNotes) and travels with this turn's task.
   const changement = normaliserCarteChangement((run.options as { changement?: unknown } | null)?.changement);
   // The grouped questions: their own card; never with a change card (the user decides the change first).
@@ -163,6 +172,7 @@ async function postTour(tx: Tx, run: RunAgent, sortie: { reponse: string; resteA
     ...(choix && !changement && !questions ? { choix } : {}),
     ...(questions ? { questions } : {}),
     ...(sequence ? { sequence } : {}),
+    ...(synopsis && !changement ? { synopsis } : {}),
     ...(changement ? { changement } : {}),
   };
   const messages = [...((conv.messages as unknown[]) ?? []), message];

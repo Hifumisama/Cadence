@@ -30,8 +30,10 @@ export function normaliserSequence(v: unknown): SequenceProposee | null {
 }
 
 /** A message as the models read it: its text, then the proposed sequence as a numbered list (the notes copy it on validation). */
-export function contenuPourLlm(m: { content: string; sequence?: SequenceProposee | null; questions?: QuestionsCarte | null }): string {
+export function contenuPourLlm(m: { content: string; sequence?: SequenceProposee | null; questions?: QuestionsCarte | null; synopsis?: string | null }): string {
   let texte = m.content;
+  // The proposed synopsis (lib/agents/chat-synopsis.ts): a card on screen, text for the models (the notes copy it into `arc` on validation).
+  if (m.synopsis) texte += `\n\nSynopsis proposé :\n${m.synopsis}`;
   if (m.sequence?.moments.length) {
     const liste = m.sequence.moments.map((x, i) => `${i + 1}. ${x}${m.sequence!.tempsFort === i + 1 ? " (temps fort)" : ""}`).join("\n");
     texte += `\n\nSéquence proposée :\n${liste}`;

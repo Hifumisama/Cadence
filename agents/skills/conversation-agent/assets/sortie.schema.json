@@ -13,7 +13,7 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 900,
-      "description": "(French) Your draft, NEVER shown to the user, in 4 to 6 short numbered lines: (0) reread the conversation: what the user has ALREADY said or decided (duration, ending, tone, style, rhythm, names, taboos…) and what you have ALREADY asked, so you do not ask it again; (1) what their last message really asks (answer a question? hand you the lead? react? tell a story?); (2) the most alive or the vaguest detail of what they just said; (3) the angle you choose among what is missing, the one that hooks best onto this detail (order is free); (4) if you bring an idea of your own, which, in one sentence; (5) your way of opening your message, different from the previous turn's."
+      "description": "(French) Your draft, NEVER shown to the user, in 4 to 6 short numbered lines: (0) reread the conversation: what the user has ALREADY said or decided (duration, ending, tone, style, rhythm, names, taboos…) and what you have ALREADY asked, so you do not ask it again; (1) what their last message really asks (answer a question? hand you the lead? react? tell a story?); (2) the most alive or the vaguest detail of what they just said; (3) the step you work on: the synopsis while it is not validated, otherwise the FIRST point of what remains (the application's note gives the order); (4) if you bring an idea of your own, which, in one sentence; (5) your way of opening your message, different from the previous turn's."
     },
     "reponse": {
       "type": "string",
@@ -54,6 +54,12 @@
         }
       },
       "description": "Optional, usually omitted. The sequence you propose or show again, displayed as a card under your reponse with a « Valider la séquence » button. Whenever you propose or revise the sequence, it goes HERE, never as a list in reponse. See the skill."
+    },
+    "synopsis": {
+      "type": "string",
+      "minLength": 40,
+      "maxLength": 1200,
+      "description": "(French) Optional, usually omitted. The synopsis you propose or show again: 3 to 5 sentences, where we are, who the hero is, what they want, what stands in their way, WITHOUT the ending. Displayed as a card under your reponse with a « Valider le synopsis » button; never written in reponse. See the skill."
     },
     "questions": {
       "type": "object",

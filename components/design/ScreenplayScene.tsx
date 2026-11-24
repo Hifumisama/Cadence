@@ -16,6 +16,8 @@ import { ChatQuestions } from "./ChatQuestions";
 import { traceMessage, type ViaMessage } from "@/lib/agents/chat-trace";
 import { messageDecision } from "@/lib/agents/chat-change";
 import { MESSAGE_ARRET } from "@/lib/agents/sheet";
+import { MESSAGE_VALIDER_SYNOPSIS, etatSynopsis } from "@/lib/agents/chat-synopsis";
+import { ChatSynopsis } from "./ChatSynopsis";
 import { FilmSynopsis } from "./FilmSynopsis";
 
 /** « Scénario » scene: the interview with the screenwriter. The engine is that of the existing intake interview (notes sheet kept by the
@@ -146,6 +148,18 @@ export function ScenarioScene({ conv, rafraichir }: { conv: VueConversation; raf
                     changer={changerMoment}
                   />
                 ) : null}
+                {m.synopsis ? (
+                  <ChatSynopsis
+                    texte={m.synopsis}
+                    etat={etatSynopsis(i, conv.messages)}
+                    actions={i === conv.messages.length - 1 && !actif && !occupe}
+                    valider={() => void envoyer(MESSAGE_VALIDER_SYNOPSIS, "synopsis")}
+                    corriger={() => {
+                      setTexte((t) => t || "Dans le synopsis, je change ");
+                      saisie.current?.focus();
+                    }}
+                  />
+                ) : null}
                 {m.changement ? (
                   <ChatChange
                     carte={m.changement}
@@ -226,7 +240,7 @@ export function ScenarioScene({ conv, rafraichir }: { conv: VueConversation; raf
               <span>Tu peux voir le clap, ou continuer à discuter pour affiner : les notes se mettent à jour à chaque message.</span>
             </div>
           ) : (
-            <p className="cn-fiche-pied">{dejaCommence ? (manque ? `Il reste ${manque} sujet${manque > 1 ? "s" : ""} à aborder.` : "Le scénariste vérifie les derniers points.") : "Ce que le scénariste retient se lit dans le Synopsis, en direct. Rien n’est figé : tout se corrige ensuite."}</p>
+            <p className="cn-fiche-pied">{dejaCommence ? (manque ? `Il reste ${manque} sujet${manque > 1 ? "s" : ""} à aborder.` : "Le scénariste vérifie les derniers points.") : "Ce que le scénariste retient se lit dans la Fiche du film, en direct. Rien n’est figé : tout se corrige ensuite."}</p>
           )}
         </aside>
       </div>
@@ -332,7 +346,7 @@ function TerminerEntretien({ manquants, desactive, terminer }: { manquants: stri
   );
 }
 
-/** The essentials as a gauge and chips: done (said or left to the screenwriter) or still to settle. The detail is in the Synopsis. */
+/** The essentials as a gauge and chips: done (said or left to the screenwriter) or still to settle. The detail is in the « Fiche du film » popup. */
 function Avancement({ notes, momentsManquants }: { notes: NoteAffichee[]; momentsManquants: number }) {
   const requis = notes.filter((n) => n.requis);
   if (requis.length === 0) return null;

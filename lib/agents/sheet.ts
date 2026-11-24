@@ -50,16 +50,18 @@ const SECTIONS_NOMMEES: readonly string[] = ["lieux", "elements"];
 const SECTIONS_INFORMATIVES: readonly string[] = ["inventions", "questionsOuvertes"];
 
 /** What the USER must have settled (said, or delegated to the agent, proven by a quote) for the sheet to be complete. `fin` is not
- * a brief section: the ending lives in `arc`, but we follow separately whether the user said it. */
+ * a brief section: the ending lives in `arc`, but we follow separately whether the user said it.
+ * IN THE ORDER the interview builds them (test feedback 2026-11-23: the screenwriter asked for the ending before anything else): the synopsis,
+ * the tone, the hero, the moments, and only then the ending; the frame (style, rhythm, duration) is usually set by the design form. */
 export const REQUIS = [
-  { cle: "arc", libelle: "le cœur de l'histoire (le héros, ce qu'il veut, ce qui la fait basculer)" },
-  { cle: "fin", libelle: "la fin (comment ça se termine, ce qu'on doit ressentir en sortant)" },
+  { cle: "arc", libelle: "le synopsis (où l'on est, le héros, ce qu'il veut, ce qui l'en empêche)" },
   { cle: "genreTon", libelle: "le ton et le genre" },
+  { cle: "personnages", libelle: "le héros : son âge et son apparence" },
+  { cle: "moments", libelle: "les moments du film" },
+  { cle: "fin", libelle: "la fin (comment ça se termine, ce qu'on doit ressentir en sortant)" },
   { cle: "style", libelle: "le style visuel" },
   { cle: "rythme", libelle: "le rythme (lent, mesuré, vif…)" },
   { cle: "dureeEpisodeSecondes", libelle: "la durée visée" },
-  { cle: "personnages", libelle: "le héros : son âge et son apparence" },
-  { cle: "moments", libelle: "les moments du film" },
 ] as const;
 
 /** Distinct moments the film needs for its duration (project 259, 2026-11-17: three beats for 120 s gave a film half still). The

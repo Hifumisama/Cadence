@@ -4,6 +4,7 @@
 
 import { DEPENDANCES_CHANGEMENT, REQUIS, fichePourAgent, essentielsManquants, libelleDetail, momentsDeFiche, momentsRequis, momentsTranches, premierMessageGrosBloc, suppositions, valeurVide, type ChangementFiche, type Fiche } from "./sheet";
 import { SECTIONS_BRIEF } from "./types";
+import { synopsisDejaValide } from "./chat-synopsis";
 
 export type MessageLlm = { role: "user" | "assistant"; content: string };
 
@@ -48,16 +49,21 @@ export function entreeTour(messages: MessageLlm[], fiche: Fiche, rappel: RappelF
       ? " Son premier message est un gros bloc : réagis à un détail, résume en UNE phrase ce qui est acquis, puis pose les questions d'UN seul sujet, regroupées dans le champ « questions »."
       : "";
   const details = rappel.details ?? [];
-  // The film's moments (2026-11-17): once the heart is known, the screenwriter proposes the missing sequence itself and has it validated.
-  const coeurConnu = fiche.statuts.arc === "fourni" || fiche.statuts.arc === "delegue";
-  const momentsManquent = rappel.manques.some((m) => m.startsWith(REQUIS.find((r) => r.cle === "moments")!.libelle));
+  // The film's moments (2026-11-17): when they are the next step of the order, the screenwriter proposes the missing sequence itself.
+  const premier = rappel.manques[0] ?? "";
+  const momentsEnTete = premier.startsWith(REQUIS.find((r) => r.cle === "moments")!.libelle);
   const vises = momentsRequis(fiche.contenu.dureeEpisodeSecondes);
   const notes = momentsDeFiche(fiche.contenu).length;
-  const consigneMoments =
-    momentsManquent && coeurConnu
-      ? ` Les moments du film manquent (${notes} noté${notes > 1 ? "s" : ""}${vises ? ` ; il en faut au moins ${vises} pour la durée, un moment distinct toutes les dix secondes environ` : ""}) : la durée est un plancher, il faut assez de matière pour la remplir. Si le reste de son message le permet, propose toi-même la suite complète dans le champ « sequence » (jamais en liste dans ta réponse), une phrase par moment (qui fait quoi, où, avec une action visible ; jamais une pose : une transformation arrive PENDANT que le personnage agit), en gardant à leur place ceux qu'il a déjà dits, puis demande-lui de la valider ou de la changer, et creuse ensuite les parties minces. Jamais « statique », « immobile » ou « figé » comme qualité d'un personnage.`
-      : "";
-  if (rappel.complete) {
+  const consigneMoments = momentsEnTete
+    ? ` Les moments sont l'étape en cours (${notes} noté${notes > 1 ? "s" : ""}${vises ? ` ; la durée en appelle au moins ${vises}, un moment distinct toutes les dix secondes environ` : ""}). Avant de les proposer, assure-toi de savoir ce qui fait basculer l'histoire ; puis propose toi-même la suite complète dans le champ « sequence » (jamais en liste dans ta réponse), une phrase par moment (qui fait quoi, où, avec une action visible ; jamais une pose : une transformation arrive PENDANT que le personnage agit), en gardant à leur place ceux qu'il a déjà dits, et demande-lui de la valider ou de la changer. Jamais « statique », « immobile » ou « figé » comme qualité d'un personnage.`
+    : "";
+  // The synopsis comes first (test feedback 2026-11-23): nothing else is dug before the user has validated one.
+  const synopsisAFaire = !rappel.complete && !synopsisDejaValide(utilisateur);
+  if (synopsisAFaire) {
+    contenu += `
+
+[État de l'entretien : première étape, le synopsis, pas encore validé. Réagis d'abord à ce qu'il vient de dire. Si son idée donne déjà un héros et ce qu'il veut, propose le synopsis dans le champ « synopsis » : 3 à 5 phrases, où l'on est, qui est le héros, ce qu'il veut, ce qui l'en empêche, SANS la fin (elle viendra après les moments) ; tu complètes sobrement ce qu'il n'a pas dit, en le disant. Dans ta réponse, une phrase l'introduit et l'invite à le valider ou à le corriger (pas de question sur un autre sujet). Si son idée est encore trop mince pour ça, pose UNE question sur le cœur (qui, ce qu'il veut) et propose le synopsis au tour suivant. Ne passe ni au ton, ni au héros, ni aux moments tant qu'il n'est pas validé. S'il corrige, redonne le synopsis complet revu dans « synopsis ».${premierBloc}${formatDit} ${interdit}]`;
+  } else if (rappel.complete) {
     const supposees = suppositions(fiche).map((k) => libelleSupposition(fiche, k));
     contenu += `
 
@@ -65,7 +71,7 @@ export function entreeTour(messages: MessageLlm[], fiche: Fiche, rappel: RappelF
   } else if (rappel.manques.length > 0) {
     contenu += `
 
-[État de l'entretien : l'utilisateur n'a pas encore dit : ${rappel.manques.join(" ; ")}. Ce n'est pas un programme : réagis d'abord à ce qu'il vient de dire, puis choisis dans cette liste, dans l'ordre que tu veux, l'angle qui se raccroche le mieux à son message (ou propose-lui toi-même si c'est ce qu'il demande ou s'il te laisse décider : alors ne repose pas la question). Un seul sujet par message, ses questions (trois au plus) dans le champ « questions », avec des réponses rapides quand elles aident, pour qu'il puisse y répondre d'un coup ; les points pratiques se regroupent aussi.${consigneMoments}${premierBloc}${dejaDit}${dejaPropose} Avant de questionner, relis la conversation : ce qu'il a déjà dit (même au passage, même dans un message plus haut) ou ce que tu as déjà demandé ne se redemande pas.${formatDit} ${interdit}]`;
+[État de l'entretien : l'histoire se construit dans cet ordre, et voici ce qui reste : ${rappel.manques.join(" ; ")}. Réagis d'abord à ce qu'il vient de dire, puis avance sur le PREMIER point de cette liste, et seulement lui (s'il te le laisse, propose-le toi-même sans reposer la question). S'il vient de dire spontanément un point plus loin dans la liste, prends-le en compte sans le redemander, puis reviens au premier. Un seul sujet par message, ses questions (trois au plus) dans le champ « questions », avec des réponses rapides quand elles aident.${consigneMoments}${premierBloc}${dejaDit}${dejaPropose} Avant de questionner, relis la conversation : ce qu'il a déjà dit (même au passage, même dans un message plus haut) ou ce que tu as déjà demandé ne se redemande pas.${formatDit} ${interdit}]`;
   } else if (details.length > 0) {
     contenu += `
 
