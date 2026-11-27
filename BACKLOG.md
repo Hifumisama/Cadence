@@ -7,7 +7,7 @@ Risque : **faible** / **moyen** (creuser le besoin avant de coder) / **haut** (a
 ## En cours (1 au plus)
 Chaque chantier a sa fiche : problème · réussi si… · on arrête si… · budget (soirées) · étape 1 testable en vrai.
 
-- *(à choisir au prochain tri)*
+- **Labo de qualité** (sans risque : isolé dans `labo/`, branche `labo-qualite`). Problème : durées et densité des scènes jugées au feeling. Réussi si : A/B/C se comparent sur les mêmes entrées et permettent de décider d'un changement de `scenario-scene`. On arrête si / budget : à fixer avant le premier rejeu. Étape 1 faite : jeu figé 259/261/264 et rapport historique ; suite : arbitrage de B et C (`labo/handoff/`).
 
 ## Prochain (3 au plus)
 1. **Leçons du film 264 pour le scénariste et le scénario** (moyen). Le film le plus abouti ; plans 1 à 5 sans retouche. À traduire en règles :

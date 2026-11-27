@@ -1,0 +1,4 @@
+# Les jeux et les essais contiennent les textes des projets (dont les messages de l'auteur, mot pour mot) et le dépôt
+# distant est public : ils restent sur la machine tant que leur publication n'est pas décidée.
+datasets/
+runs/
