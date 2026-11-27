@@ -2,18 +2,23 @@ import "dotenv/config";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { REASONING_CAMPAIGN } from "./campaign";
 import { awaitsReading, LAB_ROOT, readDataset, readRun } from "./files";
 import { datasetNames, writePage } from "./page";
+import { serverProbes } from "./probes";
 import { writeReading, type ReadingKey } from "./reading";
 import { reportOfDataset, reportOfRun } from "./report";
 import { launch, planRun } from "./run";
 import { scoreReport, type Votes } from "./score";
+import { pilotReport, reasoningVerdict } from "./score-reasoning";
 
 const USAGE = `Usage : npm run labo -- <commande>
   export  <jeu> --projects 259,261,264        fige un jeu depuis la base (lecture seule)
   report  <jeu>                               mesures sur les appels historiques (sans modèle)
   run     <jeu> [--variants A] [--reps 1] [--only 261,264-s2-t1930] [--model X] [--body '{}'] [--launch]
                                               sans --launch : montre ce qui serait fait, n'appelle rien
+  run     <jeu> --campaign 02 --base A|B|C [--pilot] [--launch]
+                                              campagne 02 (réflexion) ; --pilot : 3 scènes, avec réflexion
   compare <dossier d'essai>                   refait le rapport d'un essai
   read    <dossier d'essai>                   prépare la lecture à l'aveugle
   score   <dossier d'essai> --votes <fichier> applique la règle de décision aux notes
@@ -30,13 +35,16 @@ async function main(): Promise<number> {
     allowPositionals: true,
     options: {
       projects: { type: "string" },
-      variants: { type: "string", default: "A" },
-      reps: { type: "string", default: "1" },
+      variants: { type: "string" },
+      reps: { type: "string" },
       only: { type: "string" },
       model: { type: "string" },
       body: { type: "string" },
+      campaign: { type: "string" },
+      base: { type: "string" },
+      pilot: { type: "boolean", default: false },
       votes: { type: "string" },
-      launch:{ type: "boolean", default: false },
+      launch: { type: "boolean", default: false },
     },
   });
   const [command, target] = positionals;
@@ -62,23 +70,37 @@ async function main(): Promise<number> {
   } else if (command === "report") {
     write(resolve(LAB_ROOT, "reports", `${target}-historique.md`), reportOfDataset(target));
   } else if (command === "run") {
+    if (values.campaign && !["01", "02"].includes(values.campaign)) throw new Error(`Campagne inconnue : « ${values.campaign} » (01 ou 02).`);
+    const reasoning = values.campaign === "02";
     const plan = planRun({
       dataset: target,
-      variants: values.variants!.split(","),
-      repetitions: Number(values.reps),
+      variants: values.variants?.split(",") ?? (reasoning ? [] : ["A"]),
+      repetitions: Number(values.reps ?? (reasoning && !values.pilot ? REASONING_CAMPAIGN.repetitions : 1)),
       only: values.only?.split(","),
       model: values.model,
       body: values.body ? (JSON.parse(values.body) as Record<string, unknown>) : undefined,
+      ...(reasoning ? { campaign: "02" as const } : {}),
+      base: values.base,
+      pilot: values.pilot,
     });
     const paired = plan.conditionalCalls ? `, plus jusqu'à ${plan.conditionalCalls} relances de durée` : "";
     console.log(`${plan.cases.length} cas × ${plan.variants.length} variante(s) × ${plan.manifest.repetitions} répétition(s) : ${plan.calls - plan.conditionalCalls} appels${paired} (hors renvois de production)`);
-    console.log(`Modèle : ${plan.manifest.model}\nCorps ajouté : ${JSON.stringify(plan.manifest.body)}`);
+    console.log(`Modèle : ${plan.manifest.model}`);
+    if (reasoning) {
+      console.log(`Base : variante ${plan.manifest.base}${plan.manifest.pilot ? " (pilote)" : ""}`);
+      for (const v of plan.manifest.variants) console.log(`${v.id} : ${JSON.stringify(v.body)} · plafond ${v.maxTokens} jetons`);
+      if (plan.variants.some((v) => v.ownRetry)) console.log("La base relance les scènes trop courtes : un appel de plus au maximum par scène et par version.");
+    } else console.log(`Corps ajouté : ${JSON.stringify(plan.manifest.body)}`);
     if (!values.launch) {
       console.log("Rien n'a été appelé. Ajoute --launch pour lancer (consomme le GPU).");
       return 0;
     }
-    const folder = await launch(plan, (line) => console.log(line));
-    if (plan.variants.length > 1) {
+    const folder = await launch(plan, (line) => console.log(line), undefined, undefined, reasoning ? serverProbes() : {});
+    if (plan.manifest.pilot) {
+      const { manifest, records } = readRun(folder);
+      write(join(folder, "report.md"), reportOfRun(folder));
+      write(join(folder, "pilot.md"), pilotReport(manifest, records));
+    } else if (plan.variants.length > 1) {
       console.log(`Essai : ${folder}\nPas de rapport comparatif avant la lecture à l'aveugle : lance « read » sur ce dossier.`);
     } else write(join(folder, "report.md"), reportOfRun(folder));
   } else if (command === "compare") {
@@ -93,7 +115,7 @@ async function main(): Promise<number> {
     const { manifest, records } = readRun(folder);
     const key = JSON.parse(readFileSync(join(folder, "reading", "key.json"), "utf8")) as ReadingKey;
     const votes = JSON.parse(readFileSync(resolve(values.votes), "utf8")) as Votes;
-    const report = scoreReport(manifest, records, readDataset(manifest.dataset), key, votes);
+    const report = manifest.campaign === "02" ? reasoningVerdict(manifest, records, key, votes) : scoreReport(manifest, records, readDataset(manifest.dataset), key, votes);
     // Saved only once they proved complete: from here the run is no longer hidden.
     writeFileSync(join(folder, "reading", "votes.json"), `${JSON.stringify(votes, null, 2)}\n`);
     write(join(folder, "report.md"), reportOfRun(folder));

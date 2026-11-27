@@ -1,10 +1,10 @@
 /** The blind reading of a run: a self-contained page where the versions of a scene come in a random order, without their variant, durations,
- * alerts, notes or inventions. The correspondence goes into a key file that the page does not contain. */
+ * alerts, notes, inventions or reasoning. The correspondence goes into a key file that the page does not contain. */
 
 import { randomBytes, randomInt } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { CAMPAIGN, type Campaign } from "./campaign";
+import { CAMPAIGN, REASONING_CAMPAIGN, type Question } from "./campaign";
 import { LAB_ROOT, readDataset, readRun } from "./files";
 import { renderPage } from "./page";
 import type { CallRecord, Case, Dataset, RunManifest } from "./types";
@@ -22,13 +22,16 @@ type ReadingScene = {
   proposals: Proposal[];
 };
 
-export type ReadingData = { readingId: string; scenes: ReadingScene[] };
+export type ReadingData = { readingId: string; questions: Question[]; scenes: ReadingScene[] };
 
 export type ReadingKey = {
   readingId: string;
   run: string;
   proposals: Record<string, { caseId: string; repetition: number; variants: string[] }>;
 };
+
+/** What the reading takes from a campaign. */
+type ReadingPlan = { readScenes: string[]; questions: Question[] };
 
 const text = (value: unknown): string => (typeof value === "string" ? value : "");
 const texts = (value: unknown): string[] =>
@@ -56,7 +59,7 @@ export function buildReading(
   dataset: Dataset,
   manifest: RunManifest,
   records: CallRecord[],
-  campaign: Campaign = CAMPAIGN,
+  campaign: ReadingPlan = CAMPAIGN,
   random: (max: number) => number = randomInt,
   readingId: string = randomBytes(6).toString("hex"),
 ): { data: ReadingData; key: ReadingKey } {
@@ -93,7 +96,7 @@ export function buildReading(
       proposals,
     };
   });
-  return { data: { readingId, scenes }, key };
+  return { data: { readingId, questions: campaign.questions, scenes }, key };
 }
 
 export function writeReading(folder: string): string {
@@ -102,7 +105,8 @@ export function writeReading(folder: string): string {
   // A second draw would reshuffle the texts under the votes already given.
   if (existsSync(keyFile)) throw new Error(`La lecture existe déjà : ${join(target, "reading.html")}.`);
   const { manifest, records } = readRun(folder);
-  const { data, key } = buildReading(readDataset(manifest.dataset), manifest, records);
+  if (manifest.pilot) throw new Error("Un pilote ne se lit pas : ses sorties sont exclues de l'évaluation.");
+  const { data, key } = buildReading(readDataset(manifest.dataset), manifest, records, manifest.campaign === "02" ? REASONING_CAMPAIGN : CAMPAIGN);
   const template = readFileSync(resolve(LAB_ROOT, "src", "page", "reading.html"), "utf8");
   mkdirSync(target, { recursive: true });
   const file = join(target, "reading.html");

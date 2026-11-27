@@ -6,7 +6,7 @@ import { gestesRepetes, nomsPersonnagesDeLEntree, phrasesPartagees, planImmobile
 import { ajusterDureesScene } from "../../lib/agents/treatment";
 import { DUREE_GENERATION_MAX } from "../../lib/clips/clip-checks";
 import { recitDe } from "../../lib/clips/intent";
-import type { SceneInput, SceneOutput } from "./types";
+import type { CallRecord, SceneInput, SceneOutput } from "./types";
 
 /** Below this share of the target, the raw duration is short: the trigger of variant C's retry. */
 export const SHORT_RAW_RATIO = 0.85;
@@ -49,6 +49,18 @@ export type SceneMetrics = {
   /** Entries of `inventions` the model declares itself: what it admits adding, not what it added. */
   declaredInventions: number;
 };
+
+/** Model time of one record: its attempts, resends and own retry included, plus the calls that threw. */
+export const callSeconds = (record: CallRecord): number => (record.attempts.reduce((a, x) => a + x.durationMs, 0) + (record.failedMs ?? 0)) / 1000;
+
+/** True when any answer of the record, a resend included, stopped on the output cap or the end of the context. */
+export const isTruncated = (record: CallRecord): boolean => record.attempts.some((a) => a.stop === "length");
+
+export function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length === 0 ? 0 : sorted.length % 2 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2;
+}
 
 const words = (text: string): number => (text.match(/[\p{L}\p{N}]+/gu) ?? []).length;
 const sum = (values: number[]): number => values.reduce((a, b) => a + b, 0);

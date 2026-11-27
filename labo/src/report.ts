@@ -3,7 +3,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { readDataset } from "./files";
-import { measureScene, type SceneMetrics } from "./metrics";
+import { callSeconds, isTruncated, measureScene, median, type SceneMetrics } from "./metrics";
 import type { CallRecord, Case, Dataset, RunManifest } from "./types";
 
 const percent = (value: number): string => `${value > 0 ? "+" : ""}${Math.round(value * 100)} %`;
@@ -85,6 +85,57 @@ ${LIMITS}`;
 
 const mean = (values: number[]): number => (values.length ? Math.round((sum(values) / values.length) * 100) / 100 : 0);
 
+/** What the server said and what the lab measured or estimated, kept apart. Empty for a run without any of it. */
+function serverMeasures(manifest: RunManifest, records: CallRecord[]): string {
+  const attemptsOf = (v: string) => records.filter((r) => r.variant === v).flatMap((r) => r.attempts);
+  const all = manifest.variants.flatMap((v) => attemptsOf(v.id));
+  if (!all.some((a) => a.timings || a.reasoningCount || a.memory !== undefined)) return "";
+  type Row = [string, (v: string) => string | number];
+  const timed = (v: string) => attemptsOf(v).flatMap((a) => (a.timings ? [a.timings] : []));
+  const share = (part: number, whole: number) => (whole ? `${Math.round((part / whole) * 100)} %` : "–");
+  const server: Row[] = [
+    ["Appels (renvois et relances compris)", (v) => attemptsOf(v).length],
+    ["Jetons lus par appel", (v) => Math.round(mean(attemptsOf(v).map((a) => a.tokensIn)))],
+    ["Jetons écrits par appel, réflexion comprise", (v) => Math.round(mean(attemptsOf(v).map((a) => a.tokensOut)))],
+    ["Lecture du prompt (s)", (v) => (timed(v).length ? mean(timed(v).map((t) => t.promptMs / 1000)) : "–")],
+    ["Jetons repris du cache par appel", (v) => (timed(v).length ? Math.round(mean(timed(v).map((t) => t.cacheN))) : "–")],
+    ["Vitesse d'écriture (jetons/s)", (v) => {
+      const ms = sum(timed(v).map((t) => t.predictedMs));
+      return ms ? Math.round((sum(timed(v).map((t) => t.predictedN)) / ms) * 1000) : "–";
+    }],
+    ["Brouillons MTP acceptés", (v) => share(sum(timed(v).map((t) => t.draftAcceptedN)), sum(timed(v).map((t) => t.draftN)))],
+    ["Motifs d'arrêt", (v) => [...new Set(attemptsOf(v).map((a) => a.stop ?? "?"))].map((s) => `${s} ${attemptsOf(v).filter((a) => (a.stop ?? "?") === s).length}`).join(", ")],
+  ];
+  const counts = (v: string) => attemptsOf(v).flatMap((a) => (a.reasoningCount ? [a.reasoningCount] : []));
+  const peaks = (v: string, key: "vramPeakGb" | "ramPeakGb") => attemptsOf(v).flatMap((a) => (a.memory?.[key] != null ? [a.memory[key]!] : []));
+  const peak = (v: string, key: "vramPeakGb" | "ramPeakGb") => (peaks(v, key).length ? Math.max(...peaks(v, key)) : "–");
+  const methods: [string, string][] = [["tokenizer", "découpeur du serveur"], ["share", "estimation"], ["none", "sans réflexion"]];
+  const lab: Row[] = [
+    ["Jetons de réflexion par appel", (v) => (counts(v).length ? Math.round(mean(counts(v).map((c) => c.tokens))) : "–")],
+    ["… méthode (nombre d'appels)", (v) => methods.flatMap(([m, label]) => (counts(v).some((c) => c.method === m) ? [`${label} ${counts(v).filter((c) => c.method === m).length}`] : [])).join(", ") || "–"],
+    ["… textes coupés (compte minimal)", (v) => counts(v).filter((c) => c.textCut).length],
+    ["Pic de VRAM observé (Go)", (v) => peak(v, "vramPeakGb")],
+    ["Pic de RAM observé (Go)", (v) => peak(v, "ramPeakGb")],
+    ["Appels sans relevé mémoire", (v) => attemptsOf(v).filter((a) => !a.memory).length],
+  ];
+  const ids = manifest.variants.map((v) => v.id);
+  const grid = (rows: Row[]) => table(["Mesure", ...ids], rows.map(([label, f]) => [label, ...ids.map(f)]));
+  const interval = all.find((a) => a.memory)?.memory?.intervalMs;
+  return `## Mesures fournies par le serveur
+
+${grid(server)}
+
+## Relevés et comptages du labo (pas des mesures du serveur d'inférence)
+
+${grid(lab)}
+
+- Jetons de réflexion : le serveur ne les sépare pas. « Découpeur du serveur » : le texte de réflexion gardé, recompté par le
+  découpeur du modèle (balises non comprises). « Estimation » : part des caractères appliquée aux jetons écrits.
+- Mémoire : relevés de ComfyUI sur la même carte${interval ? `, toutes les ${interval / 1000} s environ` : ""} pendant l'appel. Un pic bref entre deux relevés
+  échappe ; la VRAM compte tout ce qui occupe la carte, pas seulement le modèle.
+`;
+}
+
 export function runReport(manifest: RunManifest, records: CallRecord[], dataset: Dataset): string {
   const byId = new Map(dataset.cases.map((c) => [c.id, c]));
   const measured = records.filter((r) => r.output).map((r) => ({ r, m: measureScene(byId.get(r.caseId)!.input, r.output!) }));
@@ -92,23 +143,28 @@ export function runReport(manifest: RunManifest, records: CallRecord[], dataset:
   const ofRecords = (variant: string) => records.filter((r) => r.variant === variant);
   type Attempt = CallRecord["attempts"][number];
   const own = (r: CallRecord, of: (a: Attempt) => number) => sum(r.attempts.map(of));
-  const baseOf = (r: CallRecord) => records.find((b) => b.variant === r.retry?.from && b.caseId === r.caseId && b.repetition === r.repetition);
+  // The base of a PAIRED retry; an own retry (campaign 02) holds both generations in the same record.
+  const baseOf = (r: CallRecord) => (r.retry?.from === r.variant ? undefined : records.find((b) => b.variant === r.retry?.from && b.caseId === r.caseId && b.repetition === r.repetition));
   // A paired retry costs its base generation too.
   const cost = (r: CallRecord, of: (a: Attempt) => number) => own(r, of) + (r.retry && baseOf(r) ? own(baseOf(r)!, of) : 0);
-  const costSeconds = (r: CallRecord) => cost(r, (a) => a.durationMs) / 1000;
+  const costSeconds = (r: CallRecord) => callSeconds(r) + (r.retry && baseOf(r) ? callSeconds(baseOf(r)!) : 0);
   // Each triggered retry, its first generation and the second side by side.
-  const side = (r: CallRecord, output: CallRecord["output"]) => {
+  const side = (r: CallRecord, attempts: Attempt[], output: CallRecord["output"]) => {
     const input = byId.get(r.caseId)!.input;
     const m = output ? measureScene(input, output) : null;
-    return [m?.plans ?? "–", m?.rawSeconds ?? "–", own(r, (a) => a.tokensIn), own(r, (a) => a.tokensOut), Math.round(own(r, (a) => a.durationMs) / 1000)];
+    const total = (of: (a: Attempt) => number) => sum(attempts.map(of));
+    return [m?.plans ?? "–", m?.rawSeconds ?? "–", total((a) => a.tokensIn), total((a) => a.tokensOut), Math.round(total((a) => a.durationMs) / 1000)];
   };
   const retries = records
-    .filter((r) => r.retry?.triggered && baseOf(r))
+    .filter((r) => r.retry?.triggered && (r.retry.from === r.variant || baseOf(r)))
     .map((r) => {
-      const [firstPlans, firstRaw, firstIn, firstOut, firstTime] = side(baseOf(r)!, r.retry!.firstOutput);
-      const [plans, raw, tokensIn, tokensOut, time] = side(r, r.error ? null : r.output);
-      return [r.caseId, `r${r.repetition}`, `${firstPlans} → ${plans}`, `${firstRaw} → ${raw}`, `${firstIn} + ${tokensIn}`, `${firstOut} + ${tokensOut}`, `${firstTime} + ${time}`];
+      const base = baseOf(r);
+      const split = r.retry!.firstAttempts ?? 0;
+      const [firstPlans, firstRaw, firstIn, firstOut, firstTime] = base ? side(base, base.attempts, r.retry!.firstOutput) : side(r, r.attempts.slice(0, split), r.retry!.firstOutput);
+      const [plans, raw, tokensIn, tokensOut, time] = side(r, base ? r.attempts : r.attempts.slice(split), r.error ? null : r.output);
+      return [r.caseId, ...(base ? [] : [r.variant]), `r${r.repetition}`, `${firstPlans} → ${plans}`, `${firstRaw} → ${raw}`, `${firstIn} + ${tokensIn}`, `${firstOut} + ${tokensOut}`, `${firstTime} + ${time}`];
     });
+  const reasoningCampaign = manifest.campaign === "02";
   // The raw duration is the main measure: the code's adjustment adds time without adding matter.
   const rows: [string, (m: SceneMetrics[], v: string) => string | number][] = [
     ["Appels réussis", (m, v) => `${m.length}/${ofRecords(v).length}`],
@@ -133,14 +189,20 @@ export function runReport(manifest: RunManifest, records: CallRecord[], dataset:
     ["Temps de modèle moyen par scène (s)", (_, v) => mean(ofRecords(v).map(costSeconds))],
     ["Jetons lus par scène (moyenne)", (_, v) => Math.round(mean(ofRecords(v).map((r) => cost(r, (a) => a.tokensIn))))],
     ["Jetons écrits par scène (moyenne)", (_, v) => Math.round(mean(ofRecords(v).map((r) => cost(r, (a) => a.tokensOut))))],
-    ["Sorties tronquées", (_, v) => ofRecords(v).filter((r) => r.attempts.some((a) => a.stop === "length")).length],
+    ["Sorties tronquées", (_, v) => ofRecords(v).filter(isTruncated).length],
+    ...(reasoningCampaign
+      ? ([
+          ["Échecs techniques", (_, v) => ofRecords(v).filter((r) => r.error && r.errorCode !== "injoignable").length],
+          ["Temps médian par scène (s)", (_, v) => Math.round(median(ofRecords(v).filter((r) => r.errorCode !== "injoignable").map(costSeconds)))],
+        ] satisfies typeof rows)
+      : []),
   ];
   const cells = [...new Set(measured.map((x) => `${x.r.caseId}|${x.r.variant}`))].sort();
   return `# Essai ${manifest.id}
 
 Jeu « ${manifest.dataset} », commit ${manifest.commit}${manifest.dirty ? " (fichiers modifiés hors labo)" : ""}, modèle ${manifest.model}, ${manifest.repetitions} répétition(s).
-Corps ajouté à la requête : \`${JSON.stringify(manifest.body)}\`.
-${manifest.variants.map((v) => `- **${v.id}** : ${v.label} (prompt ${v.systemHash.slice(0, 8)}, ${v.systemChars} caractères)`).join("\n")}
+${manifest.variants.some((v) => v.body) ? "Corps et plafond propres à chaque version :" : `Corps ajouté à la requête : \`${JSON.stringify(manifest.body)}\`.`}
+${manifest.variants.map((v) => `- **${v.id}** : ${v.label} (prompt ${v.systemHash.slice(0, 8)}, ${v.systemChars} caractères)${v.body ? ` · \`${JSON.stringify(v.body)}\`, plafond ${v.maxTokens} jetons` : ""}`).join("\n")}
 
 ## Comparaison (toutes scènes)
 
@@ -160,7 +222,7 @@ ${table(
 
 « Rendu » reste vide : un essai ne rend aucune vidéo, les durées stockée et rendue n'existent que pour l'historique. Moments
 couverts, progression et remplissage ne sont pas mesurés ici : ils se jugent à la lecture.
-${retries.length ? `\n## Relances de durée : première génération (B) puis relance (C)\n\n${table(["Scène", "Rép.", "Plans", "Brut (s)", "Jetons lus", "Jetons écrits", "Temps (s)"], retries)}\n\nUne relance en échec affiche « – » : C garde alors la première génération.\n` : ""}${records.some((r) => r.error) ? `\n## Échecs\n\n${records.filter((r) => r.error).map((r) => `- ${r.caseId} ${r.variant} r${r.repetition} : ${r.error}`).join("\n")}\n` : ""}
+${retries.length ? `\n## Relances de durée : première génération${reasoningCampaign ? "" : " (B)"} puis relance${reasoningCampaign ? "" : " (C)"}\n\n${table(["Scène", ...(reasoningCampaign ? ["Version"] : []), "Rép.", "Plans", "Brut (s)", "Jetons lus", "Jetons écrits", "Temps (s)"], retries)}\n\nUne relance en échec affiche « – » : ${reasoningCampaign ? "la version" : "C"} garde alors la première génération.\n` : ""}${serverMeasures(manifest, records) ? `\n${serverMeasures(manifest, records)}` : ""}${records.some((r) => r.error) ? `\n## Échecs\n\n${records.filter((r) => r.error).map((r) => `- ${r.caseId} ${r.variant} r${r.repetition} : ${r.error}`).join("\n")}\n` : ""}
 ${LIMITS}`;
 }
 

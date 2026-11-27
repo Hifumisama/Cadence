@@ -177,7 +177,8 @@ function readRuns(dataset: string, root: string = resolve(LAB_ROOT, "runs")): { 
   const all = readdirSync(root, { withFileTypes: true })
     .filter((e) => e.isDirectory() && existsSync(join(root, e.name, "manifest.json")))
     .map((e) => ({ folder: join(root, e.name), ...readRun(join(root, e.name)) }))
-    .filter((r) => r.manifest.dataset === dataset);
+    // A pilot's texts are not to be read.
+    .filter((r) => r.manifest.dataset === dataset && !r.manifest.pilot);
   const shown = all.filter((r) => !awaitsReading(r.folder, r.manifest));
   return { shown, hidden: all.length - shown.length };
 }

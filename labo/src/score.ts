@@ -1,11 +1,12 @@
 /** Applies the decision rule of the campaign to the blind votes. The thresholds come from `campaign.ts`; nothing here judges a text. Pure. */
 
-import { CAMPAIGN, type Campaign } from "./campaign";
+import { CAMPAIGN, type Campaign, type NoteId } from "./campaign";
 import { measureScene } from "./metrics";
 import type { ReadingKey } from "./reading";
 import type { CallRecord, Dataset, RunManifest } from "./types";
 
-type Vote = { progression: number; fidelity: number; comment?: string };
+/** `coherence` is only asked by campaign 02. */
+type Vote = { progression: number; fidelity: number; coherence?: number; comment?: string };
 export type Votes = { readingId: string; votes: Record<string, Vote> };
 
 type Scores = { progression: number; fidelity: number };
@@ -22,14 +23,14 @@ export type Comparison = {
   conditions: { scores: boolean; noBigLoss: boolean; gap: boolean; stability: boolean };
 };
 
-const mean = (values: number[]): number => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0);
+export const mean = (values: number[]): number => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0);
 // Floating point: a reduction of exactly one third must count.
 const EPSILON = 1e-9;
 
-function checkVotes(key: ReadingKey, votes: Votes): void {
+export function checkVotes(key: ReadingKey, votes: Votes, notes: NoteId[] = ["progression", "fidelity"]): void {
   if (votes.readingId !== key.readingId) throw new Error("Ces notes ne viennent pas de cette lecture.");
   const valid = (n: unknown) => Number.isInteger(n) && (n as number) >= 1 && (n as number) <= 5;
-  const missing = Object.keys(key.proposals).filter((id) => !valid(votes.votes[id]?.progression) || !valid(votes.votes[id]?.fidelity));
+  const missing = Object.keys(key.proposals).filter((id) => notes.some((note) => !valid(votes.votes[id]?.[note])));
   if (missing.length) throw new Error(`Notes manquantes ou hors de 1 à 5 : ${missing.join(", ")}.`);
 }
 
@@ -83,10 +84,10 @@ export function compare(variant: string, against: string, manifest: RunManifest,
   };
 }
 
-const decimal = (n: number) => (Math.round(n * 100) / 100).toString().replace(".", ",");
+export const decimal = (n: number) => (Math.round(n * 100) / 100).toString().replace(".", ",");
 const percent = (n: number) => `${Math.round(n * 100)} %`;
-const yes = (ok: boolean) => (ok ? "oui" : "**non**");
-const table = (head: string[], rows: (string | number)[][]): string => [head, head.map(() => "---"), ...rows].map((r) => `| ${r.join(" | ")} |`).join("\n");
+export const yes = (ok: boolean) => (ok ? "oui" : "**non**");
+export const table = (head: string[], rows: (string | number)[][]): string => [head, head.map(() => "---"), ...rows].map((r) => `| ${r.join(" | ")} |`).join("\n");
 
 function section(c: Comparison): string {
   return `${table(

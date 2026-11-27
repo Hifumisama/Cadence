@@ -20,6 +20,18 @@ pas enregistrées par `score`.
 
 Options de `run` : `--variants A,B,C`, `--only 261,264-s2-t1930`, `--model`, `--body '{}'`. C demande B dans le même essai.
 
+Campagne 02 (réflexion, [protocole](protocols/02-reasoning.md)) : versions, scènes et corps sont fixés, seule la base
+est choisie.
+
+```bash
+npm run labo -- run duration-259-261-264 --campaign 02 --base B --pilot    # 3 scènes, à blanc sans --launch
+npm run labo -- run duration-259-261-264 --campaign 02 --base B            # la campagne, idem
+```
+
+Pendant ses appels, le labo relève la mémoire de la carte (ComfyUI, `COMFYUI_URL`) et fait compter les jetons de
+réflexion par le découpeur du modèle ; une sonde en panne n'arrête rien. Un pilote écrit `pilot.md`, n'est ni lu ni
+noté, et n'apparaît pas dans la page.
+
 **Avant `--launch`** : le labo appelle le LLM directement, sans passer par la file GPU du worker.
 Lancer seulement quand aucun rendu ComfyUI ne tourne, et que le GPU est libéré (la même carte sert aux deux).
 
@@ -45,9 +57,11 @@ Code : `src/page.ts` (données), `src/page/template.html` (affichage).
 | `src/run.ts` | rejeu par `executerSkill` (aucune trace en base), capture de chaque réponse brute |
 | `src/metrics.ts` | mesures automatiques |
 | `src/report.ts` | rapports en français |
-| `src/campaign.ts` | scènes lues et seuils de la campagne en cours |
+| `src/campaign.ts` | scènes lues, notes et seuils de chaque campagne |
 | `src/reading.ts`, `src/page/reading.html` | lecture à l'aveugle |
-| `src/score.ts` | règle de décision appliquée aux notes |
+| `src/score.ts` | règle de décision de la campagne 01 |
+| `src/score-reasoning.ts` | règle de la campagne 02 et contrôle de son pilote |
+| `src/probes.ts` | mémoire (ComfyUI) et jetons de réflexion (découpeur du modèle) |
 | `src/*.test.ts` | tests, avec un faux modèle (lancés par `npm test`) |
 | `protocols/` | protocole de chaque campagne, écrit avant de la lancer |
 | `datasets/` | jeux figés |
@@ -93,7 +107,7 @@ Toutes automatiques. « Final » = après le code. La **durée brute** est la me
 
 ## Protocole
 
-Première campagne : [protocols/01-duration.md](protocols/01-duration.md).
+Campagnes : [01, durée](protocols/01-duration.md), puis [02, réflexion](protocols/02-reasoning.md).
 
 ## Limites et biais
 

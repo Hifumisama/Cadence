@@ -6,6 +6,7 @@ import { cpSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { chargerSkill } from "../../lib/llm/skills";
 import { DUREE_GENERATION_MAX } from "../../lib/clips/clip-checks";
+import { REASONING_CAMPAIGN } from "./campaign";
 import { REPO_ROOT } from "./files";
 import { minimumPlans, SHORT_RAW_RATIO } from "./metrics";
 import type { SceneInput, SceneOutput } from "./types";
@@ -24,6 +25,11 @@ export type Variant = {
   /** Paired retry: the first generation is the one of variant `from` (same prompt, same input, no new call); when `message` returns a
    * text, ONE more generation is asked in the same conversation. */
   retry?: { from: string; message: (first: SceneOutput, input: SceneInput) => string | null };
+  /** The same retry, on the variant's OWN first generation (campaign 02, where each version generates for itself). */
+  ownRetry?: (first: SceneOutput, input: SceneInput) => string | null;
+  /** Request body and output cap of this variant, instead of the run's. */
+  body?: Record<string, unknown>;
+  maxTokens?: number;
 };
 
 // --- B: plan the number of plans from the duration ------------------------------------------------------------------------------
@@ -83,6 +89,25 @@ export function variantById(id: string): Variant {
   const found = VARIANTS.find((v) => v.id === id.toUpperCase());
   if (!found) throw new Error(`Variante inconnue : « ${id} ». Variantes définies : ${VARIANTS.map((v) => v.id).join(", ")}.`);
   return found;
+}
+
+// --- campaign 02: the same prompt, without and with reasoning --------------------------------------------------------------------
+
+/** The two bodies differ ONLY by `enable_thinking`: both name the effort, so that the server's default cannot matter. */
+const reasoningBody =(thinking: boolean): Record<string, unknown> => ({ chat_template_kwargs: { enable_thinking: thinking, reasoning_effort: REASONING_CAMPAIGN.reasoningEffort } });
+
+/** T0 and T1 on the prompt, input and retry of a variant of campaign 01. */
+export function reasoningVariants(baseId: string): Variant[] {
+  const base = variantById(baseId);
+  return [false, true].map((thinking) => ({
+    id: thinking ? "T1" : "T0",
+    label: `Base ${base.id}, ${thinking ? "avec" : "sans"} réflexion`,
+    replacements: base.replacements,
+    prepareInput: base.prepareInput,
+    ownRetry: base.retry?.message,
+    body: reasoningBody(thinking),
+    maxTokens: REASONING_CAMPAIGN.maxTokens,
+  }));
 }
 
 export function applyReplacements(text: string, replacements: NonNullable<Variant["replacements"]>): string {

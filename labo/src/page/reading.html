@@ -55,7 +55,7 @@
     return node;
   }
 
-  const rated = (id) => Boolean(votes[id]?.progression && votes[id]?.fidelity);
+  const rated = (id) => data.questions.every((q) => votes[id]?.[q.id]);
   const done = () => data.scenes.flatMap((s) => s.proposals).filter((p) => rated(p.id)).length;
   const save = () => { try { localStorage.setItem(storageKey, JSON.stringify(votes)); } catch { /* ignored */ } };
   const exported = () => JSON.stringify({ readingId: data.readingId, votes }, null, 2);
@@ -105,8 +105,7 @@
       el("div", { class: "tabs" }, scene.proposals.map((p, i) => el("button", { type: "button", "aria-pressed": String(i === textIndex), onclick: () => go(sceneIndex, i) }, `Texte ${i + 1}${rated(p.id) ? " ✓" : ""}`))),
       proposal.plans.map((p, i) => el("section", { class: "plan" }, el("h2", {}, `${i + 1}. ${p.title}`), el("p", {}, p.description))),
       el("div", { class: "panel" },
-        question(id, "progression", "Progression : chaque plan apporte-t-il du nouveau ?"),
-        question(id, "fidelity", "Fidélité : les moments et les intentions sont-ils respectés, sans remplissage ?"),
+        data.questions.map((q) => question(id, q.id, q.label)),
         el("div", { class: "question" }, el("h2", {}, "Commentaire (facultatif)"),
           el("textarea", { rows: "2", oninput: (e) => { votes[id] = { ...votes[id], comment: e.target.value }; save(); } }, votes[id]?.comment ?? ""))),
       el("div", { class: "foot" },

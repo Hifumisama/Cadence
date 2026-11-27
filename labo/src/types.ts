@@ -1,5 +1,7 @@
 /** Shared shapes of the quality lab. A dataset is a frozen copy of what the database held; once exported, nothing here reads the database. */
 
+import type { TimingsServeur } from "../../lib/llm/types";
+
 type PlanOutput = { titre: string; description: string; liaison?: string; dureeSecondes: number; tempsFort?: boolean };
 export type SceneOutput = { plans: PlanOutput[]; inventions?: string[]; notes?: string };
 
@@ -58,6 +60,13 @@ export type Case = {
 
 export type Dataset = { name: string; skill: "scenario-scene"; exportedAt: string; commit: string; cases: Case[] };
 
+/** Memory SAMPLED during a call: a short peak between two samples is missed. */
+export type MemoryPeak = { vramPeakGb: number | null; ramPeakGb: number | null; vramFirstGb: number | null; samples: number; intervalMs: number };
+
+/** `tokenizer`: counted by the model's tokenizer on the kept text; `share`: ESTIMATED from the share of characters; `none`: no reasoning.
+ * `textCut`: the kept text had reached its limit, the count is a lower bound. */
+export type ReasoningCount = { tokens: number; method: "tokenizer" | "share" | "none"; textCut?: boolean };
+
 /** One replayed call, saved whole. `attempts` holds EVERY raw answer, resends included. */
 export type CallRecord = {
   caseId: string;
@@ -65,13 +74,33 @@ export type CallRecord = {
   repetition: number;
   startedAt: string;
   input: unknown;
-  attempts: { request: { model: string | null; body: unknown; messages: unknown }; text: string; reasoning: string | null; stop: string | null; tokensIn: number; tokensOut: number; durationMs: number; servedModel?: string }[];
+  attempts: {
+    request: { model: string | null; body: unknown; messages: unknown; maxTokens?: number | null };
+    text: string;
+    reasoning: string | null;
+    stop: string | null;
+    tokensIn: number;
+    tokensOut: number;
+    durationMs: number;
+    servedModel?: string;
+    /** Measures given by llama-server, when it returns them. */
+    timings?: TimingsServeur;
+    /** null: the probe returned nothing; absent: no probe. */
+    memory?: MemoryPeak | null;
+    reasoningCount?: ReasoningCount;
+  }[];
   /** Output the production code would keep, or null if the call failed. */
   output: SceneOutput | null;
   resends: number;
   error: string | null;
-  /** Paired retry (variant C): `from` gave the first generation; `attempts` holds only the new calls, none when nothing was triggered. */
-  retry?: { from: string; triggered: boolean; firstOutput: SceneOutput };
+  /** Code of the model error (`delai`, `sortie_invalide`, `injoignable`…), when there is one. */
+  errorCode?: string;
+  /** Time spent in calls that threw: they leave no attempt. */
+  failedMs?: number;
+  /** Paired retry (variant C): `from` gave the first generation; `attempts` holds only the new calls, none when nothing was triggered.
+   * When `from` is the variant itself (campaign 02 on a base with a retry), `attempts` holds both and `firstAttempts` says how many made
+   * the first generation. */
+  retry?: { from: string; triggered: boolean; firstOutput: SceneOutput; firstAttempts?: number };
 };
 
 export type RunManifest = {
@@ -86,6 +115,12 @@ export type RunManifest = {
   body: Record<string, unknown>;
   maxTokens: number | null;
   repetitions: number;
-  variants: { id: string; label: string; systemHash: string; systemChars: number }[];
+  variants: { id: string; label: string; systemHash: string; systemChars: number; body?: Record<string, unknown>; maxTokens?: number }[];
   cases: string[];
+  /** Absent = campaign 01. */
+  campaign?: "02";
+  /** Variant of campaign 01 whose prompt both versions of campaign 02 use. */
+  base?: string;
+  /** A pilot checks that the run works: never read, scored or shown. */
+  pilot?: boolean;
 };
