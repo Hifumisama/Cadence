@@ -27,6 +27,14 @@ Lecteur extérieur (ChatGPT) à l'aveugle : `npm run labo -- evaluate <essais>` 
 
 Défauts d'écriture relevés, sans changement de prompt : [writing-leads.md](writing-leads.md).
 
+**Suite en cours** : comparer les deux textes en vidéo ([passation](handoff/video-comparison-session.md)).
+
+Skill reparti de zéro ([expérience 05](proposals/experiment-05-minimal-skill.md), 2026-11-27) : l'auteur préfère la
+production ; le nouveau texte ne contient plus aucun « Ce plan ».
+
+Contrôles de production : [audit](audits/checks-audit.md) (2026-11-27 : 29 renvois sur 38 sans alerte juste),
+`npm run labo -- audit` (`src/audit.ts`).
+
 Réflexion (2026-11-27, trois tours sur deux scènes : l'auteur préfère le réglage actuel, sans réflexion, 6 à 7 fois
 plus rapide ; les deux skills repensés sont battus ; rien en production) : [analyse des skills](proposals/scenario-skills-analysis.md),
 [`scenario-scene` repensé](proposals/scenario-scene-reasoning/SKILL.md),

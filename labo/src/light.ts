@@ -141,7 +141,7 @@ export function lightReport(folder: string, votes: DuelVotes): string {
     .sort((a, b) => a.pair.localeCompare(b.pair));
   const check = controleurPourSkill("scenario-scene", item.input)!;
   const comments = duels.filter((d) => d.comment).map((d) => `- ${d.pair} : ${d.comment}`);
-  return `# Expérience 04, essai ${manifest.id}
+  return `# Expérience ${manifest.round === 4 ? "05" : "04"}, essai ${manifest.id}
 
 Une scène, une génération par version, premières réponses. **Aucun seuil : des signes, pas une preuve.**
 

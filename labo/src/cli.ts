@@ -1,7 +1,8 @@
 import "dotenv/config";
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
+import { auditReport, collect } from "./audit";
 import { REASONING_CAMPAIGN } from "./campaign";
 import { duelReport, writeDuels, type DuelKey, type DuelVotes } from "./duel";
 import { serveDuels } from "./duel-server";
@@ -33,6 +34,7 @@ const USAGE = `Usage : npm run labo -- <commande>
   evaluate <essai>[,<essai>]                  fichier d'évaluation à l'aveugle pour un lecteur extérieur (expérience 04)
   evaluate-read <dernier essai> --answer <f> [--reader chatgpt]
                                               lit sa réponse : classement, citations vérifiées, face aux duels
+  audit                                       contrôles de scenario-scene sur les essais enregistrés (sans modèle)
   page    [<jeu>]                             génère la page à ouvrir dans le navigateur`;
 
 function write(file: string, text: string): void {
@@ -72,6 +74,13 @@ async function main(): Promise<number> {
     const page = writePage(name);
     console.log(`Page : ${page.file}`);
     if (page.hidden) console.log(`${page.hidden} essai(s) masqué(s) : lecture à l'aveugle pas encore notée.`);
+    return 0;
+  }
+  if (command === "audit") {
+    const file = resolve(LAB_ROOT, "audits", "checks-verdicts.json");
+    const verdicts = existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as Record<string, string>) : {};
+    const { firsts, resends } = collect();
+    write(resolve(LAB_ROOT, "audits", "checks-counts.md"), auditReport(firsts, resends, verdicts));
     return 0;
   }
   if (!command || !target) {

@@ -58,12 +58,23 @@ export const LIGHT_EXPERIMENT = {
     T1: "Skill actuel, avec réflexion",
     T2: "Skill repensé, avec réflexion",
     T3: "Skill repensé, version 2, avec réflexion",
+    S0: "Skill de production, sans réflexion",
+    S1: "Noyau artistique minimal (GPT), contrat technique et schéma neutre, sans réflexion",
   } as Record<string, string>,
   /** The new prompts, from the lab folder; a version without one runs the production prompt. */
   skillFiles: {
     T2: "proposals/scenario-scene-reasoning/SKILL.md",
     T3: "proposals/scenario-scene-reasoning/v2/SKILL.md",
+    S1: "proposals/scenario-scene-minimal/SKILL.md",
   } as Record<string, string>,
+  /** Same structure as the production schema, descriptions reduced to what each field is. */
+  schemaFiles: {
+    S1: "proposals/scenario-scene-minimal/sortie.schema.json",
+  } as Record<string, string>,
+  /** Versions replayed without reasoning, with the very settings of the production calls; the others reason, as in campaign 02. */
+  withoutReasoning: {
+    S1: { body: { chat_template_kwargs: { enable_thinking: false } }, maxTokens: 16_384 },
+  } as Record<string, { body: Record<string, unknown>; maxTokens: number }>,
   /** Each round replays some versions, reuses the others (`--reuse` gives their runs in this order) and draws its duels. */
   rounds: [
     {
@@ -88,6 +99,13 @@ export const LIGHT_EXPERIMENT = {
       variants: ["T1"],
       reused: [{ ...T0, repetition: 1 }],
       duels: [["T0", "T1"]] as [string, string][],
+    },
+    // Experiment 05 (`proposals/experiment-05-minimal-skill.md`): a skill written afresh, against production.
+    {
+      scene: "264-s3",
+      variants: ["S1"],
+      reused: [{ ...T0, id: "S0" }],
+      duels: [["S0", "S1"]] as [string, string][],
     },
   ] as { scene?: string; variants: string[]; reused: ReusedVersion[]; duels: [string, string][] }[],
 };

@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Output of the scenario-scene agent: the plans of ONE scene",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["plans", "inventions", "notes"],
+  "properties": {
+    "plans": {
+      "type": "array",
+      "minItems": 1,
+      "description": "The scene's plans, in reading order. Order is that of the array: no plan number.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["titre", "description", "liaison", "dureeSecondes"],
+        "properties": {
+          "titre": {
+            "type": "string",
+            "maxLength": 200,
+            "description": "(French) Title of the plan, distinct from the other titles."
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "description": "(French) What happens in this plan, then its dialogue lines, if any."
+          },
+          "liaison": {
+            "type": "string",
+            "enum": ["suite", "coupe"],
+            "description": "How this plan links to the previous one. suite: its render directly continues the previous plan's ending. coupe: clean cut."
+          },
+          "dureeSecondes": {
+            "type": "integer",
+            "minimum": 4,
+            "maximum": 10,
+            "description": "Seconds of video to generate."
+          },
+          "tempsFort": {
+            "type": "boolean",
+            "description": "True only for the plan that carries the scene moment marked « (temps fort) », at most one in the scene; false otherwise. Never write the mark in a text."
+          }
+        }
+      }
+    },
+    "inventions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "(French) Additions that the inputs do not hold."
+    },
+    "notes": {
+      "type": "string",
+      "description": "(French) Limitations to report. Empty if none."
+    }
+  }
+}

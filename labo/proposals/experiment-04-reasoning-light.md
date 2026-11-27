@@ -164,6 +164,12 @@ trouvées.
 - Lecteurs face à l'auteur, sur les deux évaluations : ChatGPT 2 duels sur 5, agent Claude 0 sur 5.
 - **Rien ne justifie son coût à ce stade : Cadence reste sans réflexion.** Indice, pas preuve.
 
+## Défaut découvert après coup
+
+Le prompt de T2 et T3 contenait encore le schéma de sortie de production, dont les descriptions redisent les anciennes
+règles. Les skills repensés n'étaient donc pas indépendants de l'ancien
+([expérience 05](experiment-05-minimal-skill.md)).
+
 ## Déroulé
 
 ```bash

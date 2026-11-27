@@ -15,6 +15,8 @@ import { lightVariants, materialize, reasoningVariants, variantById, type Varian
 import type { CallRecord, Case, RunManifest, SceneInput, SceneOutput } from "./types";
 
 const SKILL = "scenario-scene";
+/** Output cap of the production executor when nothing sets one (lib/llm/execute.ts). */
+const DEFAULT_MAX_TOKENS = 16_384;
 
 export type RunOptions = {
   dataset: string;
@@ -97,11 +99,14 @@ export function planRun(options: RunOptions, now = new Date()): Plan {
   if (cases.length === 0) throw new Error("Aucun cas ne correspond.");
   if (!Number.isInteger(options.repetitions) || options.repetitions < 1) throw new Error("Le nombre de répétitions doit être un entier d'au moins 1.");
   const reasoning = options.campaign !== undefined;
-  const suffix = light ? "-04" : reasoning ? (options.pilot ? "-02-pilote" : "-02") : "";
+  const suffix = light ? (options.round === 4 ? "-05" : "-04") : reasoning ? (options.pilot ? "-02-pilote" : "-02") : "";
   const reuse = light
     ? lightRound(options.round).reused.map((wanted, i) => {
         const run = options.reuse![i]!;
-        checkReuse(readRun(join(LAB_ROOT, "runs", run)), wanted, cases[0]!);
+        const source = readRun(join(LAB_ROOT, "runs", run));
+        checkReuse(source, wanted, cases[0]!);
+        // A version replayed without reasoning must run with the settings the reused calls ran with.
+        for (const variant of variants.filter((v) => LIGHT_EXPERIMENT.withoutReasoning[v.id] && !wanted.thinking)) checkSameSettings(source, wanted, cases[0]!, variant, options.model ?? modelePourSkill(SKILL));
         return { id: wanted.id, run, variant: wanted.variant, repetition: wanted.repetition };
       })
     : undefined;
@@ -133,6 +138,18 @@ export function checkReuse(source: { records: CallRecord[] }, reuse: { variant: 
   const kwargs = (first.request.body as { chat_template_kwargs?: { enable_thinking?: boolean } } | null)?.chat_template_kwargs;
   if (kwargs?.enable_thinking !== reuse.thinking) throw new Error(`Réutilisation impossible : cet appel n'a pas été fait ${reuse.thinking ? "avec" : "sans"} réflexion.`);
   if (first.stop === "length") throw new Error("Réutilisation impossible : la réponse est coupée.");
+}
+
+/** Same model, same request body, same output cap (a call saved without one ran with its run's, or the default). Pure. */
+export function checkSameSettings(source: { manifest: RunManifest; records: CallRecord[] }, reuse: { variant: string; repetition: number }, item: Case, variant: Variant, model: string): void {
+  const request = source.records.find((r) => r.caseId === item.id && r.variant === reuse.variant && r.repetition === reuse.repetition)!.attempts[0]!.request;
+  const cap = request.maxTokens ?? source.manifest.maxTokens ?? DEFAULT_MAX_TOKENS;
+  const differs = [
+    request.model === model ? null : "le modèle",
+    JSON.stringify(request.body) === JSON.stringify(variant.body) ? null : "le corps de la requête",
+    cap === variant.maxTokens ? null : "le plafond de sortie",
+  ].filter(Boolean);
+  if (differs.length) throw new Error(`Paramètres différents de l'appel réutilisé : ${differs.join(", ")}.`);
 }
 
 /** Keeps every request and answer of one `executerSkill` call, resends included, with what the probes saw around it. */

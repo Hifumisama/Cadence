@@ -5,13 +5,14 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
+import { chargerSkill } from "../../lib/llm/skills";
 import type { FournisseurLlm } from "../../lib/llm/types";
 import { LIGHT_EXPERIMENT, REASONING_CAMPAIGN } from "./campaign";
 import { awaitsReading, readRun } from "./files";
 import { buildLightDuels, firstAnswer, technicalReport, versionsOf } from "./light";
-import { checkReuse, launch, variantsOf, type Plan } from "./run";
+import { checkReuse, checkSameSettings, launch, variantsOf, type Plan } from "./run";
 import { lightVariants, materialize, variantById } from "./variants";
-import type { CallRecord, Case, SceneOutput } from "./types";
+import type { CallRecord, Case, RunManifest, SceneOutput } from "./types";
 
 // A scene the production check would send back: a character who stands still.
 const answer = (mark: string): SceneOutput => ({ plans: [{ titre: `Plan ${mark}`, description: `Elle reste immobile devant la porte. Elle attend. Repère ${mark}.`, liaison: "coupe", dureeSecondes: 8, tempsFort: false }], inventions: [], notes: "" });
@@ -34,7 +35,24 @@ test("experiment 04: fixed versions, and T0 reused only under the same condition
   assert.throws(() => variantsOf({ dataset: "d", variants: [], repetitions: 1, campaign: "04" }), /--reuse/);
   assert.throws(() => variantsOf({ dataset: "d", variants: [], repetitions: 1, campaign: "04", round: 2, reuse: ["x"] }), /T0 puis T1/);
   assert.deepEqual(variantsOf({ dataset: "d", variants: [], repetitions: 1, campaign: "04", round: 3, reuse: ["x"] }).map((v) => v.id), ["T1"]);
-  assert.throws(() => variantsOf({ dataset: "d", variants: [], repetitions: 1, campaign: "04", round: 4, reuse: ["x"] }), /tour inconnu/);
+  assert.throws(() => variantsOf({ dataset: "d", variants: [], repetitions: 1, campaign: "04", round: 5, reuse: ["x"] }), /tour inconnu/);
+  // Experiment 05: no reasoning, the settings of production, a skill and a schema of the lab with the production structure.
+  const [s1] = variantsOf({ dataset: "d", variants: [], repetitions: 1, campaign: "04", round: 4, reuse: ["x"] });
+  assert.deepEqual([s1!.id, s1!.body, s1!.maxTokens], ["S1", { chat_template_kwargs: { enable_thinking: false } }, 16_384]);
+  const source = { manifest: { maxTokens: null } as unknown as RunManifest, records: [{ ...reusedRecord, attempts: [{ ...reusedRecord.attempts[0]!, request: { model: "m", body: s1!.body, messages: [] } }] }] };
+  checkSameSettings(source, LIGHT_EXPERIMENT.rounds[3]!.reused[0]!, item, s1!, "m");
+  assert.throws(() => checkSameSettings(source, LIGHT_EXPERIMENT.rounds[3]!.reused[0]!, item, s1!, "autre"), /le modèle/);
+  const folder = mkdtempSync(join(tmpdir(), "labo-"));
+  try {
+    const minimal = materialize(s1!, join(folder, "s1"));
+    const production = materialize(variantById("A"), join(folder, "a"));
+    assert.notEqual(minimal.systemHash, production.systemHash);
+    const system = chargerSkill("scenario-scene", join(folder, "s1")).systeme;
+    assert.match(system, /## Technical contract/);
+    for (const old of ["rule 9", "fixed landmarks", "group close moments", "visible gestures"]) assert.equal(system.includes(old), false, old);
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+  }
   assert.throws(() => variantsOf({ dataset: "d", variants: ["B"], repetitions: 1, campaign: "04", reuse: ["x"] }), /fixés/);
   const reuse = LIGHT_EXPERIMENT.rounds[0]!.reused[0]!;
   assert.throws(() => checkReuse({ records: [reusedRecord] }, { ...reuse, thinking: true }, item), /avec réflexion/);

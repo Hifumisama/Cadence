@@ -40,6 +40,22 @@ Repérage grossier par motif, hors consignes de l'auteur :
 - Mais les explications doivent **découler des descriptions** et suivre le récit. Demander une phrase d'explication par
   plan (skill repensé, version 2) les a rendues répétées et forcées.
 
+## Quatre sortes de phrases explicatives (cadre demandé par GPT, 2026-11-27)
+
+Objectif : une écriture vivante et évocatrice, pas une succession de gestes. **Ni interdiction nouvelle, ni détecteur.**
+Les exemples sont inventés.
+
+| Sorte | Exemple | A priori |
+|---|---|---|
+| Commentaire méta : parle du plan ou du spectateur | « Ce plan montre son courage. » | inutile à la vidéo |
+| Explication émotionnelle abstraite | « Elle ressent une joie retrouvée. » | à juger : rien à filmer |
+| Intention incarnée dans la description | « Elle serre la lettre contre elle avant de la ranger. » | recherchée |
+| Indication artistique utile à la réalisation | « Le geste reste lent, presque cérémonieux. » | à garder |
+
+**Prochaine expérience proposée, sans génération** (après les contrôles) : l'auteur juge une douzaine de phrases tirées
+des sorties existantes, sans voir leur sorte (« j'aime », « ça dépend », « non »). On en tire une consigne formulée par
+ce qu'on veut, à essayer ensuite.
+
 ## Autres relevés
 
 Un mot corrompu par un autre alphabet dans une sortie de B ; quelques fautes de langue signalées par le second lecteur.

@@ -18,8 +18,10 @@ export type Variant = {
   label: string;
   /** Text replacements in SKILL.md; each `find` must appear exactly once. */
   replacements?: { find: string; replace: string }[];
-  /** A whole SKILL.md of the lab that takes the place of the production one (same output schema). */
+  /** A whole SKILL.md of the lab that takes the place of the production one. */
   skillFile?: string;
+  /** An output schema of the lab in place of the production one: its structure must be the same, only its descriptions may differ. */
+  schemaFile?: string;
   /** Adds data to the frozen input (computed by code). */
   prepareInput?: (input: SceneInput) => SceneInput;
   /** Extra findings that trigger the (single) resend, on top of the production check. */
@@ -114,14 +116,14 @@ export function reasoningVariants(baseId: string): Variant[] {
 
 // --- experiment 04: both versions think, one with a new prompt --------------------------------------------------------------------
 
-/** The versions a round replays, all with reasoning. Same body and cap as campaign 02. */
+/** The versions a round replays: with reasoning (same body and cap as campaign 02) unless the experiment says otherwise. */
 export function lightVariants(ids: string[]): Variant[] {
   return ids.map((id) => ({
     id,
     label: LIGHT_EXPERIMENT.labels[id]!,
     ...(LIGHT_EXPERIMENT.skillFiles[id] ? { skillFile: LIGHT_EXPERIMENT.skillFiles[id] } : {}),
-    body: reasoningBody(true),
-    maxTokens: REASONING_CAMPAIGN.maxTokens,
+    ...(LIGHT_EXPERIMENT.schemaFiles[id] ? { schemaFile: LIGHT_EXPERIMENT.schemaFiles[id] } : {}),
+    ...(LIGHT_EXPERIMENT.withoutReasoning[id] ?? { body: reasoningBody(true), maxTokens: REASONING_CAMPAIGN.maxTokens }),
   }));
 }
 
@@ -133,11 +135,24 @@ export function applyReplacements(text: string, replacements: NonNullable<Varian
   }, text);
 }
 
+/** A JSON schema without its prose: every `description` that is a text (a property NAMED description stays, it is an object). */
+function schemaStructure(json: string): string {
+  const strip = (value: unknown): unknown =>
+    Array.isArray(value) ? value.map(strip) : value && typeof value === "object" ? Object.fromEntries(Object.entries(value).flatMap(([k, v]) => (k === "description" && typeof v === "string" ? [] : [[k, strip(v)]]))) : value;
+  return JSON.stringify(strip(JSON.parse(json)));
+}
+
 /** Copies the production skill under `root/agents/skills/` and applies the variant. Returns what identifies the assembled prompt. */
 export function materialize(variant: Variant, root: string): { systemHash: string; systemChars: number } {
   const folder = join(root, "agents", "skills", SKILL);
   cpSync(join(REPO_ROOT, "agents", "skills", SKILL), folder, { recursive: true, errorOnExist: true, force: false });
   if (variant.skillFile) cpSync(join(LAB_ROOT, variant.skillFile), join(folder, "SKILL.md"));
+  if (variant.schemaFile) {
+    const target = join(folder, "assets", "sortie.schema.json");
+    const replacement = readFileSync(join(LAB_ROOT, variant.schemaFile), "utf8");
+    if (schemaStructure(replacement) !== schemaStructure(readFileSync(target, "utf8"))) throw new Error(`Le schéma de ${variant.id} n'a pas la même structure que celui de production.`);
+    writeFileSync(target, replacement);
+  }
   if (variant.replacements?.length) {
     const file = join(folder, "SKILL.md");
     // Line endings normalised so that a `find` written in this file matches a checkout with CRLF.
