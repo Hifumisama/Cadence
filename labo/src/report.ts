@@ -45,8 +45,8 @@ Versions du prompt rencontrées : ${versions.join(", ")}. Appels avec réflexion
 ## Durées (sortie du modèle, puis code actuel)
 
 ${table(
-  ["Scène", "Prompt", "Cible", "Moments", "Plans", "Max atteignable", "Brut", "Après code", "Ajouté par le code", "Écart final"],
-  measured.map(({ c, m }) => [`${c.project} · ${c.sceneRank}`, c.historical.systemHash.slice(0, 8), m.targetSeconds, m.moments ?? "–", m.plans, m.targetReachable ? m.maxReachableSeconds : `**${m.maxReachableSeconds}**`, m.rawSeconds, m.adjustedSeconds, signed(m.codeSeconds), percent(m.adjustedGap)]),
+  ["Scène", "Prompt", "Cible", "Moments", "Min. plans", "Plans", "Max atteignable", "Brut", "Après code", "Ajouté par le code", "Écart final"],
+  measured.map(({ c, m }) => [`${c.project} · ${c.sceneRank}`, c.historical.systemHash.slice(0, 8), m.targetSeconds, m.moments ?? "–", m.minimumPlans, m.plans,m.targetReachable ? m.maxReachableSeconds : `**${m.maxReachableSeconds}**`, m.rawSeconds, m.adjustedSeconds, signed(m.codeSeconds), percent(m.adjustedGap)]),
 )}
 
 - Cible inatteignable (max atteignable en gras) : **${measured.filter((x) => !x.m.targetReachable).length}/${measured.length}** scènes.
@@ -90,9 +90,25 @@ export function runReport(manifest: RunManifest, records: CallRecord[], dataset:
   const measured = records.filter((r) => r.output).map((r) => ({ r, m: measureScene(byId.get(r.caseId)!.input, r.output!) }));
   const of = (variant: string) => measured.filter((x) => x.r.variant === variant);
   const ofRecords = (variant: string) => records.filter((r) => r.variant === variant);
-  const ownSeconds = (r: CallRecord) => sum(r.attempts.map((a) => a.durationMs)) / 1000;
+  type Attempt = CallRecord["attempts"][number];
+  const own = (r: CallRecord, of: (a: Attempt) => number) => sum(r.attempts.map(of));
+  const baseOf = (r: CallRecord) => records.find((b) => b.variant === r.retry?.from && b.caseId === r.caseId && b.repetition === r.repetition);
   // A paired retry costs its base generation too.
-  const costSeconds = (r: CallRecord) => ownSeconds(r) + (r.retry ? sum(records.filter((b) => b.variant === r.retry!.from && b.caseId === r.caseId && b.repetition === r.repetition).map(ownSeconds)) : 0);
+  const cost = (r: CallRecord, of: (a: Attempt) => number) => own(r, of) + (r.retry && baseOf(r) ? own(baseOf(r)!, of) : 0);
+  const costSeconds = (r: CallRecord) => cost(r, (a) => a.durationMs) / 1000;
+  // Each triggered retry, its first generation and the second side by side.
+  const side = (r: CallRecord, output: CallRecord["output"]) => {
+    const input = byId.get(r.caseId)!.input;
+    const m = output ? measureScene(input, output) : null;
+    return [m?.plans ?? "–", m?.rawSeconds ?? "–", own(r, (a) => a.tokensIn), own(r, (a) => a.tokensOut), Math.round(own(r, (a) => a.durationMs) / 1000)];
+  };
+  const retries = records
+    .filter((r) => r.retry?.triggered && baseOf(r))
+    .map((r) => {
+      const [firstPlans, firstRaw, firstIn, firstOut, firstTime] = side(baseOf(r)!, r.retry!.firstOutput);
+      const [plans, raw, tokensIn, tokensOut, time] = side(r, r.error ? null : r.output);
+      return [r.caseId, `r${r.repetition}`, `${firstPlans} → ${plans}`, `${firstRaw} → ${raw}`, `${firstIn} + ${tokensIn}`, `${firstOut} + ${tokensOut}`, `${firstTime} + ${time}`];
+    });
   // The raw duration is the main measure: the code's adjustment adds time without adding matter.
   const rows: [string, (m: SceneMetrics[], v: string) => string | number][] = [
     ["Appels réussis", (m, v) => `${m.length}/${ofRecords(v).length}`],
@@ -100,7 +116,9 @@ export function runReport(manifest: RunManifest, records: CallRecord[], dataset:
     ["Écart brut moyen, sans le signe", (m) => percent(mean(m.map((x) => Math.abs(x.rawGap)))).replace("+", "")],
     ["Scènes sous 85 % en brut", (m) => `${m.filter((x) => x.shortOnRaw).length}/${m.length}`],
     ["Cible inatteignable", (m) => `${m.filter((x) => !x.targetReachable).length}/${m.length}`],
-    ["Plans par scène", (m) => mean(m.map((x) => x.plans))],
+    ["Minimum théorique de plans par scène", (m) => mean(m.map((x) => x.minimumPlans))],
+    ["Plans produits par scène", (m) => mean(m.map((x) => x.plans))],
+    ["Scènes sous le minimum de plans", (m) => `${m.filter((x) => x.plans < x.minimumPlans).length}/${m.length}`],
     ["Mots de récit par seconde (brut)", (m) => mean(m.map((x) => x.wordsPerRawSecond))],
     ["Inventions déclarées par scène", (m) => mean(m.map((x) => x.declaredInventions))],
     ["Écart final moyen (après code)", (m) => percent(mean(m.map((x) => x.adjustedGap)))],
@@ -113,6 +131,9 @@ export function runReport(manifest: RunManifest, records: CallRecord[], dataset:
     ["Relances de durée", (_, v) => (ofRecords(v).some((r) => r.retry) ? `${ofRecords(v).filter((r) => r.retry?.triggered).length}/${ofRecords(v).length}` : "–")],
     ["Appels avec réflexion", (_, v) => ofRecords(v).filter((r) => r.attempts.some((a) => a.reasoning)).length],
     ["Temps de modèle moyen par scène (s)", (_, v) => mean(ofRecords(v).map(costSeconds))],
+    ["Jetons lus par scène (moyenne)", (_, v) => Math.round(mean(ofRecords(v).map((r) => cost(r, (a) => a.tokensIn))))],
+    ["Jetons écrits par scène (moyenne)", (_, v) => Math.round(mean(ofRecords(v).map((r) => cost(r, (a) => a.tokensOut))))],
+    ["Sorties tronquées", (_, v) => ofRecords(v).filter((r) => r.attempts.some((a) => a.stop === "length")).length],
   ];
   const cells = [...new Set(measured.map((x) => `${x.r.caseId}|${x.r.variant}`))].sort();
   return `# Essai ${manifest.id}
@@ -128,18 +149,18 @@ ${table(["Mesure", ...manifest.variants.map((v) => v.id)], rows.map(([label, f])
 ## Par scène (moyennes des répétitions ; étendue entre parenthèses)
 
 ${table(
-  ["Scène", "Variante", "Cible", "Moments", "Plans", "Brut", "Après code"],
+  ["Scène", "Variante", "Cible", "Moments", "Min. plans", "Plans", "Brut", "Après code", "Rendu"],
   cells.map((cell) => {
     const [id, v] = cell.split("|") as [string, string];
     const m = of(v).filter((x) => x.r.caseId === id).map((x) => x.m);
     const spread = (values: number[]) => `${mean(values)} (${Math.min(...values)}–${Math.max(...values)})`;
-    return [id, v, m[0]!.targetSeconds, m[0]!.moments ?? "–", spread(m.map((x) => x.plans)), spread(m.map((x) => x.rawSeconds)), spread(m.map((x) => x.adjustedSeconds))];
+    return [id, v, m[0]!.targetSeconds, m[0]!.moments ?? "–", m[0]!.minimumPlans, spread(m.map((x) => x.plans)), spread(m.map((x) => x.rawSeconds)), spread(m.map((x) => x.adjustedSeconds)), "–"];
   }),
 )}
 
-Un essai ne rend aucune vidéo : durées stockée et rendue n'existent que pour l'historique. Moments couverts, progression et
-remplissage ne sont pas mesurés ici : ils se jugent à la lecture.
-${records.some((r) => r.error) ? `\n## Échecs\n\n${records.filter((r) => r.error).map((r) => `- ${r.caseId} ${r.variant} r${r.repetition} : ${r.error}`).join("\n")}\n` : ""}
+« Rendu » reste vide : un essai ne rend aucune vidéo, les durées stockée et rendue n'existent que pour l'historique. Moments
+couverts, progression et remplissage ne sont pas mesurés ici : ils se jugent à la lecture.
+${retries.length ? `\n## Relances de durée : première génération (B) puis relance (C)\n\n${table(["Scène", "Rép.", "Plans", "Brut (s)", "Jetons lus", "Jetons écrits", "Temps (s)"], retries)}\n\nUne relance en échec affiche « – » : C garde alors la première génération.\n` : ""}${records.some((r) => r.error) ? `\n## Échecs\n\n${records.filter((r) => r.error).map((r) => `- ${r.caseId} ${r.variant} r${r.repetition} : ${r.error}`).join("\n")}\n` : ""}
 ${LIMITS}`;
 }
 

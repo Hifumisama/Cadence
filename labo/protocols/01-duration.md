@@ -1,6 +1,7 @@
 # Campagne 01 : durée et densité de `scenario-scene`
 
-Écrit le 2026-11-27, **avant** tout rejeu. Arbitrages de GPT ; ce qui est marqué « à valider » ne l'est pas encore.
+Écrit le 2026-11-27, **avant** tout rejeu. Variantes, règle de décision, grille de lecture et scènes lues validées par GPT
+le même jour. Reste à donner : la confirmation de lancement.
 
 ## Question
 
@@ -18,10 +19,10 @@ Principe : une scène plus courte et intéressante bat une scène plus longue et
 | C | comme B | comme B | une, si durée brute < 85 % de la cible |
 
 C part de la génération de B (même appel, pas un nouveau) : l'écart B → C mesure la relance seule. Les deux sorties
-sont gardées. Le texte exact des remplacements et du message est dans `src/variants.ts`, et le prompt exact de chaque
-essai dans `runs/<essai>/variants/`.
+sont gardées, la seconde même si elle est plus courte. Le texte exact des remplacements et du message est dans
+`src/variants.ts`, et le prompt exact de chaque essai dans `runs/<essai>/variants/`.
 
-`traitement-episode` et les autres règles narratives ne changent pas.
+`traitement-episode`, les plages de rythme et les autres règles narratives ne changent pas.
 
 ## Réglages
 
@@ -29,53 +30,54 @@ essai dans `runs/<essai>/variants/`.
 - 9 scènes (projets 259, 261, 264), 3 répétitions : 54 appels pour A et B, jusqu'à 27 relances pour C.
 - Aucun rendu image ou vidéo.
 
-```bash
-npm run labo -- run duration-259-261-264 --variants A,B,C --reps 3 --launch
-```
+## Déroulé
+
+1. GPU libre (aucun rendu, file de Cadence vide), labo commité.
+2. `npm run labo -- run duration-259-261-264 --variants A,B,C --reps 3 --launch`
+3. `npm run labo -- read labo/runs/<essai>` : prépare `reading/reading.html`.
+4. **Avant d'avoir noté** : n'ouvrir ni les fichiers de l'essai, ni `compare`, et ne commenter aucun résultat. Le
+   rejeu n'écrit pas de rapport comparatif, la page du labo masque l'essai.
+5. Lecture, puis « Télécharger mes notes ».
+6. `npm run labo -- score labo/runs/<essai> --votes <fichier>` : écrit `report.md` et `verdict.md`.
 
 ## Mesures automatiques
 
-Principale : **écart de la durée brute à la cible**. Avec : nombre de plans, scènes sous 85 %, doublons, gestes
-répétés, plans immobiles ou vides, inventions déclarées, relances, temps de modèle, étendue entre répétitions.
+Principale : **écart de la durée brute à la cible**. Par variante et par scène : minimum théorique de plans, plans
+produits, durée brute, durée après ajustement (durée rendue : sans objet, rien n'est rendu), scènes sous 85 %,
+doublons, gestes répétés, plans immobiles ou vides, inventions déclarées, sorties tronquées, jetons, temps de modèle,
+étendue entre répétitions. Pour C : chaque relance avec la première génération et la seconde côte à côte (plans, durée
+brute, jetons, temps).
 
-Pas automatiques : moments couverts, progression, action nouvelle par plan, remplissage. Les écarts avec la durée
-stockée et rendue n'existent que pour l'historique, un rejeu ne rendant rien.
+Pas automatiques : moments couverts, progression, action nouvelle par plan, remplissage. Ils passent par les deux notes.
+Les écarts avec la durée stockée et rendue n'existent que pour l'historique.
 
 ## Lecture à l'aveugle
 
-Par scène et par version, de 1 à 5, plus un commentaire facultatif :
+- Six scènes : les cinq où la cible était inatteignable dans l'historique (259·2, 261·1, 261·2, 261·3, 264·2) et un
+  témoin court (264·1).
+- Une répétition : la première (la suivante seulement si une version y a échoué).
+- Versions dans un ordre tiré au sort, sans variante, durée, alerte, notes ni inventions. La correspondance est dans
+  `reading/key.json`, absente de la page. Deux textes identiques (C sans relance) sont lus une fois.
+- Deux notes de 1 à 5, commentaire facultatif :
+  1. **Progression** : chaque plan apporte-t-il du nouveau à la scène ?
+  2. **Fidélité** : les moments et les intentions sont-ils respectés, sans remplissage inventé ?
 
-1. **Progression** : chaque plan apporte-t-il quelque chose de nouveau à la scène ?
-2. **Fidélité** : la scène respecte-t-elle les moments, les intentions et le sens du scénario, sans remplissage inventé ?
+## Règle de décision
 
-Une répétition lue. Quand C n'a pas relancé, B et C sont le même texte : lu une fois.
-
-Scènes lues (**à valider**, pour tenir en une séance d'environ 45 minutes) : les cinq où la cible était inatteignable
-dans l'historique (259·2, 261·1, 261·2, 261·3, 264·2) et un témoin court (264·1).
-
-## Critères fixés avant lancement
-
-| Critère | Ce qu'on recherche |
-|---|---|
-| Durée | moins d'écart entre cible et durée brute |
-| Progression | pas de répétition ni de remplissage |
-| Fidélité | aucun événement artificiellement ajouté |
-| Stabilité | résultats cohérents entre répétitions |
-
-Une variante ne gagne pas parce qu'elle produit plus de secondes.
-
-### Règle de décision (**à valider**)
-
-Une variante est retenue contre A si les quatre sont vrais :
+Appliquée par `src/score.ts`, seuils dans `src/campaign.ts`. Une variante est retenue contre A si les quatre sont vrais :
 
 1. Progression et Fidélité moyennes au moins égales à celles de A, à 0,25 point près ;
 2. aucune scène lue ne perd 2 points ou plus sur une des deux notes ;
-3. l'écart brut moyen (sans le signe) baisse d'au moins un tiers ;
-4. ce gain d'écart se retrouve dans au moins 2 répétitions sur 3.
+3. l'écart brut moyen (sans le signe) baisse d'au moins un tiers, sur les 9 scènes et 3 répétitions, en ne comparant
+   que les paires où les deux versions ont une sortie ;
+4. cette baisse d'au moins un tiers se retrouve dans au moins 2 répétitions sur 3.
 
-C est préférée à B seulement si elle passe aussi les points 1 et 2 contre B.
+C contre B : les points 1 et 2 contre B, puis une appréciation humaine du gain de notes au regard du coût des relances.
+
+Une variante ne gagne pas parce qu'elle produit plus de secondes.
 
 ## Limites
 
-Échantillon exploratoire, pas une preuve : un auteur, un modèle, trois films, un seul lecteur qui connaît les projets.
-Voir aussi « Limites et biais » du [README](../README.md).
+Règle exploratoire, pas une preuve statistique : un auteur, un modèle, trois films, un seul lecteur qui connaît les
+projets. La longueur d'un texte peut trahir sa variante. Les scènes lues sont surtout celles où la planification change
+le plus, avec un seul témoin. Voir aussi « Limites et biais » du [README](../README.md).

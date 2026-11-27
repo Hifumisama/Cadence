@@ -65,7 +65,7 @@ export type CallRecord = {
   repetition: number;
   startedAt: string;
   input: unknown;
-  attempts: { request: { model: string | null; body: unknown; messages: unknown }; text: string; reasoning: string | null; stop: string | null; tokensIn: number; tokensOut: number; durationMs: number }[];
+  attempts: { request: { model: string | null; body: unknown; messages: unknown }; text: string; reasoning: string | null; stop: string | null; tokensIn: number; tokensOut: number; durationMs: number; servedModel?: string }[];
   /** Output the production code would keep, or null if the call failed. */
   output: SceneOutput | null;
   resends: number;

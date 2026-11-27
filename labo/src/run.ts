@@ -75,6 +75,7 @@ function recording(provider: FournisseurLlm, attempts: CallRecord["attempts"]): 
         tokensIn: answer.usage.entree,
         tokensOut: answer.usage.sortie,
         durationMs: answer.dureeMs,
+        servedModel: answer.modele,
       });
       return answer;
     },
@@ -159,7 +160,8 @@ export async function launch(plan: Plan, log: (line: string) => void, provider: 
         done += 1;
         const seconds = Math.round(record.attempts.reduce((a, x) => a + x.durationMs, 0) / 1000);
         const retried = record.retry ? (record.retry.triggered ? ", relancée" : ", sans relance") : "";
-        log(`${done}/${plan.calls} ${item.id} ${variant.id} r${repetition} : ${record.error ?? `${record.output?.plans.length} plans`}${retried} (${seconds} s)`);
+        // No result in the progress: a comparison is read blind first.
+        log(`${done}/${plan.calls} ${item.id} ${variant.id} r${repetition} : ${record.error ?? "ok"}${retried} (${seconds} s)`);
       }
     }
   }

@@ -11,10 +11,14 @@ import type { SceneInput, SceneOutput } from "./types";
 /** Below this share of the target, the raw duration is short: the trigger of variant C's retry. */
 export const SHORT_RAW_RATIO = 0.85;
 
+/** Theoretical minimum number of plans: the target filled with plans of the maximum length. */
+export const minimumPlans = (targetSeconds: number): number => Math.ceil(targetSeconds / DUREE_GENERATION_MAX);
+
 export type SceneMetrics = {
   targetSeconds: number;
   /** null when the input has no list of moments (treatments written before 2026-11-17). */
   moments: number | null;
+  minimumPlans: number;
   plans: number;
   /** Sum of the durations written by the model. */
   rawSeconds: number;
@@ -64,6 +68,7 @@ export function measureScene(input: SceneInput, output: SceneOutput): SceneMetri
   return {
     targetSeconds: target,
     moments: input.scene.moments?.length ?? null,
+    minimumPlans: minimumPlans(target),
     plans: plans.length,
     rawSeconds,
     adjustedSeconds,

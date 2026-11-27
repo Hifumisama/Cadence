@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { chargerSkill } from "../../lib/llm/skills";
 import { DUREE_GENERATION_MAX } from "../../lib/clips/clip-checks";
 import { REPO_ROOT } from "./files";
-import { SHORT_RAW_RATIO } from "./metrics";
+import { minimumPlans, SHORT_RAW_RATIO } from "./metrics";
 import type { SceneInput, SceneOutput } from "./types";
 
 const SKILL = "scenario-scene";
@@ -25,8 +25,6 @@ export type Variant = {
    * text, ONE more generation is asked in the same conversation. */
   retry?: { from: string; message: (first: SceneOutput, input: SceneInput) => string | null };
 };
-
-export const minimumPlans = (targetSeconds: number): number => Math.ceil(targetSeconds / DUREE_GENERATION_MAX);
 
 // --- B: plan the number of plans from the duration ------------------------------------------------------------------------------
 

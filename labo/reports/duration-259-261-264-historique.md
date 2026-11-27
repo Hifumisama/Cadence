@@ -7,17 +7,17 @@ Versions du prompt rencontrées : 5d17784d, ffb76ae6, 559bdb8d. Appels avec réf
 
 ## Durées (sortie du modèle, puis code actuel)
 
-| Scène | Prompt | Cible | Moments | Plans | Max atteignable | Brut | Après code | Ajouté par le code | Écart final |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 259 · 1 | 5d17784d | 28 | – | 3 | 30 | 28 | 28 | 0 | 0 % |
-| 259 · 2 | 5d17784d | 52 | – | 4 | **40** | 40 | 40 | 0 | -23 % |
-| 259 · 3 | 5d17784d | 40 | – | 4 | 40 | 32 | 40 | +8 | 0 % |
-| 261 · 1 | ffb76ae6 | 31 | 5 | 3 | **30** | 29 | 30 | +1 | -3 % |
-| 261 · 2 | ffb76ae6 | 40 | 3 | 3 | **30** | 30 | 30 | 0 | -25 % |
-| 261 · 3 | ffb76ae6 | 49 | 4 | 4 | **40** | 40 | 40 | 0 | -18 % |
-| 264 · 1 | 559bdb8d | 15 | 2 | 2 | 20 | 15 | 15 | 0 | 0 % |
-| 264 · 2 | 559bdb8d | 47 | 4 | 4 | **40** | 35 | 40 | +5 | -15 % |
-| 264 · 3 | 559bdb8d | 58 | 7 | 6 | 60 | 45 | 58 | +13 | 0 % |
+| Scène | Prompt | Cible | Moments | Min. plans | Plans | Max atteignable | Brut | Après code | Ajouté par le code | Écart final |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 259 · 1 | 5d17784d | 28 | – | 3 | 3 | 30 | 28 | 28 | 0 | 0 % |
+| 259 · 2 | 5d17784d | 52 | – | 6 | 4 | **40** | 40 | 40 | 0 | -23 % |
+| 259 · 3 | 5d17784d | 40 | – | 4 | 4 | 40 | 32 | 40 | +8 | 0 % |
+| 261 · 1 | ffb76ae6 | 31 | 5 | 4 | 3 | **30** | 29 | 30 | +1 | -3 % |
+| 261 · 2 | ffb76ae6 | 40 | 3 | 4 | 3 | **30** | 30 | 30 | 0 | -25 % |
+| 261 · 3 | ffb76ae6 | 49 | 4 | 5 | 4 | **40** | 40 | 40 | 0 | -18 % |
+| 264 · 1 | 559bdb8d | 15 | 2 | 2 | 2 | 20 | 15 | 15 | 0 | 0 % |
+| 264 · 2 | 559bdb8d | 47 | 4 | 5 | 4 | **40** | 35 | 40 | +5 | -15 % |
+| 264 · 3 | 559bdb8d | 58 | 7 | 6 | 6 | 60 | 45 | 58 | +13 | 0 % |
 
 - Cible inatteignable (max atteignable en gras) : **5/9** scènes.
 - Total : 360 s visées, 294 s écrites par le modèle, 321 s après ajustement (+27 s ajoutées par le code).

@@ -4,8 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import type { DemandeLlm, FournisseurLlm } from "../../lib/llm/types";
+import { minimumPlans } from "./metrics";
 import { launch, type Plan } from "./run";
-import { durationRetryMessage, minimumPlans, variantById } from "./variants";
+import { durationRetryMessage, variantById } from "./variants";
 import type { Case, SceneInput, SceneOutput } from "./types";
 
 const input: SceneInput = { scene: { titre: "Duel", position: "1 sur 1", dureeCibleSecondes: 40, moments: ["a", "b"] } };

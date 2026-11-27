@@ -11,7 +11,12 @@ npm run labo -- report duration-259-261-264                          # sans mod�
 npm run labo -- run duration-259-261-264 --reps 3                    # à blanc : n'appelle rien
 npm run labo -- run duration-259-261-264 --reps 3 --launch           # consomme le GPU
 npm run labo -- compare labo/runs/<essai>                            # refait un rapport
+npm run labo -- read labo/runs/<essai>                               # prépare la lecture à l'aveugle
+npm run labo -- score labo/runs/<essai> --votes <fichier>            # rapport et verdict
 ```
+
+Un essai à plusieurs variantes reste caché (pas de rapport automatique, absent de la page) tant que ses notes ne sont
+pas enregistrées par `score`.
 
 Options de `run` : `--variants A,B,C`, `--only 261,264-s2-t1930`, `--model`, `--body '{}'`. C demande B dans le même essai.
 
@@ -40,6 +45,9 @@ Code : `src/page.ts` (données), `src/page/template.html` (affichage).
 | `src/run.ts` | rejeu par `executerSkill` (aucune trace en base), capture de chaque réponse brute |
 | `src/metrics.ts` | mesures automatiques |
 | `src/report.ts` | rapports en français |
+| `src/campaign.ts` | scènes lues et seuils de la campagne en cours |
+| `src/reading.ts`, `src/page/reading.html` | lecture à l'aveugle |
+| `src/score.ts` | règle de décision appliquée aux notes |
 | `src/*.test.ts` | tests, avec un faux modèle (lancés par `npm test`) |
 | `protocols/` | protocole de chaque campagne, écrit avant de la lancer |
 | `datasets/` | jeux figés |
@@ -85,7 +93,7 @@ Toutes automatiques. « Final » = après le code. La **durée brute** est la me
 
 ## Protocole
 
-Première campagne : [protocols/01-duration.md](protocols/01-duration.md). La lecture à l'aveugle reste à construire.
+Première campagne : [protocols/01-duration.md](protocols/01-duration.md).
 
 ## Limites et biais
 

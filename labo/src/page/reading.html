@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lecture à l'aveugle</title>
+<style>
+  :root { --ground: #121217; --surface: #1a1a21; --surface-2: #23232c; --line: #33333f; --ink: #ece9e3; --ink-2: #b7b2c0; --or: #c9a24b; --or-glow: #f0d089; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font: 18px/1.7 system-ui, "Segoe UI", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 18px 90px; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  h2 { font-size: 1.05rem; margin: 0 0 6px; }
+  .muted { color: var(--ink-2); font-size: .95rem; }
+  .panel, details { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; margin-top: 14px; }
+  summary { cursor: pointer; font-weight: 600; }
+  ol, ul { padding-left: 22px; margin: 8px 0 0; }
+  button { font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 8px 14px; cursor: pointer; }
+  button:focus-visible, summary:focus-visible, textarea:focus-visible { outline: 2px solid var(--or); outline-offset: 2px; }
+  button[aria-pressed="true"] { background: var(--or); border-color: var(--or); color: #17130a; font-weight: 650; }
+  button:disabled { opacity: .4; cursor: default; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+  .plan { margin-top: 18px; }
+  .plan p { white-space: pre-wrap; margin: 4px 0 0; }
+  .question { margin-top: 18px; }
+  .scale { display: flex; gap: 8px; margin-top: 8px; }
+  .scale button { min-width: 52px; }
+  textarea { width: 100%; font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 10px; margin-top: 8px; }
+  .foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-top: 22px; }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script type="application/json" id="data">__DATA__</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById("data").textContent);
+  const app = document.getElementById("app");
+  const storageKey = `labo-lecture-${data.readingId}`;
+  const total = data.scenes.reduce((n, s) => n + s.proposals.length, 0);
+  let votes = {};
+  try { votes = JSON.parse(localStorage.getItem(storageKey)) ?? {}; } catch { /* storage unavailable: votes live in the page */ }
+  let sceneIndex = 0;
+  let textIndex = 0;
+
+  /** Every text goes in through text nodes: nothing the model wrote is ever read as HTML. */
+  function el(tag, props = {}, ...children) {
+    const node = document.createElement(tag);
+    for (const [key, value] of Object.entries(props)) {
+      if (value == null || value === false) continue;
+      if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
+      else node.setAttribute(key, value === true ? "" : value);
+    }
+    node.append(...children.flat().filter((c) => c != null && c !== false));
+    return node;
+  }
+
+  const rated = (id) => Boolean(votes[id]?.progression && votes[id]?.fidelity);
+  const done = () => data.scenes.flatMap((s) => s.proposals).filter((p) => rated(p.id)).length;
+  const save = () => { try { localStorage.setItem(storageKey, JSON.stringify(votes)); } catch { /* ignored */ } };
+  const exported = () => JSON.stringify({ readingId: data.readingId, votes }, null, 2);
+
+  function go(scene, text) {
+    sceneIndex = scene;
+    textIndex = text;
+    render();
+    window.scrollTo(0, 0);
+  }
+
+  function question(id, field, label) {
+    return el("div", { class: "question" }, el("h2", {}, label),
+      el("div", { class: "scale", role: "group", "aria-label": label },
+        [1, 2, 3, 4, 5].map((n) => el("button", {
+          type: "button", "aria-pressed": String(votes[id]?.[field] === n),
+          onclick: () => { votes[id] = { ...votes[id], [field]: n }; save(); render(); },
+        }, String(n)))));
+  }
+
+  function download() {
+    const link = el("a", { href: URL.createObjectURL(new Blob([exported()], { type: "application/json" })), download: `notes-${data.readingId}.json` });
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
+  function render() {
+    const scene = data.scenes[sceneIndex];
+    const proposal = scene.proposals[textIndex];
+    const id = proposal.id;
+    const last = sceneIndex === data.scenes.length - 1 && textIndex === scene.proposals.length - 1;
+    const next = textIndex < scene.proposals.length - 1 ? () => go(sceneIndex, textIndex + 1) : () => go(sceneIndex + 1, 0);
+    const previous = textIndex > 0 ? () => go(sceneIndex, textIndex - 1) : () => go(sceneIndex - 1, data.scenes[sceneIndex - 1].proposals.length - 1);
+    const list = (items) => el("ol", {}, items.map((x) => el("li", {}, x)));
+    app.replaceChildren(...[
+      el("h1", {}, scene.title),
+      el("div", { class: "muted" }, `Scène ${sceneIndex + 1} sur ${data.scenes.length} · ${done()} texte(s) noté(s) sur ${total}`),
+      el("div", { class: "panel" }, el("h2", {}, "Ce que la scène doit raconter"), el("div", {}, scene.intention),
+        scene.moments.length ? list(scene.moments) : null),
+      scene.authorMoments || scene.entry || scene.authorWords.length
+        ? el("details", {}, el("summary", {}, "Plus de contexte"),
+            scene.authorMoments ? el("p", {}, `Ce que tu en as dit : ${scene.authorMoments}`) : null,
+            scene.entry ? el("p", {}, `Départ : ${scene.entry}`) : null,
+            scene.exit ? el("p", {}, `Arrivée : ${scene.exit}`) : null,
+            scene.authorWords.length ? el("ul", {}, scene.authorWords.map((w) => el("li", {}, w))) : null)
+        : null,
+      el("div", { class: "tabs" }, scene.proposals.map((p, i) => el("button", { type: "button", "aria-pressed": String(i === textIndex), onclick: () => go(sceneIndex, i) }, `Texte ${i + 1}${rated(p.id) ? " ✓" : ""}`))),
+      proposal.plans.map((p, i) => el("section", { class: "plan" }, el("h2", {}, `${i + 1}. ${p.title}`), el("p", {}, p.description))),
+      el("div", { class: "panel" },
+        question(id, "progression", "Progression : chaque plan apporte-t-il du nouveau ?"),
+        question(id, "fidelity", "Fidélité : les moments et les intentions sont-ils respectés, sans remplissage ?"),
+        el("div", { class: "question" }, el("h2", {}, "Commentaire (facultatif)"),
+          el("textarea", { rows: "2", oninput: (e) => { votes[id] = { ...votes[id], comment: e.target.value }; save(); } }, votes[id]?.comment ?? ""))),
+      el("div", { class: "foot" },
+        el("button", { type: "button", disabled: sceneIndex === 0 && textIndex === 0, onclick: previous }, "← Précédent"),
+        el("button", { type: "button", disabled: last, onclick: next }, "Suivant →")),
+      done() === total
+        ? el("div", { class: "panel" }, el("h2", {}, "Tout est noté, merci !"),
+            el("button", { type: "button", onclick: download }, "Télécharger mes notes"),
+            el("details", {}, el("summary", {}, "Si le téléchargement ne marche pas : copier ce texte"), el("textarea", { rows: "8", readonly: true }, exported())))
+        : null,
+    ].flat().filter(Boolean));
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

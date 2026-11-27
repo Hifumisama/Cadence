@@ -6,7 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { gestesRepetes, nomsPersonnagesDeLEntree, phrasesPartagees, signesImmobilite } from "../../lib/agents/stillness";
 import { ajusterDureesScene } from "../../lib/agents/treatment";
 import { DUREE_GENERATION_MAX } from "../../lib/clips/clip-checks";
-import { LAB_ROOT, readDataset } from "./files";
+import { awaitsReading, LAB_ROOT, readDataset, readRun } from "./files";
 import { measureScene, type SceneMetrics } from "./metrics";
 import type { CallRecord, Case, Dataset, ReviewCorrection, RunManifest, SceneOutput } from "./types";
 
@@ -165,38 +165,32 @@ export function buildPageData(dataset: Dataset, runs: Run[]): PageData {
 }
 
 /** The data goes into a JSON script block: `<` is escaped so that no text of the model can close it. */
-export function renderPage(data: PageData, template: string): string {
+export function renderPage(data: object, template: string): string {
   const marker = "__DATA__";
   if (template.split(marker).length !== 2) throw new Error("Le gabarit doit contenir exactement un emplacement de données.");
   const json = JSON.stringify(data).replace(/</g, "\\u003c");
   return template.replace(marker, () => json);
 }
 
-function readRuns(dataset: string, root: string = resolve(LAB_ROOT, "runs")): Run[] {
-  if (!existsSync(root)) return [];
-  return readdirSync(root, { withFileTypes: true })
+function readRuns(dataset: string, root: string = resolve(LAB_ROOT, "runs")): { shown: Run[]; hidden: number } {
+  if (!existsSync(root)) return { shown: [], hidden: 0 };
+  const all = readdirSync(root, { withFileTypes: true })
     .filter((e) => e.isDirectory() && existsSync(join(root, e.name, "manifest.json")))
-    .map((e) => {
-      const folder = join(root, e.name);
-      const manifest = JSON.parse(readFileSync(join(folder, "manifest.json"), "utf8")) as RunManifest;
-      const calls = join(folder, "calls");
-      const records = existsSync(calls)
-        ? readdirSync(calls)
-            .filter((f) => f.endsWith(".json"))
-            .map((f) => JSON.parse(readFileSync(join(calls, f), "utf8")) as CallRecord)
-        : [];
-      return { manifest, records };
-    })
+    .map((e) => ({ folder: join(root, e.name), ...readRun(join(root, e.name)) }))
     .filter((r) => r.manifest.dataset === dataset);
+  const shown = all.filter((r) => !awaitsReading(r.folder, r.manifest));
+  return { shown, hidden: all.length - shown.length };
 }
 
-export function writePage(name: string): string {
+/** `hidden`: comparisons left out until their blind votes are in. */
+export function writePage(name: string): { file: string; hidden: number } {
   const template = readFileSync(resolve(LAB_ROOT, "src", "page", "template.html"), "utf8");
-  const html = renderPage(buildPageData(readDataset(name), readRuns(name)), template);
+  const runs = readRuns(name);
+  const html = renderPage(buildPageData(readDataset(name), runs.shown), template);
   const file = resolve(LAB_ROOT, "pages", `${name}.html`);
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, html);
-  return file;
+  return { file, hidden: runs.hidden };
 }
 
 export function datasetNames(): string[] {
