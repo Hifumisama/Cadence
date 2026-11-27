@@ -29,10 +29,15 @@ const fake: FournisseurLlm = {
 const reusedRecord = { caseId: item.id, variant: "A", repetition: 2, input: item.input, output: answer("zéro"), resends: 0, error: null, startedAt: "", attempts: [{ request: { model: "m", body: { chat_template_kwargs: { enable_thinking: false } }, messages: [] }, text: JSON.stringify(answer("zéro")), reasoning: null, stop: "stop", tokensIn: 9000, tokensOut: 400, durationMs: 1000 }] } as CallRecord;
 
 test("experiment 04: fixed versions, and T0 reused only under the same conditions", () => {
-  assert.deepEqual(variantsOf({ dataset: "d", variants: [], repetitions: 1, campaign: "04", reuse: "x" }).map((v) => v.id), ["T1", "T2"]);
+  assert.deepEqual(variantsOf({ dataset: "d", variants: [], repetitions: 1, campaign: "04", reuse: ["x"] }).map((v) => v.id), ["T1", "T2"]);
+  assert.deepEqual(variantsOf({ dataset: "d", variants: [], repetitions: 1, campaign: "04", round: 2, reuse: ["x", "y"] }).map((v) => v.id), ["T3"]);
   assert.throws(() => variantsOf({ dataset: "d", variants: [], repetitions: 1, campaign: "04" }), /--reuse/);
-  assert.throws(() => variantsOf({ dataset: "d", variants: ["B"], repetitions: 1, campaign: "04", reuse: "x" }), /fixés/);
-  const reuse = LIGHT_EXPERIMENT.reused;
+  assert.throws(() => variantsOf({ dataset: "d", variants: [], repetitions: 1, campaign: "04", round: 2, reuse: ["x"] }), /T0 puis T1/);
+  assert.deepEqual(variantsOf({ dataset: "d", variants: [], repetitions: 1, campaign: "04", round: 3, reuse: ["x"] }).map((v) => v.id), ["T1"]);
+  assert.throws(() => variantsOf({ dataset: "d", variants: [], repetitions: 1, campaign: "04", round: 4, reuse: ["x"] }), /tour inconnu/);
+  assert.throws(() => variantsOf({ dataset: "d", variants: ["B"], repetitions: 1, campaign: "04", reuse: ["x"] }), /fixés/);
+  const reuse = LIGHT_EXPERIMENT.rounds[0]!.reused[0]!;
+  assert.throws(() => checkReuse({ records: [reusedRecord] }, { ...reuse, thinking: true }, item), /avec réflexion/);
   checkReuse({ records: [reusedRecord] }, reuse, item);
   assert.throws(() => checkReuse({ records: [] }, reuse, item), /pas d'appel/);
   assert.throws(() => checkReuse({ records: [reusedRecord] }, reuse, { ...item, input: { scene: {} } } as unknown as Case), /entrée diffère/);
@@ -51,14 +56,18 @@ test("experiment 04 rehearsal: two calls, blind duels, hidden until answered", a
     writeFileSync(join(source, "manifest.json"), JSON.stringify(sourceManifest));
     writeFileSync(join(source, "calls", "a.json"), JSON.stringify(reusedRecord));
 
-    const variants = lightVariants();
-    const plan = (id: string): Plan => ({
-      manifest: { id, dataset: "test", startedAt: "", commit: "abc", dirty: false, model: "m", body: {}, maxTokens: REASONING_CAMPAIGN.maxTokens, repetitions: 1, campaign: "04", reuse: { run: "source", variant: "A", repetition: 2 }, variants: variants.map((v) => ({ id: v.id, label: v.label, systemHash: "", systemChars: 0 })), cases: [item.id] },
-      cases: [item],
-      variants,
-      calls: 2,
-      conditionalCalls: 0,
-    });
+    const plan = (id: string, round = 1, runs = ["source"]): Plan => {
+      const settings = LIGHT_EXPERIMENT.rounds[round - 1]!;
+      const variants = lightVariants(settings.variants);
+      const reuse = settings.reused.map((r, i) => ({ id: r.id, run: runs[i]!, variant: r.variant, repetition: r.repetition }));
+      return {
+        manifest: { id, dataset: "test", startedAt: "", commit: "abc", dirty: false, model: "m", body: {}, maxTokens: REASONING_CAMPAIGN.maxTokens, repetitions: 1, campaign: "04", round, reuse, variants: variants.map((v) => ({ id: v.id, label: v.label, systemHash: "", systemChars: 0 })), cases: [item.id] },
+        cases: [item],
+        variants,
+        calls: variants.length,
+        conditionalCalls: 0,
+      };
+    };
     const run = await launch(plan("essai"), () => {}, fake, root);
     const { manifest, records } = readRun(run);
     assert.deepEqual(records.map((r) => [r.variant, r.attempts.length, r.resends]), [["T1", 1, 0], ["T2", 1, 0]], "no content resend");
@@ -73,7 +82,7 @@ test("experiment 04 rehearsal: two calls, blind duels, hidden until answered", a
 
     const { versions } = versionsOf(run);
     assert.deepEqual(versions.map((v) => v.id), ["T0", "T1", "T2"]);
-    const { data, key } = buildLightDuels(item, manifest.id, versions, () => 0, "lecture4");
+    const { data, key } = buildLightDuels(item, manifest.id, versions, LIGHT_EXPERIMENT.rounds[0]!.duels, () => 0, "lecture4");
     assert.equal(data.duels.length, 2);
     assert.deepEqual(Object.values(key.duels).map((d) => [...d.sides].sort().join()).sort(), ["T0,T1", "T1,T2"]);
     for (const secret of ["T0", "T1", "T2", "variant", "dureeSecondes"]) assert.equal(JSON.stringify(data).includes(secret), false, secret);
@@ -82,6 +91,13 @@ test("experiment 04 rehearsal: two calls, blind duels, hidden until answered", a
     mkdirSync(join(run, "duels"));
     writeFileSync(join(run, "duels", "votes.json"), "{}");
     assert.equal(awaitsReading(run, manifest), false);
+
+    // Second round: one new version, T0 and T1 reused from their two runs.
+    const second = await launch(plan("tour-2", 2, ["source", "essai"]), () => {}, fake, root);
+    assert.deepEqual(readRun(second).records.map((r) => [r.variant, r.attempts.length]), [["T3", 1]]);
+    const three = versionsOf(second).versions;
+    assert.deepEqual(three.map((v) => v.id), ["T0", "T1", "T3"]);
+    assert.equal(buildLightDuels(item, "tour-2", three, LIGHT_EXPERIMENT.rounds[1]!.duels).data.duels.length, 2);
 
     // A production prompt that changed since the reused run stops everything before any call.
     writeFileSync(join(source, "manifest.json"), JSON.stringify({ ...sourceManifest, variants: [{ id: "A", systemHash: "autre" }] }));

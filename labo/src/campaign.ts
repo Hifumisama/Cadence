@@ -44,18 +44,52 @@ export const CONFIRMATION = {
 
 export type Confirmation = typeof CONFIRMATION;
 
-/** Experiment 04 (`proposals/experiment-04-reasoning-light.md`): one scene, three versions, FIRST answers compared in blind duels. */
+/** A version of experiment 04 that is not replayed: the first answer of a record of an earlier run. */
+export type ReusedVersion = { id: string; variant: string; repetition: number; thinking: boolean };
+
+/** T0 is the production version without reasoning: a record of campaign 01 nobody had read. */
+const T0: ReusedVersion = { id: "T0", variant: "A", repetition: 2, thinking: false };
+
+/** Experiment 04 (`proposals/experiment-04-reasoning-light.md`): one scene, FIRST answers compared in blind duels. */
 export const LIGHT_EXPERIMENT = {
   scene: "264-s2",
-  /** T0 is not replayed: the first answer of this record of campaign 01 (never read). */
-  reused: { id: "T0", variant: "A", repetition: 2 },
-  /** The new prompt of T2, from the lab folder. */
-  skillFile: "proposals/scenario-scene-reasoning/SKILL.md",
-  labels: { T0: "Skill actuel, sans réflexion", T1: "Skill actuel, avec réflexion", T2: "Skill repensé, avec réflexion" },
-  duels: [
-    ["T0", "T1"],
-    ["T1", "T2"],
-  ] as [string, string][],
+  labels: {
+    T0: "Skill actuel, sans réflexion",
+    T1: "Skill actuel, avec réflexion",
+    T2: "Skill repensé, avec réflexion",
+    T3: "Skill repensé, version 2, avec réflexion",
+  } as Record<string, string>,
+  /** The new prompts, from the lab folder; a version without one runs the production prompt. */
+  skillFiles: {
+    T2: "proposals/scenario-scene-reasoning/SKILL.md",
+    T3: "proposals/scenario-scene-reasoning/v2/SKILL.md",
+  } as Record<string, string>,
+  /** Each round replays some versions, reuses the others (`--reuse` gives their runs in this order) and draws its duels. */
+  rounds: [
+    {
+      variants: ["T1", "T2"],
+      reused: [T0],
+      duels: [
+        ["T0", "T1"],
+        ["T1", "T2"],
+      ] as [string, string][],
+    },
+    {
+      variants: ["T3"],
+      reused: [T0, { id: "T1", variant: "T1", repetition: 1, thinking: true }],
+      duels: [
+        ["T0", "T3"],
+        ["T1", "T3"],
+      ] as [string, string][],
+    },
+    // Reasoning alone, on a scene the author never read.
+    {
+      scene: "264-s3",
+      variants: ["T1"],
+      reused: [{ ...T0, repetition: 1 }],
+      duels: [["T0", "T1"]] as [string, string][],
+    },
+  ] as { scene?: string; variants: string[]; reused: ReusedVersion[]; duels: [string, string][] }[],
 };
 
 /** Optional reasons of a duel. */

@@ -27,8 +27,10 @@ export type RunOptions = {
   body?: Record<string, unknown>;
   /** Campaign 02 and experiment 04: their versions are fixed, `variants` stays empty. */
   campaign?: "02" | "04";
-  /** Experiment 04: folder name of the run of campaign 01 that gives T0. */
-  reuse?: string;
+  /** Experiment 04: folder names of the runs that give the reused versions, in the round's order. */
+  reuse?: string[];
+  /** Experiment 04: round, from 1. */
+  round?: number;
   /** Campaign 02: the variant of campaign 01 that was kept. */
   base?: string;
   /** Campaign 02: three scenes with reasoning only, to check that the run works. */
@@ -52,14 +54,22 @@ export function pickPilotCases(cases: Case[]): Case[] {
   return [...new Set(picked.filter((c): c is Case => c != null))];
 }
 
+/** The settings of a round of experiment 04 (the first by default). */
+export function lightRound(number = 1) {
+  const round = LIGHT_EXPERIMENT.rounds[number - 1];
+  if (!round) throw new Error(`Expérience 04 : tour inconnu (1 à ${LIGHT_EXPERIMENT.rounds.length}).`);
+  return round;
+}
+
 /** The variants of a run, in the order they are replayed. */
 export function variantsOf(options: RunOptions): Variant[] {
   if (options.campaign === "04") {
     if (options.only?.length || options.body || options.variants.length || options.base || options.pilot || options.repetitions !== 1) throw new Error("Expérience 04 : scène, versions et corps sont fixés (ni --only, ni --body, ni --variants, ni --base, ni --pilot, ni --reps).");
-    if (!options.reuse) throw new Error("Expérience 04 : --reuse <dossier de l'essai de la campagne 01> est obligatoire (il donne T0).");
-    return lightVariants();
+    const round = lightRound(options.round);
+    if (options.reuse?.length !== round.reused.length) throw new Error(`Expérience 04 : --reuse attend ${round.reused.length} dossier(s) d'essai, séparés par des virgules, pour ${round.reused.map((r) => r.id).join(" puis ")}.`);
+    return lightVariants(round.variants);
   }
-  if (options.reuse) throw new Error("--reuse ne vaut que pour l'expérience 04.");
+  if (options.reuse || options.round) throw new Error("--reuse et --round ne valent que pour l'expérience 04.");
   if (options.campaign !== "02") {
     if (options.base || options.pilot) throw new Error("--base et --pilot ne valent que pour la campagne 02 (--campaign 02).");
     // A paired variant reads the generation of another: that one runs first.
@@ -81,16 +91,20 @@ export function planRun(options: RunOptions, now = new Date()): Plan {
   const variants = variantsOf(options);
   const dataset = readDataset(options.dataset);
   const light = options.campaign === "04";
-  const only = light ? [LIGHT_EXPERIMENT.scene] : options.only;
+  const only = light ? [lightRound(options.round).scene ?? LIGHT_EXPERIMENT.scene] : options.only;
   const wanted = dataset.cases.filter((c) => !only?.length || only.some((o) => c.id === o || c.id.startsWith(`${o}-`)));
   const cases = options.pilot ? pickPilotCases(wanted) : wanted;
   if (cases.length === 0) throw new Error("Aucun cas ne correspond.");
   if (!Number.isInteger(options.repetitions) || options.repetitions < 1) throw new Error("Le nombre de répétitions doit être un entier d'au moins 1.");
   const reasoning = options.campaign !== undefined;
   const suffix = light ? "-04" : reasoning ? (options.pilot ? "-02-pilote" : "-02") : "";
-  const { variant: reusedVariant, repetition } = LIGHT_EXPERIMENT.reused;
-  const reuse = light ? { run: options.reuse!, variant: reusedVariant, repetition } : undefined;
-  if (reuse) checkReuse(readRun(join(LAB_ROOT, "runs", reuse.run)), reuse, cases[0]!);
+  const reuse = light
+    ? lightRound(options.round).reused.map((wanted, i) => {
+        const run = options.reuse![i]!;
+        checkReuse(readRun(join(LAB_ROOT, "runs", run)), wanted, cases[0]!);
+        return { id: wanted.id, run, variant: wanted.variant, repetition: wanted.repetition };
+      })
+    : undefined;
   const manifest: RunManifest = {
     id: `${now.toISOString().slice(0, 19).replace(/[:T]/g, "-")}-${options.dataset}${suffix}`,
     dataset: options.dataset,
@@ -104,20 +118,20 @@ export function planRun(options: RunOptions, now = new Date()): Plan {
     variants: variants.map((v) => ({ id: v.id, label: v.label, systemHash: "", systemChars: 0, ...(v.body ? { body: v.body } : {}), ...(v.maxTokens ? { maxTokens: v.maxTokens } : {}) })),
     cases: cases.map((c) => c.id),
     ...(options.campaign === "02" ? { campaign: "02" as const, base: options.base!.toUpperCase(), ...(options.pilot ? { pilot: true } : {}) } : {}),
-    ...(reuse ? { campaign: "04" as const, reuse } : {}),
+    ...(reuse ? { campaign: "04" as const, reuse, round: options.round ?? 1 } : {}),
   };
   const perVariant = cases.length * options.repetitions;
   return { manifest, cases, variants, calls: perVariant * variants.length, conditionalCalls: perVariant * variants.filter((v) => v.retry).length };
 }
 
-/** The reused record stands for T0 only if it saw the same input, without reasoning, and was not cut. The prompt is compared at launch. Pure. */
-export function checkReuse(source: { records: CallRecord[] }, reuse: { variant: string; repetition: number }, item: Case): void {
+/** A reused record stands for a version only if it saw the same input, with the version's reasoning switch, and was not cut. Pure. */
+export function checkReuse(source: { records: CallRecord[] }, reuse: { variant: string; repetition: number; thinking: boolean }, item: Case): void {
   const record = source.records.find((r) => r.caseId === item.id && r.variant === reuse.variant && r.repetition === reuse.repetition);
   const first = record?.attempts[0];
   if (!record || !first) throw new Error(`Réutilisation impossible : pas d'appel ${reuse.variant} r${reuse.repetition} pour ${item.id}.`);
   if (JSON.stringify(record.input) !== JSON.stringify(item.input)) throw new Error("Réutilisation impossible : l'entrée diffère.");
   const kwargs = (first.request.body as { chat_template_kwargs?: { enable_thinking?: boolean } } | null)?.chat_template_kwargs;
-  if (kwargs?.enable_thinking !== false) throw new Error("Réutilisation impossible : cet appel n'a pas été fait sans réflexion.");
+  if (kwargs?.enable_thinking !== reuse.thinking) throw new Error(`Réutilisation impossible : cet appel n'a pas été fait ${reuse.thinking ? "avec" : "sans"} réflexion.`);
   if (first.stop === "length") throw new Error("Réutilisation impossible : la réponse est coupée.");
 }
 
@@ -248,11 +262,12 @@ export async function launch(
     Object.assign(plan.manifest.variants[i]!, materialize(variant, root));
     roots.set(variant.id, root);
   }
-  const { reuse } = plan.manifest;
-  if (reuse) {
-    // T1 must run the very prompt T0 ran.
-    const before = readRun(join(runsRoot, reuse.run)).manifest.variants.find((v) => v.id === reuse.variant)?.systemHash;
-    if (before !== plan.manifest.variants[0]!.systemHash) {
+  const t0 = [plan.manifest.reuse ?? []].flat().find((r) => (r.id ?? "T0") === "T0");
+  const t1 = plan.manifest.variants.find((v) => v.id === "T1");
+  if (t0 && t1) {
+    // A replayed T1 must run the very prompt T0 ran.
+    const before = readRun(join(runsRoot, t0.run)).manifest.variants.find((v) => v.id === t0.variant)?.systemHash;
+    if (before !== t1.systemHash) {
       rmSync(folder, { recursive: true, force: true });
       throw new Error("Réutilisation impossible : le prompt de production a changé depuis cet essai.");
     }

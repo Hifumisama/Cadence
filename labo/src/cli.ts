@@ -1,10 +1,11 @@
 import "dotenv/config";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { REASONING_CAMPAIGN } from "./campaign";
 import { duelReport, writeDuels, type DuelKey, type DuelVotes } from "./duel";
 import { serveDuels } from "./duel-server";
+import { readEvaluationAnswer, writeEvaluation } from "./evaluation";
 import { awaitsReading, LAB_ROOT, readDataset, readRun } from "./files";
 import { lightReport, technicalReport, writeLightDuels } from "./light";
 import { datasetNames, writePage } from "./page";
@@ -22,13 +23,16 @@ const USAGE = `Usage : npm run labo -- <commande>
                                               sans --launch : montre ce qui serait fait, n'appelle rien
   run     <jeu> --campaign 02 --base A|B|C [--pilot] [--launch]
                                               campagne 02 (réflexion) ; --pilot : 3 scènes, avec réflexion
-  run     <jeu> --campaign 04 --reuse <essai de la campagne 01> [--launch]
-                                              expérience 04 : une scène, T1 et T2, premières réponses
+  run     <jeu> --campaign 04 --reuse <essai>[,<essai>] [--round 2] [--launch]
+                                              expérience 04 : une scène, premières réponses
   compare <dossier d'essai>                   refait le rapport d'un essai
   read    <dossier d'essai>                   prépare la lecture à l'aveugle
   score   <dossier d'essai> --votes <fichier> applique la règle de décision aux notes
   duels   <dossier d'essai> [--port 4750]     duels à l'aveugle : sert la page et enregistre les réponses (ne s'arrête qu'ensuite)
   duels-score <dossier d'essai>               rapport des réponses (confirmation : avec son seuil)
+  evaluate <essai>[,<essai>]                  fichier d'évaluation à l'aveugle pour un lecteur extérieur (expérience 04)
+  evaluate-read <dernier essai> --answer <f> [--reader chatgpt]
+                                              lit sa réponse : classement, citations vérifiées, face aux duels
   page    [<jeu>]                             génère la page à ouvrir dans le navigateur`;
 
 function write(file: string, text: string): void {
@@ -53,6 +57,9 @@ async function main(): Promise<number> {
       votes: { type: "string" },
       port: { type: "string" },
       reuse: { type: "string" },
+      round: { type: "string" },
+      answer: { type: "string" },
+      reader: { type: "string" },
       launch: { type: "boolean", default: false },
     },
   });
@@ -92,13 +99,14 @@ async function main(): Promise<number> {
       ...(reasoning ? { campaign: light ? ("04" as const) : ("02" as const) } : {}),
       base: values.base,
       pilot: values.pilot,
-      reuse: values.reuse ? basename(resolve(values.reuse)) : undefined,
+      reuse: values.reuse?.split(",").map((folder) => basename(resolve(folder))),
+      round: values.round ? Number(values.round) : undefined,
     });
     const paired = plan.conditionalCalls ? `, plus jusqu'à ${plan.conditionalCalls} relances de durée` : "";
     console.log(`${plan.cases.length} cas × ${plan.variants.length} variante(s) × ${plan.manifest.repetitions} répétition(s) : ${plan.calls - plan.conditionalCalls} appels${paired} (hors renvois de production)`);
     console.log(`Modèle : ${plan.manifest.model}`);
     if (reasoning) {
-      if (light) console.log(`Scène ${plan.manifest.cases[0]} ; T0 repris de ${plan.manifest.reuse!.run} (aucun appel)`);
+      if (light) console.log(`Scène ${plan.manifest.cases[0]}, tour ${plan.manifest.round} ; repris sans appel : ${[plan.manifest.reuse ?? []].flat().map((r) => `${r.id} de ${r.run}`).join(", ")}`);
       else console.log(`Base : variante ${plan.manifest.base}${plan.manifest.pilot ? " (pilote)" : ""}`);
       for (const v of plan.manifest.variants) console.log(`${v.id} : ${JSON.stringify(v.body)} · plafond ${v.maxTokens} jetons`);
       if (plan.variants.some((v) => v.ownRetry)) console.log("La base relance les scènes trop courtes : un appel de plus au maximum par scène et par version.");
@@ -139,6 +147,17 @@ async function main(): Promise<number> {
     const folder = join(run, light ? "duels" : "confirmation");
     const json = <T>(name: string) => JSON.parse(readFileSync(join(folder, name), "utf8")) as T;
     write(join(folder, "verdict.md"), light ? lightReport(run, json<DuelVotes>("votes.json")) : duelReport(json<DuelKey>("key.json"), json<DuelVotes>("votes.json")));
+  } else if (command === "evaluate") {
+    console.log(`Fichier à envoyer : ${writeEvaluation(target.split(","))}`);
+  } else if (command === "evaluate-read") {
+    if (!values.answer) throw new Error("--answer est obligatoire : le fichier qui contient la réponse du lecteur extérieur.");
+    // One report per reader: two answers on the same file never overwrite each other.
+    const reader = values.reader ?? "exterieur";
+    if (!/^[a-z0-9-]+$/.test(reader)) throw new Error("--reader : lettres minuscules, chiffres et tirets.");
+    const report = readEvaluationAnswer(target, values.answer);
+    const folder = join(resolve(target), "evaluation");
+    copyFileSync(resolve(values.answer), join(folder, `answer-${reader}.txt`));
+    write(join(folder, `report-${reader}.md`), report);
   } else if (command === "score") {
     if (!values.votes) throw new Error("--votes est obligatoire : le fichier téléchargé depuis la page de lecture.");
     const folder = resolve(target);

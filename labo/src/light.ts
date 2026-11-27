@@ -12,6 +12,7 @@ import { callSeconds, isTruncated } from "./metrics";
 import { renderPage } from "./page";
 import { sceneBrief, shuffle, type ShownPlans } from "./reading";
 import { table, yes } from "./score";
+import { lightRound } from "./run";
 import { contextRows } from "./score-reasoning";
 import type { CallRecord, Case, RunManifest, SceneOutput } from "./types";
 
@@ -28,17 +29,26 @@ export function firstAnswer(record: CallRecord): SceneOutput | null {
   }
 }
 
-/** T0 from the reused run, T1 and T2 from this one. */
+/** The reused versions from their runs, then those this run replayed. */
 export function versionsOf(folder: string): { manifest: RunManifest; versions: Version[] } {
   const { manifest, records } = readRun(folder);
   if (manifest.campaign !== "04" || !manifest.reuse) throw new Error("Cet essai n'est pas celui de l'expérience 04.");
-  const { run, variant, repetition } = manifest.reuse;
-  const reused = readRun(join(dirname(resolve(folder)), run)).records.find((r) => r.caseId === manifest.cases[0] && r.variant === variant && r.repetition === repetition);
-  if (!reused) throw new Error(`L'appel réutilisé (${run}) est introuvable.`);
-  return { manifest, versions: [{ id: LIGHT_EXPERIMENT.reused.id, record: reused }, ...records.map((record) => ({ id: record.variant, record }))] };
+  const reused = [manifest.reuse].flat().map(({ id = "T0", run, variant, repetition }) => {
+    const record = readRun(join(dirname(resolve(folder)), run)).records.find((r) => r.caseId === manifest.cases[0] && r.variant === variant && r.repetition === repetition);
+    if (!record) throw new Error(`L'appel réutilisé (${run}) est introuvable.`);
+    return { id, record };
+  });
+  return { manifest, versions: [...reused, ...records.map((record) => ({ id: record.variant, record }))] };
 }
 
-export function buildLightDuels(item: Case, runId: string, versions: Version[], random: (max: number) => number = randomInt, readingId: string = randomBytes(6).toString("hex")): { data: DuelData; key: DuelKey } {
+export function buildLightDuels(
+  item: Case,
+  runId: string,
+  versions: Version[],
+  pairs: [string, string][],
+  random: (max: number) => number = randomInt,
+  readingId: string = randomBytes(6).toString("hex"),
+): { data: DuelData; key: DuelKey } {
   const textOf = (id: string): ShownPlans => {
     const version = versions.find((v) => v.id === id);
     const answer = version && firstAnswer(version.record);
@@ -46,7 +56,7 @@ export function buildLightDuels(item: Case, runId: string, versions: Version[], 
     return answer.plans.map((p) => ({ title: p.titre, description: p.description }));
   };
   const key: DuelKey = { readingId, run: runId, repetition: 1, duels: {} };
-  const duels = shuffle(LIGHT_EXPERIMENT.duels, random).map((pair, index) => {
+  const duels = shuffle(pairs, random).map((pair, index) => {
     const sides = shuffle(pair, random) as [string, string];
     const id = `d${index + 1}`;
     key.duels[id] = { caseId: item.id, sides };
@@ -63,7 +73,7 @@ export function writeLightDuels(folder: string): string {
   if (existsSync(keyFile)) return file;
   const { manifest, versions } = versionsOf(folder);
   const item = readDataset(manifest.dataset).cases.find((c) => c.id === manifest.cases[0])!;
-  const { data, key } = buildLightDuels(item, manifest.id, versions);
+  const { data, key } = buildLightDuels(item, manifest.id, versions, lightRound(manifest.round).duels);
   const template = readFileSync(resolve(LAB_ROOT, "src", "page", "duel.html"), "utf8");
   mkdirSync(target, { recursive: true });
   writeFileSync(file, renderPage(data, template));
@@ -102,7 +112,8 @@ ${table(
     contextRows(manifest, records).map((c) => [c.record, c.kind, c.sent, c.written, c.marginAtCap, c.marginReal, c.stop]),
   )}
 
-T0 vient d'un essai précédent. Les pics de mémoire sont ceux observés par relevés, pas des pics garantis.
+Les versions reprises d'un essai précédent n'y figurent pas. Le pic de VRAM est faux (la sonde ne voit pas le modèle) ;
+la RAM est relevée, non recoupée.
 `;
 }
 
@@ -112,7 +123,7 @@ export function lightReport(folder: string, votes: DuelVotes): string {
   checkDuelVotes(key, votes);
   const { manifest, versions } = versionsOf(folder);
   const item = readDataset(manifest.dataset).cases.find((c) => c.id === manifest.cases[0])!;
-  const labels = LIGHT_EXPERIMENT.labels as Record<string, string>;
+  const labels = versions.map((v) => `- **${v.id}** : ${LIGHT_EXPERIMENT.labels[v.id]}`);
   const answers: Record<string, string> = { equal: "égalité", none: "aucun", skip: "passé" };
   const reason = (id: string) => DUEL_REASONS.find((r) => r.id === id)?.label ?? id;
   const duels = Object.entries(key.duels)
@@ -134,7 +145,7 @@ export function lightReport(folder: string, votes: DuelVotes): string {
 
 Une scène, une génération par version, premières réponses. **Aucun seuil : des signes, pas une preuve.**
 
-${Object.entries(labels).map(([id, label]) => `- **${id}** : ${label}`).join("\n")}
+${labels.join("\n")}
 
 ## Duels
 

@@ -36,6 +36,24 @@ Un modèle qui lit **davantage de générations** que l'auteur. Il ne vote pas d
 
 **Pas encore codé** : le format de ses relevés et la vérification des citations.
 
+## Lecteur extérieur (ChatGPT)
+
+Demandé par l'auteur. Un seul fichier Markdown à envoyer : consignes, scène demandée, textes anonymes (lettres tirées au
+sort), réponse en JSON. Code : `src/evaluation.ts`.
+
+```bash
+npm run labo -- evaluate labo/runs/<tour 1>,labo/runs/<tour 2>
+npm run labo -- evaluate-read labo/runs/<tour 2> --answer <fichier de sa réponse> --reader chatgpt
+```
+
+Le même fichier sert à un second lecteur Claude, lancé sur une copie seule dans un dossier à part (`--reader claude`).
+Un agent reçoit d'office les instructions et l'index mémoire du projet : son isolement n'est pas complet.
+
+- **Conversation neuve** (temporaire de préférence) : celle qui conçoit les expériences connaît les versions.
+- L'auteur répond à ses duels **avant** de lire cette évaluation.
+- Il classe les textes et cite ses défauts ; le code vérifie chaque citation. Il ne vote pas, aucune moyenne.
+- Le fichier contient des textes du projet : l'envoyer est le choix de l'auteur.
+
 ## Limites
 
 Un seul auteur, qui connaît les projets. Peu de duels : le hasard pèse lourd (chiffres dans chaque protocole). Un texte

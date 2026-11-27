@@ -22,11 +22,16 @@ npm run labo -- duels labo/runs/<essai>         # sert la page sur ce PC, enregi
 npm run labo -- duels-score labo/runs/<essai>   # écrit confirmation/verdict.md
 ```
 
+Lecteur extérieur (ChatGPT) à l'aveugle : `npm run labo -- evaluate <essais>` puis `evaluate-read`
+([méthode](protocols/qualitative.md)).
+
 Défauts d'écriture relevés, sans changement de prompt : [writing-leads.md](writing-leads.md).
 
-Réflexion (rien en production ; premier essai le 2026-11-27 : T0 préféré à T1 de peu, T1 préféré au skill repensé) : [analyse des skills](proposals/scenario-skills-analysis.md),
+Réflexion (2026-11-27, trois tours sur deux scènes : l'auteur préfère le réglage actuel, sans réflexion, 6 à 7 fois
+plus rapide ; les deux skills repensés sont battus ; rien en production) : [analyse des skills](proposals/scenario-skills-analysis.md),
 [`scenario-scene` repensé](proposals/scenario-scene-reasoning/SKILL.md),
-[expérience 04](proposals/experiment-04-reasoning-light.md) (`src/light.ts`).
+[expérience 04](proposals/experiment-04-reasoning-light.md) (`src/light.ts`),
+[note de bilan](handoff/10-claude-to-gpt.md).
 
 Un essai à plusieurs variantes reste caché (pas de rapport automatique, absent de la page) tant que ses notes ne sont
 pas enregistrées par `score`.

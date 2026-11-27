@@ -103,6 +103,8 @@ export type CallRecord = {
   retry?: { from: string; triggered: boolean; firstOutput: SceneOutput; firstAttempts?: number };
 };
 
+type Reuse = { id?: string; run: string; variant: string; repetition: number };
+
 export type RunManifest = {
   id: string;
   dataset: string;
@@ -119,8 +121,10 @@ export type RunManifest = {
   cases: string[];
   /** Absent = campaign 01; "04" = the light experiment on one scene. */
   campaign?: "02" | "04";
-  /** Experiment 04: the record of another run that stands for the version not replayed. */
-  reuse?: { run: string; variant: string; repetition: number };
+  /** Experiment 04: the records of other runs that stand for the versions not replayed (the first round saved a single one, with no id: T0). */
+  reuse?: Reuse | Reuse[];
+  /** Experiment 04: which round of `LIGHT_EXPERIMENT` (absent = the first). */
+  round?: number;
   /** Variant of campaign 01 whose prompt both versions of campaign 02 use. */
   base?: string;
   /** A pilot checks that the run works: never read, scored or shown. */

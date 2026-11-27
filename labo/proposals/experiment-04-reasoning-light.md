@@ -75,6 +75,95 @@ n'ont pas été comparés.
   3. un même geste coupé en deux plans (le préparer dans l'un, l'accomplir dans le suivant) ;
   4. descriptions sèches : ni sentiments ni « pourquoi ».
 
+## Tour 2 : version 2 du skill (validé par l'auteur)
+
+[`v2/SKILL.md`](scenario-scene-reasoning/v2/SKILL.md), noté **T3**, avec réflexion. Un seul appel ; T0 et T1 repris du
+premier tour. Deux duels : T0 contre T3, T1 contre T3.
+
+Changements, tirés des défauts de T2 :
+
+1. demander ce que le personnage traverse et pourquoi ça compte, relier les lieux et les objets ;
+2. `suite` redevient l'exception, avec ses raisons ;
+3. la fin avant une `suite` est reformulée pour ne plus être recopiée ;
+4. un geste s'accomplit dans son plan.
+
+**L'aveugle est affaibli** : l'auteur a déjà lu T0 et T1, il reconnaîtra le texte nouveau. Et la version 2 est réglée sur
+cette scène : si elle convainc, à vérifier sur une scène jamais lue.
+
+```bash
+npm run labo -- run duration-259-261-264 --campaign 04 --round 2 --reuse labo/runs/<campagne 01>,labo/runs/<tour 1> --launch
+```
+
+### Résultat du tour 2
+
+**T0 préféré à T3, T1 préféré à T3.** L'auteur : dans les textes préférés, le récit suit son cours et les explications
+découlent des descriptions ; dans T3, elles reviennent tout le temps et paraissent forcées. T3 : 5 plans, 47 s, 149 s,
+ni coupure ni alerte.
+
+Sur les deux tours : les deux versions actuelles ont battu les deux versions repensées, et T0 (la production) n'a perdu
+aucun de ses duels. T2 et T3 n'ont pas été comparés. Une scène, une génération par version.
+
+### Lecteur extérieur Claude (4 versions, à l'aveugle)
+
+Classement : T3, puis T1 et T2 à égalité, puis T0. **Il ne rejoint l'auteur sur aucun des 4 duels.** Ses 19 citations
+existent toutes et pointent des défauts concrets (dont un ordre des moments bousculé et une action refaite dans T0).
+Isolement imparfait : l'agent avait d'office les notes et les derniers commits du projet, sans la correspondance des
+textes.
+
+### Lecteur extérieur ChatGPT (même fichier)
+
+Classement : T1 et T3 à égalité, puis T0, puis T2. **Il rejoint l'auteur sur 1 duel sur 4** (T1 contre T2). Ses 19
+citations existent toutes. Isolement : envoi fait par l'auteur, non vérifiable d'ici.
+
+### Les deux lecteurs entre eux
+
+- Tous deux placent T0 sous T1 et sous T3, à l'inverse de l'auteur.
+- Défauts relevés par les deux : T0 refait l'action de peindre et la commente ; T1 a une formule incompréhensible et des
+  fins de plan explicatives ; T2 répète sa formule de fin et coupe un geste en deux ; T3 explique les émotions et parle
+  d'une course qui n'est pas racontée (l'auteur a aussi trouvé ses explications forcées).
+- Deux modèles de langue qui s'accordent ne font pas une preuve indépendante.
+
+**Lecture** : les lecteurs servent à trouver des défauts, pas à prédire la préférence de l'auteur.
+
+## Tour 3 : la réflexion seule, sur une scène jamais lue (validé par l'auteur)
+
+Écrit avant l'appel.
+
+- **Scène 264·3** (58 s visées, 7 moments) : la seule jamais lue par l'auteur qui ait des moments, comme les traitements
+  actuels. Même film que la scène des tours 1 et 2.
+- **T0** : campagne 01, version A, répétition 1, premier appel. **T1** : un appel, skill actuel, avec réflexion.
+- **Un duel**, premières réponses, aucun seuil.
+- **Trois lecteurs en même temps** : l'auteur (duel), un agent Claude neuf et ChatGPT (même fichier à l'aveugle, 2
+  textes). Seul l'auteur décide ; son duel est répondu avant qu'il lise les autres avis.
+
+```bash
+npm run labo -- run duration-259-261-264 --campaign 04 --round 3 --reuse labo/runs/<campagne 01> --launch
+```
+
+### Résultat du tour 3
+
+| | T0 sans réflexion | T1 avec réflexion |
+|---|---|---|
+| Duel de l'auteur | **préféré** (de peu) | |
+| ChatGPT | **1er** | 2e |
+| Agent Claude (isolement imparfait) | 2e | **1er** |
+| Plans / durée brute (cible 58 s) | 7 / 62 s | 7 / 68 s |
+| Temps | **30 s** | 217 s (au-dessus des 180 s admis) |
+| Alertes que la production aurait renvoyées | 1 | 0 |
+
+L'auteur : l'autre texte est un peu plus visuel, le préféré plus précis et un peu plus intéressant. Défauts relevés par
+les deux lecteurs : des phrases de commentaire en fin de plan **dans les deux versions** ; le titre tassé dans le
+dernier plan de T0 ; dans T1, des pigments sans provenance et une direction de course contradictoire. Citations toutes
+trouvées.
+
+## Bilan sur la réflexion (deux scènes, une génération par version)
+
+- **L'auteur a préféré T0 les deux fois**, de peu chaque fois.
+- La réflexion a coûté environ **6 à 7 fois plus de temps** (125 s et 217 s contre 22 s et 30 s).
+- Elle a évité les alertes de production les deux fois ; la durée était exacte sur une scène, trop longue sur l'autre.
+- Lecteurs face à l'auteur, sur les deux évaluations : ChatGPT 2 duels sur 5, agent Claude 0 sur 5.
+- **Rien ne justifie son coût à ce stade : Cadence reste sans réflexion.** Indice, pas preuve.
+
 ## Déroulé
 
 ```bash

@@ -34,6 +34,12 @@ Repérage grossier par motif, hors consignes de l'auteur :
 - La distinction utile / inutile ne se mesure pas automatiquement : une phrase qui commence par « Ce plan » peut
   contenir l'information d'état appréciée.
 
+## Le « pourquoi », d'après les duels sur la réflexion
+
+- L'auteur veut comprendre ce que traverse le personnage et le lien entre les lieux.
+- Mais les explications doivent **découler des descriptions** et suivre le récit. Demander une phrase d'explication par
+  plan (skill repensé, version 2) les a rendues répétées et forcées.
+
 ## Autres relevés
 
 Un mot corrompu par un autre alphabet dans une sortie de B ; quelques fautes de langue signalées par le second lecteur.

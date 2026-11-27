@@ -114,13 +114,15 @@ export function reasoningVariants(baseId: string): Variant[] {
 
 // --- experiment 04: both versions think, one with a new prompt --------------------------------------------------------------------
 
-/** T1 and T2 (T0 is reused from campaign 01). Same body and cap as campaign 02. */
-export function lightVariants(): Variant[] {
-  const thinking = { body: reasoningBody(true), maxTokens: REASONING_CAMPAIGN.maxTokens };
-  return [
-    { id: "T1", label: LIGHT_EXPERIMENT.labels.T1, ...thinking },
-    { id: "T2", label: LIGHT_EXPERIMENT.labels.T2, skillFile: LIGHT_EXPERIMENT.skillFile, ...thinking },
-  ];
+/** The versions a round replays, all with reasoning. Same body and cap as campaign 02. */
+export function lightVariants(ids: string[]): Variant[] {
+  return ids.map((id) => ({
+    id,
+    label: LIGHT_EXPERIMENT.labels[id]!,
+    ...(LIGHT_EXPERIMENT.skillFiles[id] ? { skillFile: LIGHT_EXPERIMENT.skillFiles[id] } : {}),
+    body: reasoningBody(true),
+    maxTokens: REASONING_CAMPAIGN.maxTokens,
+  }));
 }
 
 export function applyReplacements(text: string, replacements: NonNullable<Variant["replacements"]>): string {
