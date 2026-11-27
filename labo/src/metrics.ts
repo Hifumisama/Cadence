@@ -8,6 +8,9 @@ import { DUREE_GENERATION_MAX } from "../../lib/clips/clip-checks";
 import { recitDe } from "../../lib/clips/intent";
 import type { SceneInput, SceneOutput } from "./types";
 
+/** Below this share of the target, the raw duration is short: the trigger of variant C's retry. */
+export const SHORT_RAW_RATIO = 0.85;
+
 export type SceneMetrics = {
   targetSeconds: number;
   /** null when the input has no list of moments (treatments written before 2026-11-17). */
@@ -38,6 +41,9 @@ export type SceneMetrics = {
   duplicatePairs: string[];
   /** Consecutive pairs bringing no new family of movement. */
   repeatedGesturePairs: string[];
+  shortOnRaw: boolean;
+  /** Entries of `inventions` the model declares itself: what it admits adding, not what it added. */
+  declaredInventions: number;
 };
 
 const words = (text: string): number => (text.match(/[\p{L}\p{N}]+/gu) ?? []).length;
@@ -76,5 +82,7 @@ export function measureScene(input: SceneInput, output: SceneOutput): SceneMetri
     stillPlans: labelled.filter((p) => !empty.includes(p.plan) && planImmobile(p.description)).map((p) => p.plan),
     duplicatePairs: phrasesPartagees(labelled).map((d) => `${d.a}+${d.b}`),
     repeatedGesturePairs: gestesRepetes(labelled).map((r) => `${r.a}+${r.b}`),
+    shortOnRaw: rawSeconds < target * SHORT_RAW_RATIO,
+    declaredInventions: output.inventions?.length ?? 0,
   };
 }

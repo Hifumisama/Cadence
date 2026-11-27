@@ -59,6 +59,7 @@ test("a run goes through the production executor with a fake model: prompt saved
       cases: [item],
       variants: [VARIANTS[0]!],
       calls: 1,
+      conditionalCalls: 0,
     };
     const run = await launch(prepared, () => {}, provider, folder);
     const files = readdirSync(join(run, "calls"));

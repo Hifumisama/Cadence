@@ -2,3 +2,4 @@
 # distant est public : ils restent sur la machine tant que leur publication n'est pas décidée.
 datasets/
 runs/
+pages/

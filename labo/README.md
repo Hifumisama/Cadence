@@ -13,22 +13,35 @@ npm run labo -- run duration-259-261-264 --reps 3 --launch           # consomme 
 npm run labo -- compare labo/runs/<essai>                            # refait un rapport
 ```
 
-Options de `run` : `--variants A`, `--only 261,264-s2-t1930`, `--model`, `--body '{}'`.
+Options de `run` : `--variants A,B,C`, `--only 261,264-s2-t1930`, `--model`, `--body '{}'`. C demande B dans le même essai.
 
 **Avant `--launch`** : le labo appelle le LLM directement, sans passer par la file GPU du worker.
 Lancer seulement quand aucun rendu ComfyUI ne tourne, et que le GPU est libéré (la même carte sert aux deux).
+
+## Interface
+
+```bash
+npm run labo -- page        # écrit labo/pages/<jeu>.html, à ouvrir d'un double-clic
+```
+
+Une vue d'ensemble (une jauge de durée et des alertes par scène) et, au clic, le détail plan par plan avec les phrases
+signalées surlignées. Le menu en haut change de source : appels d'origine ou essais. La page est une photo : la
+regénérer après un nouvel essai. Elle contient les textes des projets, `pages/` est donc ignoré par git.
+Code : `src/page.ts` (données), `src/page/template.html` (affichage).
 
 ## Fichiers
 
 | Chemin | Rôle |
 |---|---|
-| `src/cli.ts` | les quatre commandes |
+| `src/cli.ts` | les commandes |
+| `src/page.ts`, `src/page/template.html` | l'interface |
 | `src/export.ts` | seul fichier qui lit la base (transaction en lecture seule), n'écrase jamais un jeu |
 | `src/variants.ts` | variantes : skill de production + remplacements déclarés, entrée enrichie, contrôle en plus |
 | `src/run.ts` | rejeu par `executerSkill` (aucune trace en base), capture de chaque réponse brute |
 | `src/metrics.ts` | mesures automatiques |
 | `src/report.ts` | rapports en français |
-| `src/lab.test.ts` | tests, avec un faux modèle (lancés par `npm test`) |
+| `src/*.test.ts` | tests, avec un faux modèle (lancés par `npm test`) |
+| `protocols/` | protocole de chaque campagne, écrit avant de la lancer |
 | `datasets/` | jeux figés |
 | `reports/` | rapports sur les appels historiques |
 | `runs/<essai>/` | `manifest.json`, prompt exact de chaque variante, un fichier par appel, `report.md` |
@@ -50,12 +63,14 @@ Hors du dossier : `package.json` (script `labo`, tests) et `knip.json`.
 
 ## Mesures
 
-Toutes automatiques. « Final » = après le code.
+Toutes automatiques. « Final » = après le code. La **durée brute** est la mesure principale.
 
 | Mesure | Calcul |
 |---|---|
 | Durée cible, moments | `scene.dureeCibleSecondes`, nombre de `scene.moments` (absent avant le 2026-11-17) |
 | Plans, durée brute | plans de la sortie, somme de leurs `dureeSecondes` |
+| Sous 85 % en brut | durée brute < 85 % de la cible (déclencheur de la relance de C) |
+| Inventions déclarées | entrées de `inventions` : ce que le modèle avoue ajouter, pas ce qu'il ajoute |
 | Durée après ajustement | `ajusterDureesScene` actuel |
 | Secondes ajoutées par le code | après ajustement − brute : du temps sans texte en plus |
 | Cible atteignable | nombre de plans × 10 s ≥ cible |
@@ -70,12 +85,7 @@ Toutes automatiques. « Final » = après le code.
 
 ## Protocole
 
-1. Jeu figé : les 9 appels des projets 259, 261 et 264.
-2. A (production actuelle) est **rejouée** : les appels historiques viennent de trois versions du skill.
-3. Même modèle et mêmes réglages pour toutes les variantes, enregistrés dans le manifeste.
-4. 3 répétitions ; les variantes alternent à l'intérieur de chaque répétition.
-5. Mesures automatiques sur toutes les répétitions ; lecture à l'aveugle sur une seule.
-6. B et C : à définir (voir `handoff/`). La lecture à l'aveugle reste à construire.
+Première campagne : [protocols/01-duration.md](protocols/01-duration.md). La lecture à l'aveugle reste à construire.
 
 ## Limites et biais
 
@@ -107,4 +117,4 @@ et ses tableaux ; le rejeu et les variantes sont à généraliser à ce moment-l
 
   Le serveur réfléchit par défaut ; Cadence coupe la réflexion à chaque appel. Le niveau (xhigh) ne se lit pas dans la
   réponse. Une scène et un appel par réglage ne disent rien de la qualité.
-- Rejeu complet : pas encore lancé (en attente de l'arbitrage de B et C).
+- Rejeu complet : pas encore lancé.

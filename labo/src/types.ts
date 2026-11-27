@@ -70,6 +70,8 @@ export type CallRecord = {
   output: SceneOutput | null;
   resends: number;
   error: string | null;
+  /** Paired retry (variant C): `from` gave the first generation; `attempts` holds only the new calls, none when nothing was triggered. */
+  retry?: { from: string; triggered: boolean; firstOutput: SceneOutput };
 };
 
 export type RunManifest = {

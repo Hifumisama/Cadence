@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { LAB_ROOT } from "./files";
+import { datasetNames, writePage } from "./page";
 import { reportOfDataset, reportOfRun } from "./report";
 import { launch, planRun } from "./run";
 
@@ -11,7 +12,8 @@ const USAGE = `Usage : npm run labo -- <commande>
   report  <jeu>                               mesures sur les appels historiques (sans modèle)
   run     <jeu> [--variants A] [--reps 1] [--only 261,264-s2-t1930] [--model X] [--body '{}'] [--launch]
                                               sans --launch : montre ce qui serait fait, n'appelle rien
-  compare <dossier d'essai>                   refait le rapport d'un essai`;
+  compare <dossier d'essai>                   refait le rapport d'un essai
+  page    [<jeu>]                             génère la page à ouvrir dans le navigateur`;
 
 function write(file: string, text: string): void {
   mkdirSync(dirname(file), { recursive: true });
@@ -33,6 +35,14 @@ async function main(): Promise<number> {
     },
   });
   const [command, target] = positionals;
+  if (command === "page") {
+    // Without a name, the only dataset there is.
+    const names = datasetNames();
+    const name = target ?? (names.length === 1 ? names[0] : undefined);
+    if (!name) throw new Error(names.length ? `Précise le jeu : ${names.join(", ")}.` : "Aucun jeu dans labo/datasets : lance d'abord « export ».");
+    console.log(`Page : ${writePage(name)}`);
+    return 0;
+  }
   if (!command || !target) {
     console.error(USAGE);
     return 2;
@@ -53,7 +63,8 @@ async function main(): Promise<number> {
       model: values.model,
       body: values.body ? (JSON.parse(values.body) as Record<string, unknown>) : undefined,
     });
-    console.log(`${plan.cases.length} cas × ${plan.variants.length} variante(s) × ${plan.manifest.repetitions} répétition(s) = ${plan.calls} appels (hors renvois)`);
+    const paired = plan.conditionalCalls ? `, plus jusqu'à ${plan.conditionalCalls} relances de durée` : "";
+    console.log(`${plan.cases.length} cas × ${plan.variants.length} variante(s) × ${plan.manifest.repetitions} répétition(s) : ${plan.calls - plan.conditionalCalls} appels${paired} (hors renvois de production)`);
     console.log(`Modèle : ${plan.manifest.model}\nCorps ajouté : ${JSON.stringify(plan.manifest.body)}`);
     if (!values.launch) {
       console.log("Rien n'a été appelé. Ajoute --launch pour lancer (consomme le GPU).");

@@ -6,10 +6,10 @@ import { join, resolve } from "node:path";
 import { controleurPourSkill } from "../../lib/llm/checks";
 import { corpsPourSkill, creerFournisseur, maxTokensPourSkill, modelePourSkill } from "../../lib/llm/config";
 import { executerSkill } from "../../lib/llm/execute";
-import type { FournisseurLlm } from "../../lib/llm/types";
+import type { FournisseurLlm, MessageLlm } from "../../lib/llm/types";
 import { gitState, LAB_ROOT, readDataset } from "./files";
 import { materialize, variantById, type Variant } from "./variants";
-import type { CallRecord, Case, RunManifest, SceneOutput } from "./types";
+import type { CallRecord, Case, RunManifest, SceneInput, SceneOutput } from "./types";
 
 const SKILL = "scenario-scene";
 
@@ -24,7 +24,15 @@ export type RunOptions = {
   body?: Record<string, unknown>;
 };
 
-export type Plan = { manifest: RunManifest; cases: Case[]; variants: Variant[]; calls: number };
+export type Plan = {
+  manifest: RunManifest;
+  cases: Case[];
+  variants: Variant[];
+  /** Records the run will write: one per case, variant and repetition. */
+  calls: number;
+  /** Among them, those of paired variants: they call the model only when their retry is triggered. */
+  conditionalCalls: number;
+};
 
 /** What a run would do, computed without writing or calling anything. */
 export function planRun(options: RunOptions, now = new Date()): Plan {
@@ -32,7 +40,11 @@ export function planRun(options: RunOptions, now = new Date()): Plan {
   const cases = dataset.cases.filter((c) => !options.only?.length || options.only.some((o) => c.id === o || c.id.startsWith(`${o}-`)));
   if (cases.length === 0) throw new Error("Aucun cas ne correspond.");
   if (!Number.isInteger(options.repetitions) || options.repetitions < 1) throw new Error("Le nombre de répétitions doit être un entier d'au moins 1.");
-  const variants = options.variants.map(variantById);
+  // A paired variant reads the generation of another: that one runs first.
+  const variants = options.variants.map(variantById).sort((a, b) => Number(Boolean(a.retry)) - Number(Boolean(b.retry)));
+  for (const v of variants) {
+    if (v.retry && !variants.some((x) => x.id === v.retry!.from)) throw new Error(`La variante ${v.id} part de la génération de ${v.retry.from} : lance les deux (--variants ${v.retry.from},${v.id}).`);
+  }
   const manifest: RunManifest = {
     id: `${now.toISOString().slice(0, 19).replace(/[:T]/g, "-")}-${options.dataset}`,
     dataset: options.dataset,
@@ -45,7 +57,8 @@ export function planRun(options: RunOptions, now = new Date()): Plan {
     variants: variants.map((v) => ({ id: v.id, label: v.label, systemHash: "", systemChars: 0 })),
     cases: cases.map((c) => c.id),
   };
-  return { manifest, cases, variants, calls: cases.length * variants.length * options.repetitions };
+  const perVariant = cases.length * options.repetitions;
+  return { manifest, cases, variants, calls: perVariant * variants.length, conditionalCalls: perVariant * variants.filter((v) => v.retry).length };
 }
 
 /** Keeps every request and answer of one `executerSkill` call, resends included. */
@@ -68,12 +81,11 @@ function recording(provider: FournisseurLlm, attempts: CallRecord["attempts"]): 
   };
 }
 
-async function replayCase(item: Case, variant: Variant, repetition: number, root: string, manifest: RunManifest, provider: FournisseurLlm): Promise<CallRecord> {
-  const input = variant.prepareInput ? variant.prepareInput(structuredClone(item.input)) : item.input;
+/** One production execution (check and resend included), written into `record`. On failure the record keeps the output it had. */
+async function execute(record: CallRecord, input: SceneInput, request: SceneInput | MessageLlm[], variant: Variant, root: string, manifest: RunManifest, provider: FournisseurLlm): Promise<void> {
   const production = controleurPourSkill(SKILL, input);
-  const record: CallRecord = { caseId: item.id, variant: variant.id, repetition, startedAt: new Date().toISOString(), input, attempts: [], output: null, resends: 0, error: null };
   try {
-    const result = await executerSkill(SKILL, input, {
+    const result = await executerSkill(SKILL, request, {
       racine: root,
       fournisseur: recording(provider, record.attempts),
       modele: manifest.model,
@@ -88,6 +100,35 @@ async function replayCase(item: Case, variant: Variant, repetition: number, root
     // Run files may be shared: the address of the LLM server stays out of them.
     record.error = (e as Error).message.replace(/https?:\/\/[^\s)]+/g, "<url>");
   }
+}
+
+const emptyRecord = (caseId: string, variant: string, repetition: number, input: unknown): CallRecord => ({ caseId, variant, repetition, startedAt: new Date().toISOString(), input, attempts: [], output: null, resends: 0, error: null });
+
+async function replayCase(item: Case, variant: Variant, repetition: number, root: string, manifest: RunManifest, provider: FournisseurLlm): Promise<CallRecord> {
+  const input = variant.prepareInput ? variant.prepareInput(structuredClone(item.input)) : item.input;
+  const record = emptyRecord(item.id, variant.id, repetition, input);
+  await execute(record, input, input, variant, root, manifest, provider);
+  return record;
+}
+
+/** The second half of a paired variant: starts from the generation of `base`, asks one more only if the variant's message says so. */
+async function replayRetry(base: CallRecord, variant: Variant, root: string, manifest: RunManifest, provider: FournisseurLlm): Promise<CallRecord> {
+  const input = base.input as SceneInput;
+  const record = emptyRecord(base.caseId, variant.id, base.repetition, input);
+  if (!base.output) {
+    record.error = `Pas de première génération : ${base.variant} a échoué.`;
+    return record;
+  }
+  record.output = base.output;
+  const message = variant.retry!.message(base.output, input);
+  record.retry = { from: base.variant, triggered: message != null, firstOutput: base.output };
+  if (message == null) return record;
+  const conversation: MessageLlm[] = [
+    { role: "user", content: JSON.stringify(input) },
+    { role: "assistant", content: base.attempts.at(-1)!.text },
+    { role: "user", content: message },
+  ];
+  await execute(record, input, conversation, variant, root, manifest, provider);
   return record;
 }
 
@@ -107,12 +148,18 @@ export async function launch(plan: Plan, log: (line: string) => void, provider: 
   // Variants alternate inside each repetition: a drift of the server during the run hits them equally.
   for (let repetition = 1; repetition <= plan.manifest.repetitions; repetition++) {
     for (const item of plan.cases) {
+      const records = new Map<string, CallRecord>();
       for (const variant of plan.variants) {
-        const record = await replayCase(item, variant, repetition, roots.get(variant.id)!, plan.manifest, provider);
+        const root = roots.get(variant.id)!;
+        const record = variant.retry
+          ? await replayRetry(records.get(variant.retry.from)!, variant, root, plan.manifest, provider)
+          : await replayCase(item, variant, repetition, root, plan.manifest, provider);
+        records.set(variant.id, record);
         writeFileSync(join(folder, "calls", `${item.id}__${variant.id}__r${repetition}.json`), `${JSON.stringify(record, null, 2)}\n`);
         done += 1;
         const seconds = Math.round(record.attempts.reduce((a, x) => a + x.durationMs, 0) / 1000);
-        log(`${done}/${plan.calls} ${item.id} ${variant.id} r${repetition} : ${record.error ?? `${record.output?.plans.length} plans`} (${seconds} s)`);
+        const retried = record.retry ? (record.retry.triggered ? ", relancée" : ", sans relance") : "";
+        log(`${done}/${plan.calls} ${item.id} ${variant.id} r${repetition} : ${record.error ?? `${record.output?.plans.length} plans`}${retried} (${seconds} s)`);
       }
     }
   }

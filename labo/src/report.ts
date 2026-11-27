@@ -89,22 +89,30 @@ export function runReport(manifest: RunManifest, records: CallRecord[], dataset:
   const byId = new Map(dataset.cases.map((c) => [c.id, c]));
   const measured = records.filter((r) => r.output).map((r) => ({ r, m: measureScene(byId.get(r.caseId)!.input, r.output!) }));
   const of = (variant: string) => measured.filter((x) => x.r.variant === variant);
+  const ofRecords = (variant: string) => records.filter((r) => r.variant === variant);
+  const ownSeconds = (r: CallRecord) => sum(r.attempts.map((a) => a.durationMs)) / 1000;
+  // A paired retry costs its base generation too.
+  const costSeconds = (r: CallRecord) => ownSeconds(r) + (r.retry ? sum(records.filter((b) => b.variant === r.retry!.from && b.caseId === r.caseId && b.repetition === r.repetition).map(ownSeconds)) : 0);
+  // The raw duration is the main measure: the code's adjustment adds time without adding matter.
   const rows: [string, (m: SceneMetrics[], v: string) => string | number][] = [
-    ["Appels réussis", (m, v) => `${m.length}/${records.filter((r) => r.variant === v).length}`],
+    ["Appels réussis", (m, v) => `${m.length}/${ofRecords(v).length}`],
+    ["**Écart brut moyen** (mesure principale)", (m) => percent(mean(m.map((x) => x.rawGap)))],
+    ["Écart brut moyen, sans le signe", (m) => percent(mean(m.map((x) => Math.abs(x.rawGap)))).replace("+", "")],
+    ["Scènes sous 85 % en brut", (m) => `${m.filter((x) => x.shortOnRaw).length}/${m.length}`],
     ["Cible inatteignable", (m) => `${m.filter((x) => !x.targetReachable).length}/${m.length}`],
-    ["Dans les bornes de durée", (m) => `${m.filter((x) => x.withinBounds).length}/${m.length}`],
-    ["Écart brut moyen", (m) => percent(mean(m.map((x) => x.rawGap)))],
-    ["Écart final moyen", (m) => percent(mean(m.map((x) => x.adjustedGap)))],
-    ["Secondes ajoutées par le code (moyenne)", (m) => mean(m.map((x) => x.codeSeconds))],
     ["Plans par scène", (m) => mean(m.map((x) => x.plans))],
-    ["Mots/s après ajustement", (m) => mean(m.map((x) => x.wordsPerAdjustedSecond))],
+    ["Mots de récit par seconde (brut)", (m) => mean(m.map((x) => x.wordsPerRawSecond))],
+    ["Inventions déclarées par scène", (m) => mean(m.map((x) => x.declaredInventions))],
+    ["Écart final moyen (après code)", (m) => percent(mean(m.map((x) => x.adjustedGap)))],
+    ["Secondes ajoutées par le code (moyenne)", (m) => mean(m.map((x) => x.codeSeconds))],
     ["Plans immobiles", (m) => sum(m.map((x) => x.stillPlans.length))],
     ["Plans vides", (m) => sum(m.map((x) => x.emptyPlans.length))],
     ["Paires en doublon", (m) => sum(m.map((x) => x.duplicatePairs.length))],
     ["Paires aux gestes répétés", (m) => sum(m.map((x) => x.repeatedGesturePairs.length))],
-    ["Appels avec renvoi", (_, v) => records.filter((r) => r.variant === v && r.resends > 0).length],
-    ["Appels avec réflexion", (_, v) => records.filter((r) => r.variant === v && r.attempts.some((a) => a.reasoning)).length],
-    ["Durée moyenne d'un appel (s)", (_, v) => mean(records.filter((r) => r.variant === v).map((r) => sum(r.attempts.map((a) => a.durationMs)) / 1000))],
+    ["Appels avec renvoi de production", (_, v) => ofRecords(v).filter((r) => r.resends > 0).length],
+    ["Relances de durée", (_, v) => (ofRecords(v).some((r) => r.retry) ? `${ofRecords(v).filter((r) => r.retry?.triggered).length}/${ofRecords(v).length}` : "–")],
+    ["Appels avec réflexion", (_, v) => ofRecords(v).filter((r) => r.attempts.some((a) => a.reasoning)).length],
+    ["Temps de modèle moyen par scène (s)", (_, v) => mean(ofRecords(v).map(costSeconds))],
   ];
   const cells = [...new Set(measured.map((x) => `${x.r.caseId}|${x.r.variant}`))].sort();
   return `# Essai ${manifest.id}
@@ -120,14 +128,17 @@ ${table(["Mesure", ...manifest.variants.map((v) => v.id)], rows.map(([label, f])
 ## Par scène (moyennes des répétitions ; étendue entre parenthèses)
 
 ${table(
-  ["Scène", "Variante", "Cible", "Plans", "Brut", "Après code"],
+  ["Scène", "Variante", "Cible", "Moments", "Plans", "Brut", "Après code"],
   cells.map((cell) => {
     const [id, v] = cell.split("|") as [string, string];
     const m = of(v).filter((x) => x.r.caseId === id).map((x) => x.m);
     const spread = (values: number[]) => `${mean(values)} (${Math.min(...values)}–${Math.max(...values)})`;
-    return [id, v, m[0]!.targetSeconds, spread(m.map((x) => x.plans)), spread(m.map((x) => x.rawSeconds)), spread(m.map((x) => x.adjustedSeconds))];
+    return [id, v, m[0]!.targetSeconds, m[0]!.moments ?? "–", spread(m.map((x) => x.plans)), spread(m.map((x) => x.rawSeconds)), spread(m.map((x) => x.adjustedSeconds))];
   }),
 )}
+
+Un essai ne rend aucune vidéo : durées stockée et rendue n'existent que pour l'historique. Moments couverts, progression et
+remplissage ne sont pas mesurés ici : ils se jugent à la lecture.
 ${records.some((r) => r.error) ? `\n## Échecs\n\n${records.filter((r) => r.error).map((r) => `- ${r.caseId} ${r.variant} r${r.repetition} : ${r.error}`).join("\n")}\n` : ""}
 ${LIMITS}`;
 }
