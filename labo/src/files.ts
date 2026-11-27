@@ -28,8 +28,14 @@ export function readRun(folder: string): { manifest: RunManifest; records: CallR
   return { manifest, records };
 }
 
-/** A comparison of variants whose blind votes are not in yet: its results are not shown, so that the reader stays blind. */
-export const awaitsReading = (folder: string, manifest: RunManifest): boolean => manifest.variants.length > 1 && !existsSync(join(folder, "reading", "votes.json"));
+const voted = (folder: string, reading: string) => existsSync(join(folder, reading, "votes.json"));
+
+/** A comparison of variants whose blind votes are not in yet, or whose confirmation duels are drawn and not answered: its results are not
+ * shown, so that the reader stays blind. */
+export const awaitsReading = (folder: string, manifest: RunManifest): boolean =>
+  manifest.campaign === "04"
+    ? !voted(folder, "duels")
+    : (manifest.variants.length > 1 && !voted(folder, "reading")) || (existsSync(join(folder, "confirmation", "key.json")) && !voted(folder, "confirmation"));
 
 export function gitState():{ commit: string; dirty: boolean } {
   const git = (...args: string[]) => execFileSync("git", args, { cwd: REPO_ROOT, encoding: "utf8" }).trim();

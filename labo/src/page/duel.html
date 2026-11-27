@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Duels à l'aveugle</title>
+<style>
+  :root { --ground: #121217; --surface: #1a1a21; --surface-2: #23232c; --line: #33333f; --ink: #ece9e3; --ink-2: #b7b2c0; --or: #c9a24b; --or-glow: #f0d089; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font: 18px/1.7 system-ui, "Segoe UI", sans-serif; }
+  main { max-width: 1240px; margin: 0 auto; padding: 24px 18px 90px; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  h2 { font-size: 1.05rem; margin: 0 0 6px; }
+  h3 { font-size: 1rem; margin: 0 0 4px; }
+  .muted { color: var(--ink-2); font-size: .95rem; }
+  .panel, details, .text { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; margin-top: 14px; }
+  summary { cursor: pointer; font-weight: 600; }
+  ol, ul { padding-left: 22px; margin: 8px 0 0; }
+  button { font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 8px 14px; cursor: pointer; }
+  button:focus-visible, summary:focus-visible, textarea:focus-visible { outline: 2px solid var(--or); outline-offset: 2px; }
+  button[aria-pressed="true"] { background: var(--or); border-color: var(--or); color: #17130a; font-weight: 650; }
+  button:disabled { opacity: .4; cursor: default; }
+  .columns { display: grid; gap: 0 14px; grid-template-columns: 1fr; }
+  @media (min-width: 900px) { .columns { grid-template-columns: 1fr 1fr; align-items: start; } }
+  .text > h2 { color: var(--or-glow); }
+  .plan { margin-top: 18px; }
+  .plan p { white-space: pre-wrap; margin: 4px 0 0; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .block { margin-top: 18px; }
+  textarea { width: 100%; font: inherit; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line); border-radius: 9px; padding: 10px; margin-top: 8px; }
+  .foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-top: 22px; }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script type="application/json" id="data">__DATA__</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById("data").textContent);
+  const app = document.getElementById("app");
+  const storageKey = `labo-duels-${data.readingId}`;
+  const served = location.protocol.startsWith("http");
+  let answers = {};
+  try { answers = JSON.parse(localStorage.getItem(storageKey)) ?? {}; } catch { /* storage unavailable: answers live in the page */ }
+  let index = 0;
+  let whyOpen = false;
+  /** null, "saving", "saved" or the reason of the failure. */
+  let state = null;
+
+  /** Every text goes in through text nodes: nothing the model wrote is ever read as HTML. */
+  function el(tag, props = {}, ...children) {
+    const node = document.createElement(tag);
+    for (const [key, value] of Object.entries(props)) {
+      if (value == null || value === false) continue;
+      if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
+      else node.setAttribute(key, value === true ? "" : value);
+    }
+    node.append(...children.flat().filter((c) => c != null && c !== false));
+    return node;
+  }
+
+  const answered = () => data.duels.filter((d) => answers[d.id]?.choice).length;
+  const store = () => { try { localStorage.setItem(storageKey, JSON.stringify(answers)); } catch { /* ignored */ } };
+  const exported = () => JSON.stringify({ readingId: data.readingId, duels: answers }, null, 2);
+  const change = (id, patch) => { answers[id] = { ...answers[id], ...patch }; store(); render(); };
+  const toggled = (list = [], value) => (list.includes(value) ? list.filter((x) => x !== value) : [...list, value]);
+  const press = (pressed, label, onclick) => el("button", { type: "button", "aria-pressed": String(pressed), onclick }, label);
+
+  function go(target) {
+    index = target;
+    whyOpen = false;
+    render();
+    window.scrollTo(0, 0);
+  }
+
+  async function save() {
+    state = "saving";
+    render();
+    try {
+      const response = await fetch("votes", { method: "POST", headers: { "content-type": "application/json" }, body: exported() });
+      state = response.ok ? "saved" : await response.text();
+    } catch {
+      state = "le serveur du labo ne répond pas";
+    }
+    render();
+  }
+
+  function ending() {
+    if (answered() < data.duels.length) return null;
+    if (state === "saved") return el("div", { class: "panel" }, el("h2", {}, "Enregistré, merci !"), el("div", {}, "Tu peux fermer la page et dire « c'est fait »."));
+    const failed = state && state !== "saving";
+    return el("div", { class: "panel" }, el("h2", {}, "Tous les duels ont une réponse"),
+      served ? el("button", { type: "button", disabled: state === "saving", onclick: save }, "J'ai fini : enregistrer") : null,
+      failed ? el("p", {}, `Enregistrement impossible : ${state}.`) : null,
+      !served || failed ? el("div", {}, el("p", {}, "Copie ce texte et envoie-le :"), el("textarea", { rows: "8", readonly: true }, exported())) : null);
+  }
+
+  function render() {
+    const duel = data.duels[index];
+    const answer = answers[duel.id] ?? {};
+    const why = el("details", { open: whyOpen }, el("summary", {}, "Pourquoi ? (facultatif)"),
+      el("div", { class: "row" }, data.reasons.map((r) => press((answer.reasons ?? []).includes(r.id), r.label, () => change(duel.id, { reasons: toggled(answer.reasons, r.id) })))),
+      el("textarea", { rows: "2", "aria-label": "Commentaire", oninput: (e) => { answers[duel.id] = { ...answers[duel.id], comment: e.target.value }; store(); } }, answer.comment ?? ""));
+    why.addEventListener("toggle", () => { whyOpen = why.open; });
+    app.replaceChildren(...[
+      el("h1", {}, duel.title),
+      el("div", { class: "muted" }, `Duel ${index + 1} sur ${data.duels.length} · ${answered()} répondu(s)`),
+      el("div", { class: "panel" }, el("h2", {}, "Ce que la scène doit raconter"), el("div", {}, duel.intention),
+        duel.moments.length ? el("ol", {}, duel.moments.map((x) => el("li", {}, x))) : null,
+        duel.authorMoments ? el("p", {}, `Ce que tu en as dit : ${duel.authorMoments}`) : null),
+      duel.entry || duel.exit || duel.authorWords.length
+        ? el("details", {}, el("summary", {}, "Plus de contexte"),
+            duel.entry ? el("p", {}, `Départ : ${duel.entry}`) : null,
+            duel.exit ? el("p", {}, `Arrivée : ${duel.exit}`) : null,
+            duel.authorWords.length ? el("ul", {}, duel.authorWords.map((w) => el("li", {}, w))) : null)
+        : null,
+      el("div", { class: "columns" }, duel.texts.map((plans, side) => el("section", { class: "text" }, el("h2", {}, `Texte ${side + 1}`),
+        plans.map((p, i) => el("div", { class: "plan" }, el("h3", {}, `${i + 1}. ${p.title}`), el("p", {}, p.description)))))),
+      el("div", { class: "panel" },
+        el("h2", {}, "Lequel gardes-tu ?"),
+        el("div", { class: "row" }, [["1", "Texte 1"], ["2", "Texte 2"], ["equal", "Les deux se valent"], ["none", "Aucun ne me satisfait"], ["skip", "Je passe"]]
+          .map(([choice, label]) => press(answer.choice === choice, label, () => change(duel.id, { choice })))),
+        el("div", { class: "block" }, el("div", {}, "Un texte trahit gravement la scène ? Coche-le, sinon laisse vide."),
+          el("div", { class: "row" }, ["1", "2"].map((side) => press((answer.betrayal ?? []).includes(side), `Le texte ${side} la trahit`, () => change(duel.id, { betrayal: toggled(answer.betrayal, side) })))))),
+      why,
+      el("div", { class: "foot" },
+        el("button", { type: "button", disabled: index === 0, onclick: () => go(index - 1) }, "← Précédent"),
+        el("button", { type: "button", disabled: index === data.duels.length - 1, onclick: () => go(index + 1) }, "Suivant →")),
+      ending(),
+    ].flat().filter(Boolean));
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

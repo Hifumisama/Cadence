@@ -7,7 +7,7 @@ Risque : **faible** / **moyen** (creuser le besoin avant de coder) / **haut** (a
 ## En cours (1 au plus)
 Chaque chantier a sa fiche : problème · réussi si… · on arrête si… · budget (soirées) · étape 1 testable en vrai.
 
-- **Labo de qualité** (sans risque : isolé dans `labo/`, branche `labo-qualite`). Problème : durées et densité des scènes jugées au feeling. Réussi si : A/B/C se comparent sur les mêmes entrées et permettent de décider d'un changement de `scenario-scene`. On arrête si / budget : à fixer avant le premier rejeu. Étape 1 faite : jeu figé 259/261/264 et rapport historique ; suite : arbitrage de B et C (`labo/handoff/`).
+- **Labo de qualité** (sans risque : isolé dans `labo/`, branche `labo-qualite`). Problème : durées et densité des scènes jugées au feeling. Réussi si : A/B/C se comparent sur les mêmes entrées et permettent de décider d'un changement de `scenario-scene`. On arrête si / budget : à fixer. Fait : campagne 01 (2026-11-27, ni B ni C adoptée) et confirmation de C par duels (seuil non atteint, 2 à 2). C gardée par l'auteur (rien en production). Expérience légère T0/T1/T2 jouée (une scène) : le skill repensé perd contre l'actuel avec réflexion, défauts identifiés ; suite à décider : version 2 du skill (`labo/proposals/experiment-04-reasoning-light.md`). Reporté après les campagnes du labo (la production changera sans doute beaucoup) : faux positifs du renvoi « gestes répétés » qui font inventer des gestes (analyse, § 1 et § 8). Pistes d'écriture en attente : `labo/writing-leads.md`.
 
 ## Prochain (3 au plus)
 1. **Leçons du film 264 pour le scénariste et le scénario** (moyen). Le film le plus abouti ; plans 1 à 5 sans retouche. À traduire en règles :

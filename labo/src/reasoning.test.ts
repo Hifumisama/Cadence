@@ -14,7 +14,7 @@ import { buildReading, type ReadingKey } from "./reading";
 import { runReport } from "./report";
 import { launch, pickPilotCases, variantsOf, type Plan } from "./run";
 import type { Votes } from "./score";
-import { compareReasoning, pilotReport, pilotRows, reasoningVerdict } from "./score-reasoning";
+import { compareReasoning, contextRows, pilotReport, pilotRows, reasoningVerdict } from "./score-reasoning";
 import { reasoningVariants } from "./variants";
 import type { Case, Dataset, SceneOutput } from "./types";
 
@@ -210,6 +210,9 @@ test("pilot: counts only, a timeout is kept with its code and no address, and pr
     assert.match(passed, /prêt pour la campagne/);
     assert.equal(passed.includes("Repère"), false, "no text of the model");
     assert.equal(pilotRows(ok.manifest, ok.records)[0]!.marginAtCap, 45_056 - 10_000 - 28_000);
+    // Every call of a record, the retry included.
+    assert.deepEqual(contextRows(ok.manifest, [ok.records[0]!]).map((c) => c.kind), ["première", "relance"]);
+    assert.match(passed, /Contexte, appel par appel/);
     assert.throws(() => compareReasoning(ok.manifest, ok.records, { readingId: "", run: "", proposals: {} }, { readingId: "", votes: {} }), /pilote/);
 
     const failed = await launch(plan("pilote-rate", ["T1"], 1, true), () => {}, fakeModel([], (r) => r.messages.length === 3), folder, probes);

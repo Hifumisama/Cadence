@@ -31,6 +31,42 @@ export const CAMPAIGN = {
 
 export type Campaign = typeof CAMPAIGN;
 
+/** Follow-up of campaign 01 (`protocols/03-confirmation.md`): blind duels on outputs nobody read, no new call. */
+export const CONFIRMATION = {
+  baseline: "A",
+  candidate: "C",
+  repetition: 2,
+  /** The three read scenes C retried in that repetition, and the one that blocked it. */
+  scenes: ["259-s2", "261-s1", "261-s2", "261-s3"],
+  /** Duels the candidate must win; it must also never be the only text flagged as betraying a scene. */
+  minWins: 3,
+};
+
+export type Confirmation = typeof CONFIRMATION;
+
+/** Experiment 04 (`proposals/experiment-04-reasoning-light.md`): one scene, three versions, FIRST answers compared in blind duels. */
+export const LIGHT_EXPERIMENT = {
+  scene: "264-s2",
+  /** T0 is not replayed: the first answer of this record of campaign 01 (never read). */
+  reused: { id: "T0", variant: "A", repetition: 2 },
+  /** The new prompt of T2, from the lab folder. */
+  skillFile: "proposals/scenario-scene-reasoning/SKILL.md",
+  labels: { T0: "Skill actuel, sans réflexion", T1: "Skill actuel, avec réflexion", T2: "Skill repensé, avec réflexion" },
+  duels: [
+    ["T0", "T1"],
+    ["T1", "T2"],
+  ] as [string, string][],
+};
+
+/** Optional reasons of a duel. */
+export const DUEL_REASONS = [
+  { id: "progression", label: "Progression" },
+  { id: "fidelity", label: "Fidélité" },
+  { id: "repetition", label: "Répétitions" },
+  { id: "writing", label: "Écriture" },
+  { id: "coherence", label: "Cohérence" },
+];
+
 /** Campaign 02 (`protocols/02-reasoning.md`): the model's reasoning, T0 without it and T1 with it, on the variant kept by campaign 01. */
 export const REASONING_CAMPAIGN = {
   baseline: "T0",

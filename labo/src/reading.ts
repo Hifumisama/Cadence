@@ -4,14 +4,15 @@
 import { randomBytes, randomInt } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { CAMPAIGN, REASONING_CAMPAIGN, type Question } from "./campaign";
+import { CAMPAIGN, type Question } from "./campaign";
 import { LAB_ROOT, readDataset, readRun } from "./files";
 import { renderPage } from "./page";
 import type { CallRecord, Case, Dataset, RunManifest } from "./types";
 
 type Proposal = { id: string; plans: { title: string; description: string }[] };
 
-type ReadingScene = {
+/** What the reader is told a scene must tell. */
+export type SceneBrief = {
   title: string;
   intention: string;
   entry: string;
@@ -19,8 +20,11 @@ type ReadingScene = {
   moments: string[];
   authorMoments: string;
   authorWords: string[];
-  proposals: Proposal[];
 };
+
+type ReadingScene = SceneBrief & { proposals: Proposal[] };
+
+export type ShownPlans = Proposal["plans"];
 
 export type ReadingData = { readingId: string; questions: Question[]; scenes: ReadingScene[] };
 
@@ -37,7 +41,23 @@ const text = (value: unknown): string => (typeof value === "string" ? value : ""
 const texts = (value: unknown): string[] =>
   Array.isArray(value) ? value.map((x) => (typeof x === "string" ? x : typeof (x as { texte?: unknown })?.texte === "string" ? (x as { texte: string }).texte : JSON.stringify(x))) : [];
 
-function shuffle<T>(values: T[], random: (max: number) => number): T[] {
+/** The only fields of an output a blind reader sees. */
+export const shownPlans = (record: CallRecord): ShownPlans => record.output!.plans.map((p) => ({ title: p.titre, description: p.description }));
+
+export function sceneBrief(item: Case): SceneBrief {
+  const scene = item.input.scene;
+  return {
+    title: item.sceneTitle,
+    intention: text(scene.intention),
+    entry: text(scene.etatEntree),
+    exit: text(scene.etatSortie),
+    moments: scene.moments ?? [],
+    authorMoments: text(scene.momentsDeLAuteur),
+    authorWords: texts(item.input.parolesDeLAuteur),
+  };
+}
+
+export function shuffle<T>(values: T[], random: (max: number) => number): T[] {
   const list = [...values];
   for (let i = list.length - 1; i > 0; i--) {
     const j = random(i + 1);
@@ -73,7 +93,7 @@ export function buildReading(
     // Identical texts (C without retry, most often) are read once.
     const distinct = new Map<string, { plans: Proposal["plans"]; variants: string[]; repetition: number }>();
     for (const record of readRepetition(manifest, records, item.id)) {
-      const plans = record.output!.plans.map((p) => ({ title: p.titre, description: p.description }));
+      const plans = shownPlans(record);
       const same = JSON.stringify(plans);
       const known = distinct.get(same);
       if (known) known.variants.push(record.variant);
@@ -84,17 +104,7 @@ export function buildReading(
       key.proposals[id] = { caseId: item.id, repetition: p.repetition, variants: p.variants };
       return { id, plans: p.plans };
     });
-    const scene = item.input.scene;
-    return {
-      title: item.sceneTitle,
-      intention: text(scene.intention),
-      entry: text(scene.etatEntree),
-      exit: text(scene.etatSortie),
-      moments: scene.moments ?? [],
-      authorMoments: text(scene.momentsDeLAuteur),
-      authorWords: texts(item.input.parolesDeLAuteur),
-      proposals,
-    };
+    return { ...sceneBrief(item), proposals };
   });
   return { data: { readingId, questions: campaign.questions, scenes }, key };
 }
@@ -106,7 +116,9 @@ export function writeReading(folder: string): string {
   if (existsSync(keyFile)) throw new Error(`La lecture existe déjà : ${join(target, "reading.html")}.`);
   const { manifest, records } = readRun(folder);
   if (manifest.pilot) throw new Error("Un pilote ne se lit pas : ses sorties sont exclues de l'évaluation.");
-  const { data, key } = buildReading(readDataset(manifest.dataset), manifest, records, manifest.campaign === "02" ? REASONING_CAMPAIGN : CAMPAIGN);
+  // A reading cannot be drawn twice: none is drawn before the format is settled.
+  if (manifest.campaign === "02") throw new Error("La campagne 02 se lira en duels : sa règle attend validation (protocols/02-reasoning.md).");
+  const { data, key } = buildReading(readDataset(manifest.dataset), manifest, records, CAMPAIGN);
   const template = readFileSync(resolve(LAB_ROOT, "src", "page", "reading.html"), "utf8");
   mkdirSync(target, { recursive: true });
   const file = join(target, "reading.html");

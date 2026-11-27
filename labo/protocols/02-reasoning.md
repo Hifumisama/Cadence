@@ -1,8 +1,10 @@
 # Campagne 02 : la réflexion de Swift sur `scenario-scene`
 
-Écrit le 2026-11-27, **avant** tout appel. Approche, règle de décision, trois notes et seuil de 3 min validés par GPT ;
-plafond à 28 000 jetons, traitement de la relance et relevé mémoire proposés par Claude et approuvés par l'utilisateur.
-**À valider avant le pilote.**
+**Suspendue le 2026-11-27** : une version légère est proposée, [expérience 04](../proposals/experiment-04-reasoning-light.md).
+
+Écrit le 2026-11-27, **avant** tout appel. Mis à jour le même jour après la campagne 01 : base A, lecture en duels.
+Partie technique et seuil de 3 min validés par GPT ; plafond à 28 000 jetons et relevé mémoire proposés par Claude et
+approuvés par l'utilisateur. **La règle de qualité (conditions 1 à 3) est à valider avant le pilote.**
 
 ## Question
 
@@ -18,9 +20,8 @@ coût ? La réponse juge la construction des scènes, pas la progression de l'é
 
 - Seul `enable_thinking` diffère : même prompt (vérifié par son empreinte), même entrée, même température (celle du
   serveur, 1,0), même délai maximal (10 min), même contrôle de production avec son unique renvoi.
-- **Base** : la variante retenue par la [campagne 01](01-duration.md) (A, B ou C), passée par `--base`.
-- Si la base est C, la relance de durée fait partie de T0 **et** de T1 : chaque version relance sa propre scène trop
-  courte, et ce temps compte.
+- **Base : A**, le prompt de production, passé par `--base A` : la [campagne 01](01-duration.md) n'a rien retenu
+  (arbitrage de GPT). Donc aucune relance de durée.
 - T0 n'est donc pas exactement la production : plafond à 28 000 au lieu de 16 384, effort nommé (sans effet quand la
   réflexion est coupée).
 
@@ -33,12 +34,14 @@ caractères, calé sur un seul appel mesuré : 9 362 jetons) :
 |---|---|---|
 | Première génération, 9 scènes | 8 850 à 10 400 | au moins 6 600 |
 | Renvoi de production | jusqu'à ≈ 14 000 (réponse précédente et alertes) | ≈ 3 000 |
-| Relance de durée (base C) | jusqu'à ≈ 14 000 | ≈ 3 000 |
-| Relance puis son renvoi (base C) | jusqu'à ≈ 17 200 | **nulle** |
 
-La réflexion d'un tour précédent n'est pas renvoyée. Dans le dernier cas, il reste environ 27 800 jetons réellement
-disponibles, près du double du plus gros appel avec réflexion jamais tracé (14 325). Toute coupure est détectée et
-compte contre T1. Le pilote mesure les vraies marges.
+La réflexion d'un tour précédent n'est pas renvoyée. Le plus gros appel avec réflexion jamais tracé fait 14 325 jetons.
+Toute coupure est détectée et compte contre T1.
+
+**Vérification réelle** : `pilot.md` et `verdict.md` donnent, pour **chaque appel, renvois compris**, les jetons envoyés
+et écrits, la marge au plafond, la marge réelle et le motif d'arrêt. Le pilote peut n'avoir aucun renvoi : la marge d'un
+renvoi reste alors une estimation jusqu'à la campagne. Avant le pilote, je relis la taille du contexte sur la ligne de
+commande du serveur.
 
 ## Pilote
 
@@ -49,20 +52,18 @@ compte contre T1. Le pilote mesure les vraies marges.
 - Relevé : durée, jetons, marge de contexte, mémoire, alertes de production (pour information).
 
 ```bash
-npm run labo -- run duration-259-261-264 --campaign 02 --base <A|B|C> --pilot --launch
+npm run labo -- run duration-259-261-264 --campaign 02 --base A --pilot --launch
 ```
 
 ## Campagne
 
-- 9 scènes × 3 répétitions × T0 et T1 : 54 appels, plus renvois, et relances si la base est C.
+- 9 scènes × 3 répétitions × T0 et T1 : 54 appels, plus renvois.
 - Versions alternées scène par scène ; celle qui passe la première change à chaque fois (la seconde profite du prompt
   gardé en cache par le serveur).
 - GPU libre : aucun rendu, file de Cadence vide.
 
 ```bash
-npm run labo -- run duration-259-261-264 --campaign 02 --base <A|B|C> --launch
-npm run labo -- read labo/runs/<essai>
-npm run labo -- score labo/runs/<essai> --votes <fichier>
+npm run labo -- run duration-259-261-264 --campaign 02 --base A --launch
 ```
 
 Avant les notes : aucun rapport comparatif, essai masqué dans la page, aucun résultat commenté.
@@ -81,22 +82,23 @@ Une sonde en panne n'interrompt rien : la valeur manque, c'est tout.
 
 ## Lecture à l'aveugle
 
-Les 6 scènes de la campagne 01 (259·2, 261·1, 261·2, 261·3, 264·1, 264·2), première répétition où les deux versions ont
-une sortie, soit 12 textes en ordre tiré au sort. Ni version, ni durée, ni alerte, **ni réflexion**. Trois notes de 1 à
-5, commentaire facultatif :
-
-1. **Progression** : chaque plan apporte-t-il du nouveau ?
-2. **Fidélité** : les moments et les intentions sont-ils respectés, sans remplissage ?
-3. **Cohérence** : les plans s'enchaînent-ils sans se contredire ?
+**Six [duels](qualitative.md)** T0 contre T1, sur les 6 scènes de la campagne 01 (259·2, 261·1, 261·2, 261·3, 264·1,
+264·2), première répétition où les deux versions ont une sortie. **La réflexion n'est jamais montrée.**
 
 ## Règle de décision
 
-Appliquée par `src/score-reasoning.ts`, seuils dans `src/campaign.ts`. La réflexion devient le fonctionnement normal de
-`scenario-scene` si les six sont vrais :
+La réflexion devient le fonctionnement normal de `scenario-scene` si les six sont vrais.
 
-1. au moins une note moyenne de T1 dépasse celle de T0 de 0,5 point ;
-2. aucune note moyenne ne baisse de plus de 0,25 ;
-3. aucune scène lue ne perd 2 points ou plus sur une note ;
+Qualité, **proposition à valider** (remplace les trois notes de la version précédente) :
+
+1. T1 gagne au moins 4 duels sur 6 ;
+2. T0 en gagne au plus 1 ;
+3. T1 n'est jamais seul signalé comme trahissant une scène.
+
+Au hasard pur, sans égalité, les conditions 1 et 2 sont remplies environ 1 fois sur 9 (7/64).
+
+Technique, inchangée :
+
 4. T1 n'a pas plus d'échecs techniques que T0 ;
 5. aucune sortie de T1 n'est tronquée ;
 6. le temps médian par scène de T1 est inférieur ou égal à 180 s.
@@ -118,10 +120,16 @@ Rien n'est appliqué en production par cette campagne : adopter la réflexion se
 
 ## Coût estimé (incertain avant le pilote)
 
-Pilote : environ 6 min. Campagne : environ 10 min pour T0, 40 à 80 min pour T1, davantage si la base est C. Lecture :
-environ 30 min.
+Pilote : environ 6 min. Campagne : environ 10 min pour T0, 40 à 80 min pour T1. Lecture : 6 duels, soit 12 textes sans
+note à donner ; sa durée n'est pas mesurée.
 
 ## Limites
 
-Exploratoire : 12 textes, un seul lecteur qui les connaîtra déjà par la campagne 01. Température 1,0, forte
-variabilité ; un écart de moins de 0,5 point est du bruit. Un texte plus long peut trahir sa version.
+Exploratoire : 6 duels, un seul lecteur qui connaîtra déjà ces scènes. Température 1,0, forte variabilité. Un texte plus
+long peut trahir sa version.
+
+## État du code
+
+Le rejeu, le pilote et les conditions 4 à 6 sont prêts. Les conditions 1 à 3 et la lecture en duels de cette campagne
+restent à coder **après validation de la règle** : `read` refuse la campagne 02 d'ici là, et `src/score-reasoning.ts`
+applique encore l'ancienne règle à notes.

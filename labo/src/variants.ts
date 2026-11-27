@@ -6,8 +6,8 @@ import { cpSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { chargerSkill } from "../../lib/llm/skills";
 import { DUREE_GENERATION_MAX } from "../../lib/clips/clip-checks";
-import { REASONING_CAMPAIGN } from "./campaign";
-import { REPO_ROOT } from "./files";
+import { LIGHT_EXPERIMENT, REASONING_CAMPAIGN } from "./campaign";
+import { LAB_ROOT, REPO_ROOT } from "./files";
 import { minimumPlans, SHORT_RAW_RATIO } from "./metrics";
 import type { SceneInput, SceneOutput } from "./types";
 
@@ -18,6 +18,8 @@ export type Variant = {
   label: string;
   /** Text replacements in SKILL.md; each `find` must appear exactly once. */
   replacements?: { find: string; replace: string }[];
+  /** A whole SKILL.md of the lab that takes the place of the production one (same output schema). */
+  skillFile?: string;
   /** Adds data to the frozen input (computed by code). */
   prepareInput?: (input: SceneInput) => SceneInput;
   /** Extra findings that trigger the (single) resend, on top of the production check. */
@@ -110,6 +112,17 @@ export function reasoningVariants(baseId: string): Variant[] {
   }));
 }
 
+// --- experiment 04: both versions think, one with a new prompt --------------------------------------------------------------------
+
+/** T1 and T2 (T0 is reused from campaign 01). Same body and cap as campaign 02. */
+export function lightVariants(): Variant[] {
+  const thinking = { body: reasoningBody(true), maxTokens: REASONING_CAMPAIGN.maxTokens };
+  return [
+    { id: "T1", label: LIGHT_EXPERIMENT.labels.T1, ...thinking },
+    { id: "T2", label: LIGHT_EXPERIMENT.labels.T2, skillFile: LIGHT_EXPERIMENT.skillFile, ...thinking },
+  ];
+}
+
 export function applyReplacements(text: string, replacements: NonNullable<Variant["replacements"]>): string {
   return replacements.reduce((current, { find, replace }) => {
     const count = current.split(find).length - 1;
@@ -122,6 +135,7 @@ export function applyReplacements(text: string, replacements: NonNullable<Varian
 export function materialize(variant: Variant, root: string): { systemHash: string; systemChars: number } {
   const folder = join(root, "agents", "skills", SKILL);
   cpSync(join(REPO_ROOT, "agents", "skills", SKILL), folder, { recursive: true, errorOnExist: true, force: false });
+  if (variant.skillFile) cpSync(join(LAB_ROOT, variant.skillFile), join(folder, "SKILL.md"));
   if (variant.replacements?.length) {
     const file = join(folder, "SKILL.md");
     // Line endings normalised so that a `find` written in this file matches a checkout with CRLF.

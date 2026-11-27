@@ -117,8 +117,10 @@ export type RunManifest = {
   repetitions: number;
   variants: { id: string; label: string; systemHash: string; systemChars: number; body?: Record<string, unknown>; maxTokens?: number }[];
   cases: string[];
-  /** Absent = campaign 01. */
-  campaign?: "02";
+  /** Absent = campaign 01; "04" = the light experiment on one scene. */
+  campaign?: "02" | "04";
+  /** Experiment 04: the record of another run that stands for the version not replayed. */
+  reuse?: { run: string; variant: string; repetition: number };
   /** Variant of campaign 01 whose prompt both versions of campaign 02 use. */
   base?: string;
   /** A pilot checks that the run works: never read, scored or shown. */

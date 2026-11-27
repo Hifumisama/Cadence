@@ -1,17 +1,17 @@
 /** Replays a dataset with one or several variants through the production executor (`executerSkill`), with no database trace. Every raw
  * answer is captured by wrapping the provider. Nothing is sent unless the caller asks for it explicitly. */
 
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { controleurPourSkill } from "../../lib/llm/checks";
 import { corpsPourSkill, creerFournisseur, maxTokensPourSkill, modelePourSkill } from "../../lib/llm/config";
 import { executerSkill } from "../../lib/llm/execute";
 import { ErreurLlm, type FournisseurLlm, type MessageLlm } from "../../lib/llm/types";
-import { REASONING_CAMPAIGN } from "./campaign";
-import { gitState, LAB_ROOT, readDataset } from "./files";
+import { LIGHT_EXPERIMENT, REASONING_CAMPAIGN } from "./campaign";
+import { gitState, LAB_ROOT, readDataset, readRun } from "./files";
 import { callSeconds } from "./metrics";
 import { countReasoning, type Probes } from "./probes";
-import { materialize, reasoningVariants, variantById, type Variant } from "./variants";
+import { lightVariants, materialize, reasoningVariants, variantById, type Variant } from "./variants";
 import type { CallRecord, Case, RunManifest, SceneInput, SceneOutput } from "./types";
 
 const SKILL = "scenario-scene";
@@ -25,8 +25,10 @@ export type RunOptions = {
   model?: string;
   /** Fields added to the request body; otherwise what production would send. */
   body?: Record<string, unknown>;
-  /** Campaign 02: its two versions are fixed, `variants` stays empty. */
-  campaign?: "02";
+  /** Campaign 02 and experiment 04: their versions are fixed, `variants` stays empty. */
+  campaign?: "02" | "04";
+  /** Experiment 04: folder name of the run of campaign 01 that gives T0. */
+  reuse?: string;
   /** Campaign 02: the variant of campaign 01 that was kept. */
   base?: string;
   /** Campaign 02: three scenes with reasoning only, to check that the run works. */
@@ -52,6 +54,12 @@ export function pickPilotCases(cases: Case[]): Case[] {
 
 /** The variants of a run, in the order they are replayed. */
 export function variantsOf(options: RunOptions): Variant[] {
+  if (options.campaign === "04") {
+    if (options.only?.length || options.body || options.variants.length || options.base || options.pilot || options.repetitions !== 1) throw new Error("Expérience 04 : scène, versions et corps sont fixés (ni --only, ni --body, ni --variants, ni --base, ni --pilot, ni --reps).");
+    if (!options.reuse) throw new Error("Expérience 04 : --reuse <dossier de l'essai de la campagne 01> est obligatoire (il donne T0).");
+    return lightVariants();
+  }
+  if (options.reuse) throw new Error("--reuse ne vaut que pour l'expérience 04.");
   if (options.campaign !== "02") {
     if (options.base || options.pilot) throw new Error("--base et --pilot ne valent que pour la campagne 02 (--campaign 02).");
     // A paired variant reads the generation of another: that one runs first.
@@ -72,28 +80,45 @@ export function variantsOf(options: RunOptions): Variant[] {
 export function planRun(options: RunOptions, now = new Date()): Plan {
   const variants = variantsOf(options);
   const dataset = readDataset(options.dataset);
-  const wanted = dataset.cases.filter((c) => !options.only?.length || options.only.some((o) => c.id === o || c.id.startsWith(`${o}-`)));
+  const light = options.campaign === "04";
+  const only = light ? [LIGHT_EXPERIMENT.scene] : options.only;
+  const wanted = dataset.cases.filter((c) => !only?.length || only.some((o) => c.id === o || c.id.startsWith(`${o}-`)));
   const cases = options.pilot ? pickPilotCases(wanted) : wanted;
   if (cases.length === 0) throw new Error("Aucun cas ne correspond.");
   if (!Number.isInteger(options.repetitions) || options.repetitions < 1) throw new Error("Le nombre de répétitions doit être un entier d'au moins 1.");
-  const reasoning = options.campaign === "02";
-  const suffix = reasoning ? (options.pilot ? "-02-pilote" : "-02") : "";
+  const reasoning = options.campaign !== undefined;
+  const suffix = light ? "-04" : reasoning ? (options.pilot ? "-02-pilote" : "-02") : "";
+  const { variant: reusedVariant, repetition } = LIGHT_EXPERIMENT.reused;
+  const reuse = light ? { run: options.reuse!, variant: reusedVariant, repetition } : undefined;
+  if (reuse) checkReuse(readRun(join(LAB_ROOT, "runs", reuse.run)), reuse, cases[0]!);
   const manifest: RunManifest = {
     id: `${now.toISOString().slice(0, 19).replace(/[:T]/g, "-")}-${options.dataset}${suffix}`,
     dataset: options.dataset,
     startedAt: now.toISOString(),
     ...gitState(),
     model: options.model ?? modelePourSkill(SKILL),
-    // Campaign 02 sets body and cap per version: nothing comes from the environment.
+    // Campaign 02 and experiment 04 set body and cap per version: nothing comes from the environment.
     body: reasoning ? {} : (options.body ?? corpsPourSkill(SKILL) ?? {}),
     maxTokens: reasoning ? REASONING_CAMPAIGN.maxTokens : maxTokensPourSkill(SKILL),
     repetitions: options.repetitions,
     variants: variants.map((v) => ({ id: v.id, label: v.label, systemHash: "", systemChars: 0, ...(v.body ? { body: v.body } : {}), ...(v.maxTokens ? { maxTokens: v.maxTokens } : {}) })),
     cases: cases.map((c) => c.id),
-    ...(reasoning ? { campaign: "02" as const, base: options.base!.toUpperCase(), ...(options.pilot ? { pilot: true } : {}) } : {}),
+    ...(options.campaign === "02" ? { campaign: "02" as const, base: options.base!.toUpperCase(), ...(options.pilot ? { pilot: true } : {}) } : {}),
+    ...(reuse ? { campaign: "04" as const, reuse } : {}),
   };
   const perVariant = cases.length * options.repetitions;
   return { manifest, cases, variants, calls: perVariant * variants.length, conditionalCalls: perVariant * variants.filter((v) => v.retry).length };
+}
+
+/** The reused record stands for T0 only if it saw the same input, without reasoning, and was not cut. The prompt is compared at launch. Pure. */
+export function checkReuse(source: { records: CallRecord[] }, reuse: { variant: string; repetition: number }, item: Case): void {
+  const record = source.records.find((r) => r.caseId === item.id && r.variant === reuse.variant && r.repetition === reuse.repetition);
+  const first = record?.attempts[0];
+  if (!record || !first) throw new Error(`Réutilisation impossible : pas d'appel ${reuse.variant} r${reuse.repetition} pour ${item.id}.`);
+  if (JSON.stringify(record.input) !== JSON.stringify(item.input)) throw new Error("Réutilisation impossible : l'entrée diffère.");
+  const kwargs = (first.request.body as { chat_template_kwargs?: { enable_thinking?: boolean } } | null)?.chat_template_kwargs;
+  if (kwargs?.enable_thinking !== false) throw new Error("Réutilisation impossible : cet appel n'a pas été fait sans réflexion.");
+  if (first.stop === "length") throw new Error("Réutilisation impossible : la réponse est coupée.");
 }
 
 /** Keeps every request and answer of one `executerSkill` call, resends included, with what the probes saw around it. */
@@ -155,7 +180,8 @@ async function execute(record: CallRecord, input: SceneInput, request: SceneInpu
       corps: variant.body ?? manifest.body,
       ...(variant.maxTokens ? { maxTokens: variant.maxTokens } : {}),
       enregistrer: null,
-      controler: (json) => [...(production?.(json) ?? []), ...(variant.extraCheck?.(json as SceneOutput, input) ?? [])],
+      // Experiment 04 compares first answers: no content check, so no resend (a broken format still gets one).
+      ...(manifest.campaign === "04" ? {} : { controler: (json: unknown) => [...(production?.(json) ?? []), ...(variant.extraCheck?.(json as SceneOutput, input) ?? [])] }),
     });
     record.output = result.json as SceneOutput;
     record.resends = resendsBefore + result.renvois;
@@ -221,6 +247,15 @@ export async function launch(
     const root = join(folder, "variants", variant.id);
     Object.assign(plan.manifest.variants[i]!, materialize(variant, root));
     roots.set(variant.id, root);
+  }
+  const { reuse } = plan.manifest;
+  if (reuse) {
+    // T1 must run the very prompt T0 ran.
+    const before = readRun(join(runsRoot, reuse.run)).manifest.variants.find((v) => v.id === reuse.variant)?.systemHash;
+    if (before !== plan.manifest.variants[0]!.systemHash) {
+      rmSync(folder, { recursive: true, force: true });
+      throw new Error("Réutilisation impossible : le prompt de production a changé depuis cet essai.");
+    }
   }
   writeFileSync(join(folder, "manifest.json"), `${JSON.stringify(plan.manifest, null, 2)}\n`);
 

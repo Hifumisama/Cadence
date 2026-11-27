@@ -100,6 +100,8 @@ ${table(
 )}
 
 Le coût détaillé (temps, jetons, mémoire) est dans \`report.md\`.
+
+${contextSection(manifest, records, campaign)}
 ${comments.length ? `\n## Commentaires de lecture\n\n${comments.join("\n")}\n` : ""}`;
 }
 
@@ -138,6 +140,35 @@ export function pilotRows(manifest: RunManifest, records: CallRecord[], campaign
   });
 }
 
+/** What each call left of the server's context, resends and retry included. */
+export function contextRows(manifest: RunManifest, records: CallRecord[], campaign: ReasoningCampaign = REASONING_CAMPAIGN) {
+  return records.flatMap((r) =>
+    r.attempts.map((a, i) => {
+      const cap = a.request.maxTokens ?? manifest.maxTokens ?? campaign.maxTokens;
+      return {
+        record: `${r.caseId} ${r.variant} r${r.repetition}`,
+        kind: i === 0 ? "première" : i === r.retry?.firstAttempts ? "relance" : "renvoi",
+        sent: a.tokensIn,
+        written: a.tokensOut,
+        marginAtCap: campaign.contextSize - a.tokensIn - cap,
+        marginReal: campaign.contextSize - a.tokensIn - a.tokensOut,
+        stop: a.stop ?? "–",
+      };
+    }),
+  );
+}
+
+function contextSection(manifest: RunManifest, records: CallRecord[], campaign: ReasoningCampaign): string {
+  return `## Contexte, appel par appel (${campaign.contextSize} jetons)
+
+${table(
+    ["Enregistrement", "Appel", "Jetons envoyés", "Jetons écrits", "Marge au plafond", "Marge réelle", "Motif d'arrêt"],
+    contextRows(manifest, records, campaign).map((c) => [c.record, c.kind, c.sent, c.written, c.marginAtCap, c.marginReal, c.stop]),
+  )}
+
+Un appel qui échoue (dépassement de contexte compris) ne laisse pas de mesure : il apparaît comme une erreur.`;
+}
+
 /** The pilot passes when every output is structurally valid, none is truncated or failed, and none exceeds the call timeout. */
 const pilotPasses =(rows: PilotRow[], expected: number): boolean =>
   rows.length === expected && rows.every((r) => r.schema && r.structureFindings === 0 && !r.truncated && !r.error && r.seconds <= CALL_TIMEOUT_SECONDS);
@@ -163,5 +194,7 @@ ${table(
   ${seconds(median(rows.map((r) => r.seconds)))} (seuil de la règle : ${campaign.maxMedianSeconds} s).
 - Marge négative au plafond : une réponse qui utiliserait tout le plafond serait coupée par la fin du contexte.
 - Jetons, réflexion et mémoire : \`report.md\`.
+
+${contextSection(manifest, records, campaign)}
 `;
 }

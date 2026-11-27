@@ -15,6 +15,19 @@ npm run labo -- read labo/runs/<essai>                               # prépare 
 npm run labo -- score labo/runs/<essai> --votes <fichier>            # rapport et verdict
 ```
 
+Duels à l'aveugle ([confirmation de C](protocols/03-confirmation.md), [méthode](protocols/qualitative.md)) :
+
+```bash
+npm run labo -- duels labo/runs/<essai>         # sert la page sur ce PC, enregistre les réponses, puis s'arrête
+npm run labo -- duels-score labo/runs/<essai>   # écrit confirmation/verdict.md
+```
+
+Défauts d'écriture relevés, sans changement de prompt : [writing-leads.md](writing-leads.md).
+
+Réflexion (rien en production ; premier essai le 2026-11-27 : T0 préféré à T1 de peu, T1 préféré au skill repensé) : [analyse des skills](proposals/scenario-skills-analysis.md),
+[`scenario-scene` repensé](proposals/scenario-scene-reasoning/SKILL.md),
+[expérience 04](proposals/experiment-04-reasoning-light.md) (`src/light.ts`).
+
 Un essai à plusieurs variantes reste caché (pas de rapport automatique, absent de la page) tant que ses notes ne sont
 pas enregistrées par `score`.
 
@@ -28,7 +41,8 @@ npm run labo -- run duration-259-261-264 --campaign 02 --base B --pilot    # 3 s
 npm run labo -- run duration-259-261-264 --campaign 02 --base B            # la campagne, idem
 ```
 
-Pendant ses appels, le labo relève la mémoire de la carte (ComfyUI, `COMFYUI_URL`) et fait compter les jetons de
+Pendant ses appels, le labo relève la mémoire (ComfyUI, `COMFYUI_URL` ; **le chiffre de VRAM est faux, il ne voit pas
+le modèle**, constaté le 2026-11-27) et fait compter les jetons de
 réflexion par le découpeur du modèle ; une sonde en panne n'arrête rien. Un pilote écrit `pilot.md`, n'est ni lu ni
 noté, et n'apparaît pas dans la page.
 
@@ -58,7 +72,8 @@ Code : `src/page.ts` (données), `src/page/template.html` (affichage).
 | `src/metrics.ts` | mesures automatiques |
 | `src/report.ts` | rapports en français |
 | `src/campaign.ts` | scènes lues, notes et seuils de chaque campagne |
-| `src/reading.ts`, `src/page/reading.html` | lecture à l'aveugle |
+| `src/reading.ts`, `src/page/reading.html` | lecture à l'aveugle à notes (campagne 01) |
+| `src/duel.ts`, `src/duel-server.ts`, `src/page/duel.html` | duels à l'aveugle et enregistrement local des réponses |
 | `src/score.ts` | règle de décision de la campagne 01 |
 | `src/score-reasoning.ts` | règle de la campagne 02 et contrôle de son pilote |
 | `src/probes.ts` | mémoire (ComfyUI) et jetons de réflexion (découpeur du modèle) |
@@ -107,7 +122,8 @@ Toutes automatiques. « Final » = après le code. La **durée brute** est la me
 
 ## Protocole
 
-Campagnes : [01, durée](protocols/01-duration.md), puis [02, réflexion](protocols/02-reasoning.md).
+Campagnes : [01, durée](protocols/01-duration.md), sa [confirmation](protocols/03-confirmation.md), puis
+[02, réflexion](protocols/02-reasoning.md).
 
 ## Limites et biais
 
@@ -139,4 +155,9 @@ et ses tableaux ; le rejeu et les variantes sont à généraliser à ce moment-l
 
   Le serveur réfléchit par défaut ; Cadence coupe la réflexion à chaque appel. Le niveau (xhigh) ne se lit pas dans la
   réponse. Une scène et un appel par réglage ne disent rien de la qualité.
-- Rejeu complet : pas encore lancé.
+- Campagne 01, 2026-11-27 : ni B ni C retenue selon la règle (C réduit l'écart de durée de 19 à 9 %, mais perd
+  2 points de fidélité sur une scène). L'auteur juge C la plus judicieuse ; rien n'est changé en production. La page
+  obligeait à noter : des 3 sans commentaire sont des textes passés. Suites : notes [6](handoff/06-claude-to-gpt.md),
+  [7](handoff/07-claude-to-gpt.md) et [8](handoff/08-claude-to-gpt.md) (confirmation par duels, campagne 02 sur la base A).
+- Confirmation de C, 2026-11-27 : seuil non atteint, 2 duels pour C et 2 pour A
+  ([note 9](handoff/09-claude-to-gpt.md)).
